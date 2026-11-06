@@ -220,6 +220,8 @@ const PHOTOS = {
   "plats-c1": { src: "", title: "Ledig plats", meta: "Korridoren in till Berättelser", tone: "light" },
   "plats-c2": { src: "", title: "Ledig plats", meta: "Korridoren in till Berättelser", tone: "light" }
 };
+// Staden har 18 lediga platser till (plats-s01 … plats-s18): fyll i src och title för att hänga upp ett foto
+for (let i = 1; i <= 18; i++) PHOTOS["plats-s" + String(i).padStart(2, "0")] = { src: "", title: "Ledig plats", meta: "Staden", tone: "dark" };
 
 /*BAKE-START*/
 /* ================= gemensam ljusmotor =================
@@ -306,35 +308,69 @@ const COL = { spot: [1, .93, .82], petrol: [.22, .78, .72], sodium: [1, .58, .18
   sky: [.66, .78, 1], sun: [1, .9, .74], day: [.92, .94, .98], tung: [1, .6, .28], amber: [1, .5, .2] };
 
 /* ================= 01 STADEN =================
-   x: tvärs (perrongväggen x=-4.5, spårväggen x=4.5), y: upp, z: längs (ingången z=0, bortre väggen z=-26)
-   Perrongen: x -4.5…1.0, golv y=0. Spårgraven: x 1.0…4.5, botten y=-1.1. Valv: halvellips a=4.5, b=2.0 från y=3.2. */
-const R = { L: 26, X0: -4.5, X1: 4.5, EDGE: 1.0, PIT: -1.1, SPRING: 3.2, VA: 4.5, VB: 2.0, TUN_END: -40, TCX: 2.75, TCY: 1.2, TR: 1.75 };
-const PLAT = { c: [-1.75, -1.6, -13], h: [2.75, 1.6, 13.5], id: "plat" };
-const SC = { x0: -3.7, x1: -1.5, z1: 5, h: 2.8 };   // korridoren in till perrongen
-const inSC = (x, y, z) => z > 0 && x < R.EDGE, notSC = (x, y, z) => !(z > 0 && x < R.EDGE);
+   En nedlagd tunnelbanestation: två perronger med var sitt spår och en tjock mittvägg med tre genomgångar.
+   x: tvärs (mittväggen x=±0,8, perrongkanten x=±5,8, spårväggen x=±9), y: upp, z: längs (ingången z=0, bortre väggen z=-30).
+   Varje sida har ett eget valv (halvellips) som vilar på mittväggen och spårväggen. Sida A är x<0, sida B x>0. */
+const ST = { L: 30, W2: .8, PE: 5.8, XO: 9, PIT: -1.1, SPR: 3.6, VCX: 4.9, VA: 4.1, VB: 2.2, PZ: [-7.5, -15, -22.5], PW: 2.4, PH: 2.7,
+  TCX: 7.4, TCY: 1.2, TR: 1.6, TF: 12, TN: 4 };
+const PLATB = { c: [ST.PE / 2, -.6, -ST.L / 2], h: [ST.PE / 2, .6, ST.L / 2 + .5] };
+const SC = { x0: -4.4, x1: -2.2, z1: 5, h: 2.8 };   // korridoren in från foajén, på perrong A
+const inSC = (x, y, z) => z > 0 && x < 0 && x > -ST.PE, notSC = (x, y, z) => !inSC(x, y, z);
+const sideA = (x) => x < .1, sideB = (x) => x > -.1;
+const stVault = (ax) => ST.SPR + ST.VB * Math.sqrt(Math.max(0, 1 - ((ax - ST.VCX) / ST.VA) ** 2));
+function stTunnel(ax, y, dz) { let d = Math.min(ax - ST.PE, ST.XO - ax, y - ST.PIT, dz); if (y > ST.TCY) d = Math.min(d, ST.TR - Math.hypot(ax - ST.TCX, y - ST.TCY)); return d; }
 function stadenSDF(x, y, z) {
-  if (z < -26) { let d = Math.min(x - R.EDGE, R.X1 - x, y - R.PIT, z - R.TUN_END); if (y > R.TCY) { const dx = x - R.TCX, dy = y - R.TCY; d = Math.min(d, R.TR - Math.sqrt(dx * dx + dy * dy)); } return d; }
-  if (z > 0 && x < R.EDGE) return Math.min(x - SC.x0, SC.x1 - x, y, SC.h - y, SC.z1 - z);
-  if (z > 0) { let d = Math.min(x - R.EDGE, R.X1 - x, y - R.PIT, 14 - z); if (y > R.TCY) { const dx = x - R.TCX, dy = y - R.TCY; d = Math.min(d, R.TR - Math.sqrt(dx * dx + dy * dy)); } return d; }
-  let d = Math.min(x - R.X0, R.X1 - x, y - R.PIT);
-  const inOpen = x > R.EDGE && (y < R.TCY || Math.hypot(x - R.TCX, y - R.TCY) < R.TR);
-  if (!inOpen) d = Math.min(d, z + R.L);
-  if (!inOpen && !(x > SC.x0 && x < SC.x1 && y < SC.h)) d = Math.min(d, -z);
-  d = Math.min(d, sdBox(x, y, z, PLAT));
-  if (y > R.SPRING) { const ex = x / R.VA, ey = (y - R.SPRING) / R.VB; d = Math.min(d, (1 - Math.sqrt(ex * ex + ey * ey)) * R.VB); }
+  const ax = Math.abs(x);
+  if (z > 0) { if (ax > ST.PE) return stTunnel(ax, y, ST.TN - z); if (x < 0) return Math.min(x - SC.x0, SC.x1 - x, y, SC.h - y, SC.z1 - z); return -z; }
+  if (z < -ST.L) return ax > ST.PE ? stTunnel(ax, y, z + ST.L + ST.TF) : z + ST.L;
+  let d = Math.min(ST.XO - ax, y - ST.PIT);
+  let pz = ST.PZ[0]; for (const p of ST.PZ) if (Math.abs(z - p) < Math.abs(z - pz)) pz = p;
+  const inPass = Math.abs(z - pz) < ST.PW / 2 && y < ST.PH;
+  if (!inPass) d = Math.min(d, ax - ST.W2);
+  else if (ax < ST.W2 + .05) d = Math.min(d, ST.PH - y, ST.PW / 2 - Math.abs(z - pz));
+  const inMouth = ax > ST.PE && (y < ST.TCY || Math.hypot(ax - ST.TCX, y - ST.TCY) < ST.TR);
+  if (!inMouth) d = Math.min(d, z + ST.L);
+  if (!inMouth && !(x > SC.x0 && x < SC.x1 && y < SC.h)) d = Math.min(d, -z);
+  d = Math.min(d, sdBox(ax, y, z, PLATB));
+  if (y > ST.SPR) { const ex = (ax - ST.VCX) / ST.VA, ey = (y - ST.SPR) / ST.VB; d = Math.min(d, (1 - Math.sqrt(ex * ex + ey * ey)) * ST.VB); }
   return d;
 }
-const TUBES_Z = [-3, -8, -13, -18, -23], TUBE_X = -1.8, TUBE_Y = 3.9;
+// fasta block som kastar skugga: perrongerna och mittväggen (mellan och ovanför genomgångarna)
+const ST_SOLIDS = (() => {
+  const b = [], L = ST.L, W2 = ST.W2; let z0 = 0;
+  ST.PZ.forEach((pz, i) => { const z1 = pz + ST.PW / 2; b.push({ c: [0, ST.SPR / 2, (z0 + z1) / 2], h: [W2, ST.SPR / 2, (z0 - z1) / 2], id: "mv" + i }); z0 = pz - ST.PW / 2;
+    b.push({ c: [0, (ST.PH + ST.SPR) / 2, pz], h: [W2, (ST.SPR - ST.PH) / 2, ST.PW / 2], id: "mo" + i }); });
+  b.push({ c: [0, ST.SPR / 2, (z0 - L - .5) / 2], h: [W2, ST.SPR / 2, (z0 + L + .5) / 2], id: "mv3" });
+  b.push({ c: [0, ST.SPR + 1.2, -L / 2], h: [W2, 1.2, L / 2 + .5], id: "mtop" });
+  for (const s of [-1, 1]) b.push({ c: [s * (W2 + ST.PE) / 2, -.6, -L / 2], h: [(ST.PE - W2) / 2, .6, L / 2 + .5], id: "plat" + s });
+  return b;
+})();
+const ST_TZ = [-2.5, -7.5, -12.5, -17.5, -22.5, -27.5], ST_TX = 3.4, ST_TY = 4.3;
 function stadenLights() {
-  TUBES_Z.forEach((z) => addTube([TUBE_X, TUBE_Y, z], 1.4, 2.9, COL.petrol, { only: notSC }));
-  addTube([-2.6, 2.74, 2.6], 3.0, .8, [1, .8, .58], { only: inSC });                 // mjukt ljus i korridoren
-  addPoint([-2.6, 2.0, 4.75], .45, [1, .76, .5], 4, .02, { only: inSC });             // ljus från foajén
-  addPoint([-2.6, 3.05, -.35], 1.7, COL.sodium, 10, .03);         // natriumlampa över dörren till Naturen
-  addPoint([1.6, .55, -35.5], .55, COL.red, 7, .01);              // signalljus djupt inne i tunneln
-  addPoint([2.6, 2.75, -26.2], .35, COL.red, 5, .005);            // rött ljus ovanför tunnelmynningen
-  addPoint([3.95, .95, 9.5], .45, COL.sodium, 7, .01);            // arbetslampa i tunneln bakom ingången
-  addPoint([2.9, 2.75, .2], .3, COL.red, 5, .005);                // rött ljus ovanför den bakre tunnelmynningen
-  addSpot([-4.36, 1.95, -22.8], [-2.4, 0, -21.4], .36, .95, COL.warm, { hard: false, k: 10, bounce: .05, fx: "none" }); // ljus genom den öppna dörren
+  for (const s of [-1, 1]) { const side = s < 0 ? sideA : sideB;
+    ST_TZ.forEach((z) => addTube([s * ST_TX, ST_TY, z], 1.4, 3.2, [.8, .96, .93], { only: (x, y, z) => side(x) && notSC(x, y, z) }));
+    addPoint([s * 7.4, .55, -ST.L - 9], .5, COL.red, 7, .01, { only: side });          // signalljus djupt inne i tunneln
+    addPoint([s * 7.4, 3.05, -ST.L + .2], .3, COL.red, 5, .005, { only: side });      // rött ljus ovanför tunnelmynningen
+  }
+  for (const pz of ST.PZ) addPoint([0, 2.45, pz], .55, [1, .8, .58], 5, .02);          // varmt ljus i genomgångarna
+  addTube([-3.3, 2.74, 2.6], 3.0, .8, [1, .8, .58], { only: inSC });                   // mjukt ljus i korridoren
+  addPoint([-3.3, 2.0, 4.75], .45, [1, .76, .5], 4, .02, { only: inSC });               // ljus från foajén
+}
+function stadenSlots() {
+  const out = [], W2 = ST.W2, XO = ST.XO; let n = 0; const next = () => "plats-s" + String(++n).padStart(2, "0");
+  const wallZ = [-1.9, -4.4, -10, -12.5, -17.5, -20, -25.6, -28.1], A = ["perrongen", "telefonen", "trappan"];
+  // mittväggen, båda sidor
+  for (const s of [-1, 1]) { const side = s < 0 ? sideA : sideB;
+    wallZ.forEach((z, i) => out.push({ key: s < 0 && i < 3 ? A[i] : next(), C: [s * W2, 1.6, z], U: [0, 0, -s], N: [s, 0, 0], h: 1.25,
+      spots: [{ p: [s * (W2 + 1.7), 3.55, z], t: [s * W2, 1.6, z], a: .34, T: 1.9, o: { only: side } }] })); }
+  // stora affischplatser på spårväggarna, tvärs över spåret
+  for (const s of [-1, 1]) { const side = s < 0 ? sideA : sideB;
+    ST.PZ.forEach((z, i) => out.push({ key: s < 0 && i === 1 ? "tunneln" : next(), C: [s * XO, 1.9, z], U: [0, 0, s], N: [-s, 0, 0], w: 3.0,
+      spots: [-.95, .95].map((dz) => ({ p: [s * 5.5, 4.6, z + dz], t: [s * XO, 1.9, z + dz], a: .4, T: 1.05, o: { only: side } })) })); }
+  out.push({ key: "norrtull", C: [-3.3, 1.9, -ST.L], U: [1, 0, 0], N: [0, 0, 1], w: 3.0, spots: [{ p: [-3.3, 4.4, -ST.L + 2.6], t: [-3.3, 1.9, -ST.L], a: .42, T: 1.45, o: { only: sideA } }] });
+  out.push({ key: "plats-a1", C: [SC.x0, 1.55, 2.5], U: [0, 0, -1], N: [1, 0, 0], h: 1.1, spots: [{ p: [SC.x0 + .85, 2.72, 2.5], t: [SC.x0, 1.55, 2.5], a: .48, T: 1.5, o: { fx: "head", only: inSC } }] });
+  out.push({ key: "plats-a2", C: [SC.x1, 1.55, 2.5], U: [0, 0, 1], N: [-1, 0, 0], h: 1.1, spots: [{ p: [SC.x1 - .85, 2.72, 2.5], t: [SC.x1, 1.55, 2.5], a: .48, T: 1.5, o: { fx: "head", only: inSC } }] });
+  return out;
 }
 
 /* ================= 02 NATUREN =================
@@ -447,20 +483,14 @@ function foyLights() {
 /* ================= rummen ================= */
 const SPECS = {
   staden: { num: "01", name: "Staden", sub: "Betong, stål och kallt ljus", next: "naturen",
-    intro: "En nedlagd perrong under staden, där bara fotografierna är kvar. Gå runt i din egen takt och tryck på en bild för att se den i full storlek.",
-    sdf: stadenSDF, amb: () => [.016, .022, .022], solids: [PLAT], lights: stadenLights,
-    ceil: (x, z) => z > 0 ? SC.h : R.SPRING + R.VB * Math.sin(Math.acos(clamp(x / R.VA, -1, 1))),
-    start: { x: -2.6, z: 4.2, yaw: 0 }, walk: [{ x0: -4.15, x1: .62, z0: -25.55, z1: -.4 }, { x0: -3.25, x1: -1.95, z0: -.6, z1: 4.6 }],
-    look: { fog: 0x050808, density: .021, bg: 0x020303, exposure: 1.18, bloom: .62, thr: 1.15 }, step: 500, wet: .55,
-    slots: [
-      { key: "perrongen", C: [-4.5, 1.62, -6], U: [0, 0, -1], N: [1, 0, 0], h: 1.42, spots: [{ p: [-3.05, 3.95, -6], t: [-4.5, 1.62, -6], a: .33, T: 1.9 }] },
-      { key: "telefonen", C: [-4.5, 1.62, -11], U: [0, 0, -1], N: [1, 0, 0], h: 1.42, spots: [{ p: [-3.05, 3.95, -11], t: [-4.5, 1.62, -11], a: .33, T: 1.9 }] },
-      { key: "trappan", C: [-4.5, 1.62, -16], U: [0, 0, -1], N: [1, 0, 0], h: 1.42, spots: [{ p: [-3.05, 3.95, -16], t: [-4.5, 1.62, -16], a: .33, T: 1.9 }] },
-      { key: "tunneln", C: [4.5, 1.42, -10], U: [0, 0, 1], N: [-1, 0, 0], w: 3.5, spots: [{ p: [2.55, 4.3, -10.95], t: [4.5, 1.42, -10.95], a: .4, T: 1.05 }, { p: [2.55, 4.3, -9.05], t: [4.5, 1.42, -9.05], a: .4, T: 1.05 }] },
-      { key: "norrtull", C: [-1.75, 1.78, -26], U: [1, 0, 0], N: [0, 0, 1], w: 3.1, spots: [{ p: [-1.75, 4.3, -23.35], t: [-1.75, 1.78, -26], a: .42, T: 1.45 }] },
-      { key: "plats-a1", C: [SC.x0, 1.55, 2.5], U: [0, 0, -1], N: [1, 0, 0], h: 1.1, spots: [{ p: [-2.75, 2.72, 2.5], t: [SC.x0, 1.55, 2.5], a: .48, T: 1.5, o: { fx: "head", only: inSC } }] },
-      { key: "plats-a2", C: [SC.x1, 1.55, 2.5], U: [0, 0, 1], N: [-1, 0, 0], h: 1.1, spots: [{ p: [-2.45, 2.72, 2.5], t: [SC.x1, 1.55, 2.5], a: .48, T: 1.5, o: { fx: "head", only: inSC } }] }
-    ] },
+    intro: "En nedlagd tunnelbanestation med två perronger. Gå genom valven i mittväggen för att se båda sidor, och tryck på en bild för att se den i full storlek.",
+    sdf: stadenSDF, amb: (x, y, z) => z > 0 ? [.02, .02, .02] : [.05, .062, .062], solids: ST_SOLIDS, lights: stadenLights,
+    ceil: (x, z) => z > 0 ? SC.h : Math.abs(x) < ST.W2 ? ST.PH : stVault(Math.abs(x)),
+    start: { x: -3.3, z: 4.2, yaw: 0 },
+    walk: [{ x0: -5.55, x1: -1.05, z0: -29.55, z1: -.4 }, { x0: 1.05, x1: 5.55, z0: -29.55, z1: -.4 }, { x0: -3.95, x1: -2.65, z0: -.6, z1: 4.6 }]
+      .concat(ST.PZ.map((pz) => ({ x0: -1.2, x1: 1.2, z0: pz - .85, z1: pz + .85 }))),
+    look: { fog: 0x060909, density: .016, bg: 0x020303, exposure: 1.3, bloom: .5, thr: 1.3 }, step: 500, wet: .4,
+    slots: stadenSlots() },
   naturen: { num: "02", name: "Naturen", sub: "Ut ur mörkret, in i ljuset", next: "berattelser",
     intro: "Du kliver ut ur mörkret. Dagsljus, luft och färg: havet, kusten, bergen och hösten.",
     sdf: naturenSDF, solids: [], lights: naturenLights,
@@ -845,226 +875,91 @@ function useRoom(key) {
 
   /* ================= 01 STADEN ================= */
   let TEX;
+  // ändväggens form i (|x|, v) där v = y + 1,1: perrong, tunnelmynning över spåret och valvet upptill
+  function stEndPoly(notch) {
+    const P = [[ST.W2, 1.1]];
+    if (notch) P.push([-SC.x1, 1.1], [-SC.x1, SC.h + 1.1], [-SC.x0, SC.h + 1.1], [-SC.x0, 1.1]);
+    P.push([ST.PE, 1.1], [ST.PE, ST.TCY + 1.1]);
+    for (let i = 1; i < 16; i++) { const a = Math.PI - Math.PI * i / 16; P.push([ST.TCX + ST.TR * Math.cos(a), ST.TCY + 1.1 + ST.TR * Math.sin(a)]); }
+    P.push([ST.XO, ST.TCY + 1.1], [ST.XO, ST.SPR + 1.1]);
+    for (let i = 1; i < 28; i++) { const th = Math.PI * i / 28; P.push([ST.VCX + ST.VA * Math.cos(th), ST.SPR + 1.1 + ST.VB * Math.sin(th)]); }
+    P.push([ST.W2, ST.SPR + 1.1]);
+    return P;
+  }
+  function endWall(side, far) {
+    const poly = stEndPoly(!far && side < 0), W2 = ST.W2, XO = ST.XO; let O, U, toU;
+    if (far) { U = [1, 0, 0]; if (side < 0) { O = [-XO, ST.PIT, -ST.L]; toU = (ax) => XO - ax; } else { O = [W2, ST.PIT, -ST.L]; toU = (ax) => ax - W2; } }
+    else { U = [-1, 0, 0]; if (side < 0) { O = [-W2, ST.PIT, 0]; toU = (ax) => ax - W2; } else { O = [XO, ST.PIT, 0]; toU = (ax) => XO - ax; } }
+    planar({ name: far ? "bortre vägg" : "ingångsvägg", O, U, V: [0, 1, 0], lu: XO - W2, lv: ST.SPR + ST.VB + 1.1, shape: poly.map(([ax, v]) => [toU(ax), v]), map: TEX.end, tu: 4.5, tv: 6.3 });
+  }
   function buildShell() {
     TEX = {
-      wall: T(concreteWall(11, 4, 3.2, "#5f605b", { dirtM: .6 })),
-      track: T(concreteWall(23, 4, 4.3, "#4d4f4b", { dirtM: .4, oilBand: 1.25, efflor: true })),
-      end: T(concreteWall(37, 4.5, 6.3, "#55574f", { dirtM: .5, oilBand: 1.1 })),
+      wall: T(concreteWall(11, 4, 3.2, "#6b6c67", { dirtM: .5 })),
+      track: T(concreteWall(23, 4, 4.3, "#575954", { dirtM: .4, oilBand: 1.25, efflor: true })),
+      end: T(concreteWall(37, 4.5, 6.3, "#5e605a", { dirtM: .5, oilBand: 1.1 })),
       vault: T(vaultTex(5)), floor: T(floorTex(7)), ballast: T(ballastTex(3)), tunnel: T(vaultTex(19))
     };
-    // perronggolv
-    planar({ name: "golv", floor: true, O: [R.X0, 0, 0], U: [1, 0, 0], V: [0, 0, -1], lu: 5.5, lv: 26, map: TEX.floor, tu: 5.5, tv: 2.4 });
-    planar({ name: "spårbädd", O: [R.EDGE, R.PIT, 0], U: [1, 0, 0], V: [0, 0, -1], lu: 3.5, lv: 26, map: TEX.ballast, tu: 1.5, tv: 1.5 });
-    planar({ name: "kantvägg", O: [R.EDGE, R.PIT, 0], U: [0, 0, -1], V: [0, 1, 0], lu: 26, lv: 1.1, map: TEX.track, tu: 4, tv: 4.3, color: 0x8a8a84 });
-    planar({ name: "perrongvägg", O: [R.X0, 0, 0], U: [0, 0, -1], V: [0, 1, 0], lu: 26, lv: 3.2, map: TEX.wall, tu: 4, tv: 3.2 });
-    planar({ name: "spårvägg", O: [R.X1, R.PIT, -26], U: [0, 0, 1], V: [0, 1, 0], lu: 26, lv: 4.3, map: TEX.track, tu: 4, tv: 4.3 });
-    arc({ name: "valv", cx: 0, cy: R.SPRING, a: R.VA, b: R.VB, th0: 0, th1: Math.PI, z0: 0, z1: -26, map: TEX.vault, tu: 3, tv: 3 });
-    // bortre väggen med tunnelmynning
-    const far = [[0, 1.1], [5.5, 1.1], [5.5, 2.3]];
-    for (let i = 1; i < 16; i++) { const a = Math.PI - Math.PI * i / 16; far.push([7.25 + 1.75 * Math.cos(a), 2.3 + 1.75 * Math.sin(a)]); }
-    far.push([9, 2.3], [9, 4.3]);
-    for (let i = 1; i < 24; i++) { const th = Math.PI * i / 24; far.push([4.5 + 4.5 * Math.cos(th), 4.3 + 2 * Math.sin(th)]); }
-    far.push([0, 4.3]);
-    planar({ name: "bortre vägg", O: [R.X0, R.PIT, -26], U: [1, 0, 0], V: [0, 1, 0], lu: 9, lv: 6.3, shape: far, map: TEX.end, tu: 4.5, tv: 6.3 });
-    // ingångsväggen, med tunnelmynning över spårgraven
-    const ent = [[3.5, 1.1], [6.0, 1.1], [6.0, 3.9], [8.2, 3.9], [8.2, 1.1], [9, 1.1], [9, 4.3]];
-    for (let i = 1; i < 24; i++) { const th = Math.PI - Math.PI * i / 24; ent.push([4.5 - 4.5 * Math.cos(th), 4.3 + 2 * Math.sin(th)]); }
-    ent.push([0, 4.3], [0, 2.3]);
-    for (let i = 1; i < 16; i++) { const a = Math.PI - Math.PI * i / 16; ent.push([1.75 + 1.75 * Math.cos(a), 2.3 + 1.75 * Math.sin(a)]); }
-    ent.push([3.5, 2.3]);
-    planar({ name: "ingångsvägg", O: [R.X1, R.PIT, 0], U: [-1, 0, 0], V: [0, 1, 0], lu: 9, lv: 6.3, shape: ent, map: TEX.end, tu: 4.5, tv: 6.3 });
-    // tunneln
-    planar({ name: "tunnelbotten", O: [R.EDGE, R.PIT, -26], U: [1, 0, 0], V: [0, 0, -1], lu: 3.5, lv: 14, map: TEX.ballast, tu: 1.5, tv: 1.5, res: RES * .6 });
-    planar({ name: "tunnelvägg v", O: [R.EDGE, R.PIT, -26], U: [0, 0, -1], V: [0, 1, 0], lu: 14, lv: 2.3, map: TEX.tunnel, tu: 3, tv: 3, res: RES * .6 });
-    planar({ name: "tunnelvägg h", O: [R.X1, R.PIT, -40], U: [0, 0, 1], V: [0, 1, 0], lu: 14, lv: 2.3, map: TEX.tunnel, tu: 3, tv: 3, res: RES * .6 });
-    arc({ name: "tunnelvalv", cx: R.TCX, cy: R.TCY, a: R.TR, b: R.TR, th0: 0, th1: Math.PI, z0: -26, z1: -40, map: TEX.tunnel, tu: 3, tv: 3, res: RES * .6 });
-    const endT = new THREE.Mesh(new THREE.PlaneGeometry(3.5, 4.2), new THREE.MeshBasicMaterial({ color: 0x000000 })); endT.position.set(2.75, .9, -39.9); scene.add(endT);
-    // tunneln bakom ingången
-    planar({ name: "tunnelbotten 2", O: [R.EDGE, R.PIT, 14], U: [1, 0, 0], V: [0, 0, -1], lu: 3.5, lv: 14, map: TEX.ballast, tu: 1.5, tv: 1.5, res: RES * .6 });
-    planar({ name: "tunnelvägg v 2", O: [R.EDGE, R.PIT, 14], U: [0, 0, -1], V: [0, 1, 0], lu: 14, lv: 2.3, map: TEX.tunnel, tu: 3, tv: 3, res: RES * .6 });
-    planar({ name: "tunnelvägg h 2", O: [R.X1, R.PIT, 0], U: [0, 0, 1], V: [0, 1, 0], lu: 14, lv: 2.3, map: TEX.tunnel, tu: 3, tv: 3, res: RES * .6 });
-    arc({ name: "tunnelvalv 2", cx: R.TCX, cy: R.TCY, a: R.TR, b: R.TR, th0: 0, th1: Math.PI, z0: 0, z1: 14, map: TEX.tunnel, tu: 3, tv: 3, res: RES * .6 });
-    const endT2 = new THREE.Mesh(new THREE.PlaneGeometry(3.5, 4.2), new THREE.MeshBasicMaterial({ color: 0x000000 })); endT2.position.set(2.75, .9, 13.9); endT2.rotation.y = Math.PI; scene.add(endT2);
+    const L = ST.L, W2 = ST.W2, PE = ST.PE, XO = ST.XO, PIT = ST.PIT, lo = RES * .6;
+    for (const s of [-1, 1]) {
+      const A = s < 0;
+      planar({ name: "perrong", floor: true, O: [A ? -PE : W2, 0, 0], U: [1, 0, 0], V: [0, 0, -1], lu: PE - W2, lv: L, map: TEX.floor, tu: 5.5, tv: 2.4 });
+      planar({ name: "spårbädd", O: [A ? -XO : PE, PIT, 0], U: [1, 0, 0], V: [0, 0, -1], lu: XO - PE, lv: L, map: TEX.ballast, tu: 1.5, tv: 1.5, res: lo });
+      planar({ name: "kantvägg", O: A ? [-PE, PIT, -L] : [PE, PIT, 0], U: A ? [0, 0, 1] : [0, 0, -1], V: [0, 1, 0], lu: L, lv: -PIT, map: TEX.track, tu: 4, tv: 4.3, color: 0x8a8a84 });
+      planar({ name: "spårvägg", O: A ? [-XO, PIT, 0] : [XO, PIT, -L], U: A ? [0, 0, -1] : [0, 0, 1], V: [0, 1, 0], lu: L, lv: ST.SPR - PIT, map: TEX.track, tu: 4, tv: 4.3 });
+      arc({ name: "valv", cx: s * ST.VCX, cy: ST.SPR, a: ST.VA, b: ST.VB, th0: 0, th1: Math.PI, z0: 0, z1: -L, map: TEX.vault, tu: 3, tv: 3, res: RES * .75 });
+      endWall(s, true); endWall(s, false);
+      // mittväggens sida, med genomgångarna urtagna nertill
+      const toU = (z) => A ? z + L : -z, sh = [[0, 0]];
+      ST.PZ.map((pz) => [toU(pz - ST.PW / 2), toU(pz + ST.PW / 2)].sort((a, b) => a - b)).sort((a, b) => a[0] - b[0])
+        .forEach(([u0, u1]) => sh.push([u0, 0], [u0, ST.PH], [u1, ST.PH], [u1, 0]));
+      sh.push([L, 0], [L, ST.SPR], [0, ST.SPR]);
+      planar({ name: "mittvägg", O: A ? [-W2, 0, -L] : [W2, 0, 0], U: A ? [0, 0, 1] : [0, 0, -1], V: [0, 1, 0], lu: L, lv: ST.SPR, shape: sh, map: TEX.wall, tu: 4, tv: 3.2 });
+      // tunnlarna: en lång i bortre änden, en kort bakom ingången
+      for (const [z0, len] of [[-L, ST.TF], [ST.TN, ST.TN]]) {
+        planar({ O: [A ? -XO : PE, PIT, z0], U: [1, 0, 0], V: [0, 0, -1], lu: XO - PE, lv: len, map: TEX.ballast, tu: 1.5, tv: 1.5, res: lo });
+        planar({ O: A ? [-PE, PIT, z0 - len] : [PE, PIT, z0], U: A ? [0, 0, 1] : [0, 0, -1], V: [0, 1, 0], lu: len, lv: ST.TCY - PIT, map: TEX.tunnel, tu: 3, tv: 3, res: lo });
+        planar({ O: A ? [-XO, PIT, z0] : [XO, PIT, z0 - len], U: A ? [0, 0, -1] : [0, 0, 1], V: [0, 1, 0], lu: len, lv: ST.TCY - PIT, map: TEX.tunnel, tu: 3, tv: 3, res: lo });
+        arc({ cx: s * ST.TCX, cy: ST.TCY, a: ST.TR, b: ST.TR, th0: 0, th1: Math.PI, z0, z1: z0 - len, map: TEX.tunnel, tu: 3, tv: 3, res: lo });
+        const end = new THREE.Mesh(new THREE.PlaneGeometry(XO - PE, 3.2), new THREE.MeshBasicMaterial({ color: 0x000000 }));
+        if (z0 > 0) { end.position.set(s * ST.TCX, 1.0, z0 - .05); end.rotation.y = Math.PI; } else end.position.set(s * ST.TCX, 1.0, z0 - len + .05);
+        scene.add(end);
+      }
+    }
+    // genomgångarna genom mittväggen
+    for (const pz of ST.PZ) {
+      const z0 = pz + ST.PW / 2, z1 = pz - ST.PW / 2;
+      planar({ name: "genomgång", floor: true, O: [-W2, 0, z0], U: [1, 0, 0], V: [0, 0, -1], lu: 2 * W2, lv: ST.PW, map: TEX.floor, tu: 5.5, tv: 2.4 });
+      planar({ O: [-W2, ST.PH, z1], U: [1, 0, 0], V: [0, 0, 1], lu: 2 * W2, lv: ST.PW, map: TEX.wall, tu: 4, tv: 3.2 });
+      planar({ O: [W2, 0, z0], U: [-1, 0, 0], V: [0, 1, 0], lu: 2 * W2, lv: ST.PH, map: TEX.wall, tu: 4, tv: 3.2 });
+      planar({ O: [-W2, 0, z1], U: [1, 0, 0], V: [0, 1, 0], lu: 2 * W2, lv: ST.PH, map: TEX.wall, tu: 4, tv: 3.2 });
+    }
   }
 
   /* ---------- material för föremål ---------- */
   const PC = { steel: 0x2a2c2c, black: 0x111212, frame: 0x0b0b0b, wood: 0xb07a42, rail: 0x6e6a64, sleeper: 0x2e2621, white: 0xe4e1d8, door: 0x3a3f3d, pale: 0x8b8e8a };
 
+  function stBench(bx, bz, s) { // s: åt vilket håll bänken vetter (+1 = +x)
+    const id = "bench" + bx + bz;
+    for (const dx of [-.16, 0, .16]) prop(new THREE.BoxGeometry(.13, .04, 2.0, 1, 1, 8), { color: PC.wood }, new V3(bx + dx, .46, bz), null, { id });
+    for (const dy of [.62, .78]) prop(new THREE.BoxGeometry(.04, .13, 2.0, 1, 1, 8), { color: PC.wood }, new V3(bx - s * .24, dy, bz), [0, 0, -.12 * s], { id });
+    for (const dz of [-.8, .8]) { prop(new THREE.BoxGeometry(.05, .46, .05), { color: PC.pale }, new V3(bx, .23, bz + dz), null, { id }); prop(new THREE.BoxGeometry(.05, .5, .05), { color: PC.pale }, new V3(bx - s * .22, .62, bz + dz), [0, 0, -.12 * s], { id }); }
+    colliders.push({ x0: bx - .32, x1: bx + .32, z0: bz - 1.05, z1: bz + 1.05 });
+  }
   function buildProps() {
-    // lysrör i petrol längs perrongen
-    TUBES_Z.forEach((z, i) => {
-      prop(new THREE.BoxGeometry(.16, .07, 1.5, 1, 1, 6), { color: 0x9a9d98 }, new V3(TUBE_X, TUBE_Y + .06, z), null, { shadow: false });
-      const vY = R.SPRING + R.VB * Math.sin(Math.acos(TUBE_X / R.VA));
-      for (const dz of [-.6, .6]) prop(new THREE.CylinderGeometry(.006, .006, vY - TUBE_Y - .1, 4), { color: PC.black }, new V3(TUBE_X, (vY + TUBE_Y + .1) / 2, z + dz), null, { shadow: false });
-    });
-    // bänk som på perrongbilden: träribbor, stålben
-    { const bx = -2.25, bz = -13.6, g = new THREE.Group(); scene.add(g);
-      for (const dx of [-.16, 0, .16]) prop(new THREE.BoxGeometry(.13, .04, 2.0, 1, 1, 8), { color: PC.wood }, new V3(bx + dx, .46, bz), null, { id: "bench" });
-      for (const dy of [.62, .78]) prop(new THREE.BoxGeometry(.04, .13, 2.0, 1, 1, 8), { color: PC.wood }, new V3(bx - .24, dy, bz), [0, 0, -.12], { id: "bench" });
-      for (const dz of [-.8, .8]) { prop(new THREE.BoxGeometry(.05, .46, .05), { color: PC.pale }, new V3(bx, .23, bz + dz), null, { id: "bench" }); prop(new THREE.BoxGeometry(.05, .5, .05), { color: PC.pale }, new V3(bx - .22, .62, bz + dz), [0, 0, -.12], { id: "bench" }); prop(new THREE.BoxGeometry(.42, .04, .05), { color: PC.pale }, new V3(bx - .02, .43, bz + dz), null, { id: "bench" }); }
-      colliders.push({ x0: bx - .3, x1: bx + .1, z0: bz - 1.05, z1: bz + 1.05 }); }
-    // papperskorg
-    prop(new THREE.CylinderGeometry(.21, .19, .78, 24, 3), { color: 0x23302c }, new V3(-4.15, .39, -8.6), null, { collide: true });
-    // stålpelare (HEB) vid perrongkanten
-    for (const z of [-4.2, -19.6]) {
-      const top = R.SPRING + R.VB * Math.sin(Math.acos(.3 / R.VA));
-      prop(new THREE.BoxGeometry(.02, top, .22, 1, 12, 1), { color: PC.steel }, new V3(.3, top / 2, z), null, { id: "col" + z, collide: true });
-      prop(new THREE.BoxGeometry(.24, top, .02, 1, 12, 1), { color: PC.steel }, new V3(.3, top / 2, z - .11), null, { id: "col" + z });
-      prop(new THREE.BoxGeometry(.24, top, .02, 1, 12, 1), { color: PC.steel }, new V3(.3, top / 2, z + .11), null, { id: "col" + z });
-    }
-    // räls och syllar
-    for (const x of [2.03, 3.47]) prop(new THREE.BoxGeometry(.07, .14, 54, 1, 1, 108), { color: PC.rail }, new V3(x, R.PIT + .19, -13), null, { shadow: false });
-    prop(new THREE.BoxGeometry(.2, .12, .08), { color: 0x5a5a50 }, new V3(-2.6, 3.05, -.08), null, { shadow: false });  // natriumarmatur
-    // dörr på glänt längst bort
-    { const hz = -22.17, w = .9, ang = 1.0, leaf = new THREE.Group(); leaf.position.set(-4.47, 0, hz); leaf.rotation.y = -ang; scene.add(leaf);
-      prop(new THREE.BoxGeometry(.05, 2.1, w, 1, 6, 3), { color: PC.door }, new V3(.025, 1.05, -w / 2), null, { parent: leaf, id: "leaf" });
-      for (const z of [hz + .05, hz - w - .05]) prop(new THREE.BoxGeometry(.08, 2.2, .06), { color: PC.black }, new V3(-4.46, 1.1, z), null, { id: "jamb" });
-      prop(new THREE.BoxGeometry(.08, .06, w + .16), { color: PC.black }, new V3(-4.46, 2.18, hz - w / 2), null, { id: "jamb" });
-      const glowP = new THREE.Mesh(new THREE.PlaneGeometry(w, 2.1), new THREE.MeshBasicMaterial({ color: new THREE.Color(2.4, 1.6, .9) })); glowP.rotation.y = Math.PI / 2; glowP.position.set(-4.49, 1.05, hz - w / 2); scene.add(glowP); glowP.userData.exit = "naturen"; occluders.push(glowP);
-    }
-  }
-  /* ---------- figurer: människor i mörkret, byggda av mjuka former med kläder ---------- */
-  function shadowOf(mesh, id) { const bb = aabbOf(mesh); OBJ.push({ c: bb.c, h: bb.h, id }); }
-  function clothTex(kind) {
-    const S = 256, c = cnv(S, S), x = c.getContext("2d"), r = rng(kind.length * 13);
-    if (kind === "denim") { x.fillStyle = "#3a5275"; x.fillRect(0, 0, S, S);
-      for (let i = -S; i < S * 2; i += 3) { x.strokeStyle = `rgba(${r() > .5 ? "190,205,225" : "10,20,40"},${.08 + r() * .12})`; x.lineWidth = 1; x.beginPath(); x.moveTo(i, 0); x.lineTo(i + S * .5, S); x.stroke(); }
-      blotches(x, S, S, 26, 5, ["150,170,200", "20,30,50"], 10, 50, .12, .3);
-    } else if (kind === "knit") { x.fillStyle = "#6e6b5c"; x.fillRect(0, 0, S, S);
-      for (let i = 0; i < S; i += 4) { x.fillStyle = "rgba(0,0,0,.16)"; x.fillRect(i, 0, 1.5, S); x.fillStyle = "rgba(255,255,240,.06)"; x.fillRect(i + 2, 0, 1, S); }
-      for (let j = 0; j < S; j += 3) { x.fillStyle = "rgba(0,0,0,.05)"; x.fillRect(0, j, S, 1); }
-    } else { x.fillStyle = "#3b3d42"; x.fillRect(0, 0, S, S); blotches(x, S, S, 30, 7, ["20,20,24", "90,92,98"], 10, 50, .1, .25); }
-    grain(x, S, S, 20, kind.length); return T(c);
-  }
-  let CLOTH = null;
-  function printTex() { // "EBB" på ryggen av luvtröjan, lite sliten
-    const c = cnv(512, 256), x = c.getContext("2d"), r = rng(5);
-    x.fillStyle = "#f2efe8"; x.textAlign = "center"; x.textBaseline = "middle"; x.font = '800 210px "Big Shoulders Display", "Arial Narrow", sans-serif';
-    if (x.letterSpacing !== undefined) x.letterSpacing = "18px"; x.fillText("EBB", 265, 136);
-    x.globalCompositeOperation = "destination-out"; for (let i = 0; i < 4000; i++) { x.fillStyle = `rgba(0,0,0,${r() * .7})`; x.fillRect(r() * 512, r() * 256, 2, 2); }
-    return T(c, true, false);
-  }
-  // del av en figur. color: albedo, map: tygstruktur
-  function part(parent, geo, color, map, pos, o) {
-    o = o || {};
-    const opts = { color }; if (map) opts.map = map; if (o.mat) Object.assign(opts, o.mat);
-    const m = prop(geo, opts, pos, null, { parent, id: o.id, shadow: false });
-    if (o.quat) m.quaternion.copy(o.quat); if (o.rot) m.rotation.set(...o.rot); if (o.scale) m.scale.set(...o.scale);
-    if (o.cast) shadowOf(m, o.id); return m;
-  }
-  // tapered lem mellan två leder, med en mjuk led i slutet
-  function seg(parent, a, b, r0, r1, color, map, id, cast, joint) {
-    const A = new V3(...a), B = new V3(...b), d = B.clone().sub(A), len = d.length();
-    part(parent, new THREE.CylinderGeometry(r1, r0, len, 16, 4), color, map, A.clone().add(B).multiplyScalar(.5), { id, cast, quat: new THREE.Quaternion().setFromUnitVectors(new V3(0, 1, 0), d.clone().normalize()) });
-    if (joint !== false) part(parent, new THREE.SphereGeometry(r1, 16, 10), color, map, B, { id });
-  }
-  function ell(parent, p, r, s, color, map, id, cast, rot) { return part(parent, new THREE.SphereGeometry(r, 22, 16), color, map, new V3(...p), { id, cast, scale: s, rot }); }
-  // bål som rotationskropp längs ryggraden (bäcken → nacke), tillplattad framifrån
-  function torso(parent, pelvis, neck, prof, color, map, id, flat) {
-    const P = new V3(...pelvis), N = new V3(...neck), d = N.clone().sub(P), len = d.length();
-    const holder = new THREE.Group(); holder.position.copy(P); holder.quaternion.setFromUnitVectors(new V3(0, 1, 0), d.normalize()); parent.add(holder);
-    part(holder, new THREE.LatheGeometry(prof.map(([rr, t]) => new THREE.Vector2(rr, t * len)), 28), color, map, new V3(0, 0, 0), { id, cast: true, scale: [1, 1, flat || .66] });
-    return { holder, len };
-  }
-  function sneaker(parent, ax, az, upper, sole, id, yaw) { // fot som mjuk form, ingen sula
-    const g = new THREE.Group(); g.position.set(ax, 0, az); g.rotation.y = yaw || 0; parent.add(g);
-    ell(g, [0, .05, .06], .062, [.95, .8, 2.2], upper, null, id);
-    ell(g, [0, .07, -.02], .06, [.95, 1.0, 1.1], upper, null, id);
-  }
-  // siluettmaterial: nästan svart, kanterna tonar ut som en suddig skugga
-  function silMat(op) {
-    return new THREE.ShaderMaterial({
-      uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { uColor: { value: new THREE.Color(.005, .007, .007) }, uOpacity: { value: op } }]),
-      vertexShader: ["varying vec3 vN; varying vec3 vV;", "#include <fog_pars_vertex>", "void main(){",
-        "  vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);", "  vN = normalize(normalMatrix * normal); vV = normalize(-mvPosition.xyz);",
-        "  gl_Position = projectionMatrix * mvPosition;", "#include <fog_vertex>", "}"].join("\n"),
-      fragmentShader: ["uniform vec3 uColor; uniform float uOpacity; varying vec3 vN; varying vec3 vV;", "#include <fog_pars_fragment>", "void main(){",
-        "  float f = abs(dot(normalize(vN), normalize(vV)));", "  float a = smoothstep(0.0, 0.6, f) * uOpacity;",
-        "  gl_FragColor = vec4(uColor, a);", "#include <fog_fragment>", "}"].join("\n"),
-      transparent: true, depthWrite: false, fog: true
-    });
-  }
-  function silhouetteize(group, mat) {
-    group.traverse((o) => { if (!o.isMesh) return; o.material = mat; o.renderOrder = 5; const k = props.findIndex((p) => p.mesh === o); if (k >= 0) props.splice(k, 1); });
-  }
-  const SKIN = 0x3a2a22, HAIR = 0x111010;
-  function head(parent, c, id, o) {
-    o = o || {};
-    ell(parent, c, .1, [.88, 1.12, 1], SKIN, null, id, true, o.rot);
-    if (!o.hood) ell(parent, [c[0], c[1] + .035, c[2] - .012], .104, [.92, .9, 1.04], HAIR, null, id, false, o.rot);
-  }
-  function place(x, y, z, faceTo) { const g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = Math.atan2(faceTo[0] - x, faceTo[1] - z); scene.add(g); return g; }
-
-  // mannen på bänken: framåtlutad, underarmarna på knäna, luvtröja med "EBB" på ryggen, vita sneakers
-  function hoodieSitter(x, z, faceTo) {
-    const g = place(x, 0, z, faceTo), id = "fig" + (uid++), HOOD = 0x34363b, PANTS = 0x1b1c1e, WHITE = 0xf1efe9;
     for (const s of [-1, 1]) {
-      seg(g, [s * .1, .57, -.04], [s * .135, .56, .4], .088, .077, PANTS, CLOTH.fleece, id, true);
-      seg(g, [s * .135, .56, .4], [s * .15, .12, .46], .072, .056, PANTS, CLOTH.fleece, id, true);
-      sneaker(g, s * .15, .45, WHITE, 0xfafaf6, id, s * .1);
-      // överarm ner till armbågen som vilar ovanpå knät, underarmen snett inåt mot händerna
-      seg(g, [s * .2, .96, .2], [s * .14, .7, .41], .078, .068, HOOD, CLOTH.fleece, id, true);
-      seg(g, [s * .14, .7, .41], [s * .035, .655, .63], .064, .05, HOOD, CLOTH.fleece, id, true);
+      // lysrör i armaturer längs perrongen
+      ST_TZ.forEach((z) => { prop(new THREE.BoxGeometry(.16, .07, 1.5, 1, 1, 6), { color: 0x9a9d98 }, new V3(s * ST_TX, ST_TY + .06, z), null, { shadow: false });
+        const vY = stVault(ST_TX); for (const dz of [-.6, .6]) prop(new THREE.CylinderGeometry(.006, .006, vY - ST_TY - .1, 4), { color: PC.black }, new V3(s * ST_TX, (vY + ST_TY + .1) / 2, z + dz), null, { shadow: false }); });
+      // perrongkant: vit kantsten och gul varningsrand
+      prop(new THREE.BoxGeometry(.3, .02, ST.L, 1, 1, 60), { color: 0xcfcbc0 }, new V3(s * (ST.PE - .15), .01, -ST.L / 2), null, { shadow: false });
+      prop(new THREE.BoxGeometry(.22, .012, ST.L, 1, 1, 60), { color: 0xb8962a }, new V3(s * (ST.PE - .48), .006, -ST.L / 2), null, { shadow: false });
+      // räls
+      for (const dx of [-.72, .72]) prop(new THREE.BoxGeometry(.07, .14, ST.L + 16, 1, 1, 120), { color: PC.rail }, new V3(s * (ST.TCX + dx), ST.PIT + .19, -ST.L / 2 - 4), null, { shadow: false });
+      // papperskorg vid mittväggen
+      prop(new THREE.CylinderGeometry(.21, .19, .78, 24, 3), { color: 0x23302c }, new V3(s * 1.15, .39, s < 0 ? -8.9 : -16.4), null, { collide: true });
     }
-    ell(g, [0, .645, .665], .056, [1.45, .95, 1.15], SKIN, null, id, true);                       // knäppta händer framför knäna
-    const t = torso(g, [0, .55, -.08], [0, 1.0, .24], [[0, 0], [.17, 0], [.205, .08], [.21, .35], [.22, .62], [.225, .8], [.195, .93], [.1, 1], [0, 1]], HOOD, CLOTH.fleece, id, .7);
-    ell(g, [0, .96, .2], .215, [1.12, .45, .74], HOOD, CLOTH.fleece, id, true, [.6, 0, 0]);
-    seg(g, [0, .99, .25], [0, 1.05, .33], .052, .05, SKIN, null, id, false);
-    head(g, [0, 1.08, .4], id, { hood: true, rot: [.7, 0, 0] });
-    ell(g, [0, 1.1, .37], .132, [1.0, 1.06, 1.14], HOOD, CLOTH.fleece, id, true, [.7, 0, 0]);    // luvan uppe, huvudet böjt
-    return g;
+    stBench(-3.6, -11.25, -1); stBench(-3.6, -26.25, -1); stBench(3.6, -3.75, 1); stBench(3.6, -18.75, 1);
   }
-  // mannen vid kanten: baggy jeans, oversize collegetröja, slapp ryggsäck
-  function crewneckGuy(x, z, faceTo) {
-    const g = place(x, 0, z, faceTo), id = "fig" + (uid++), KNIT = 0xffffff, DENIM = 0xd8dde6, BAG = 0x141516, SHOE = 0x2a2b2c;
-    const legs = [[-1, [-.1, .93, 0], [-.115, .5, .05], [-.13, .1, .06]], [1, [.1, .93, 0], [.11, .5, .0], [.12, .1, -.01]]];
-    for (const [s, hip, knee, ankle] of legs) {
-      seg(g, hip, knee, .102, .095, DENIM, CLOTH.denim, id, true);
-      seg(g, knee, ankle, .094, .09, DENIM, CLOTH.denim, id, true);
-      ell(g, [ankle[0], .17, ankle[2]], .1, [1, .62, 1.02], DENIM, CLOTH.denim, id, false);
-      sneaker(g, ankle[0], ankle[2], SHOE, 0xe9e7e0, id, s * .12);
-    }
-    torso(g, [0, .84, 0], [0, 1.46, .0], [[0, 0], [.2, 0], [.228, .07], [.236, .45], [.246, .78], [.215, .92], [.095, 1], [0, 1]], KNIT, CLOTH.knit, id, .66);
-    ell(g, [0, 1.41, 0], .235, [1.13, .42, .68], KNIT, CLOTH.knit, id, true);
-    for (const s of [-1, 1]) {
-      seg(g, [s * .23, 1.38, 0], [s * .275, 1.1, -.03], .088, .078, KNIT, CLOTH.knit, id, true);
-      seg(g, [s * .275, 1.1, -.03], [s * .255, .86, .05], .075, .064, KNIT, CLOTH.knit, id, true);
-      ell(g, [s * .252, .81, .06], .044, [.8, 1.2, .6], SKIN, null, id, false);
-    }
-    seg(g, [0, 1.46, .015], [0, 1.57, .04], .052, .05, SKIN, null, id, false);
-    head(g, [0, 1.665, .06], id, { rot: [.12, 0, 0] });
-    // ryggsäcken hänger lågt och slappt
-    ell(g, [0, 1.07, -.25], .175, [1.05, 1.32, .52], BAG, CLOTH.fleece, id, true, [.12, 0, 0]);
-    ell(g, [0, 1.27, -.235], .15, [1.0, .45, .55], BAG, null, id, false);
-    for (const s of [-1, 1]) { seg(g, [s * .11, 1.43, .1], [s * .12, 1.49, -.06], .016, .016, BAG, null, id, false); seg(g, [s * .12, 1.49, -.06], [s * .14, .97, -.22], .016, .016, BAG, null, id, false); }
-    return g;
-  }
-  // lång rock, händerna i fickorna, ev. luva
-  function coatFigure(x, y, z, faceTo, o) {
-    o = o || {}; const g = place(x, y, z, faceTo), id = "fig" + (uid++), cast = o.cast !== false, COAT = o.color || 0x232527, TR = 0x161718;
-    for (const s of [-1, 1]) { seg(g, [s * .095, .9, 0], [s * .1, .48, .02], .08, .07, TR, null, id, cast); seg(g, [s * .1, .48, .02], [s * .105, .1, 0], .066, .056, TR, null, id, cast); sneaker(g, s * .105, 0, 0x1c1c1c, 0x2c2c2c, id, s * .08); }
-    torso(g, [0, .42, 0], [0, 1.45, -.01], [[0, 0], [.25, 0], [.225, .2], [.205, .42], [.21, .68], [.226, .85], [.2, .95], [.09, 1], [0, 1]], COAT, CLOTH.fleece, id, .66);
-    ell(g, [0, 1.41, -.01], .22, [1.08, .42, .66], COAT, CLOTH.fleece, id, cast);
-    for (const s of [-1, 1]) { seg(g, [s * .215, 1.38, -.01], [s * .25, 1.1, -.04], .072, .064, COAT, CLOTH.fleece, id, cast); seg(g, [s * .25, 1.1, -.04], [s * .19, .94, .08], .062, .055, COAT, CLOTH.fleece, id, cast); }
-    seg(g, [0, 1.45, 0], [0, 1.56, .02], .05, .048, SKIN, null, id, false);
-    head(g, [0, 1.65, .03], id, { hood: o.hood });
-    if (o.hood) ell(g, [0, 1.67, .0], .128, [1.0, 1.05, 1.14], COAT, CLOTH.fleece, id, false);
-    if (o.collide !== false) colliders.push({ x0: x - .25, x1: x + .25, z0: z - .25, z1: z + .25 });
-    return g;
-  }
-  let ghostFig = null;
-  function buildFigures() {
-    CLOTH = { denim: clothTex("denim"), knit: clothTex("knit"), fleece: clothTex("fleece"), print: printTex() };
-    const sil = silMat(1);
-    silhouetteize(hoodieSitter(-2.27, -13.15, [5, -13.15]), sil);                // på bänken, framåtlutad, luvan uppe
-    colliders.push({ x0: -2.05, x1: -1.65, z0: -13.5, z1: -12.8 });
-    silhouetteize(crewneckGuy(.36, -12.2, [4.5, -10.4]), sil); colliders.push({ x0: .1, x1: .62, z0: -12.5, z1: -11.9 }); // vid kanten med ryggsäck
-    silhouetteize(coatFigure(-.15, 0, -23.7, [-1.75, -26], { hood: true }), sil); // framför Norrtull
-    silhouetteize(coatFigure(-3.55, 0, -20.8, [-4.4, -22.6]), sil);               // vid dörren på glänt
-    ghostFig = coatFigure(2.9, R.PIT, -25.4, [2.9, -40], { cast: false, collide: false }); // i spårgraven, vänd mot tunneln
-    silhouetteize(ghostFig, silMat(0));
-  }
-
   /* ---------- fotona i tjocka svarta ramar ---------- */
   const arts = [];
   function frameFor(slot, aspect, S) {
@@ -1098,14 +993,15 @@ function useRoom(key) {
     decals.push({ mesh, pos: pos.clone(), n: normal.clone(), boost: o.boost || 1, minL: o.minL || 0 }); return mesh;
   }
   function buildSigns() {
-    // stationsskylt på spårväggen
-    decal(signCanvas([{ text: "EN BÄTTRE BILD", font: '800 150px "Big Shoulders Display", "Arial Narrow", sans-serif', y: 132, track: 16 }],
-      { w: 1536, h: 256, bg: "#123a3e", fg: "#ece9e0", border: "rgba(236,233,224,.85)", bw: 6, wear: true }), 3.6, .6, new V3(4.47, 2.25, -17.6), new V3(-1, 0, 0), { boost: 2, minL: .09 });
+    const name = () => signCanvas([{ text: "EN BÄTTRE BILD", font: '800 150px "Big Shoulders Display", "Arial Narrow", sans-serif', y: 132, track: 16 }],
+      { w: 1536, h: 256, bg: "#123a3e", fg: "#ece9e0", border: "rgba(236,233,224,.85)", bw: 6, wear: true });
+    // stationsnamnet över varje genomgång, på båda sidor
+    for (const s of [-1, 1]) for (const pz of ST.PZ) decal(name(), 2.2, .367, new V3(s * (ST.W2 + .02), 3.12, pz), new V3(s, 0, 0), { boost: 1.8, minL: .08 });
     decal(signCanvas([{ text: "01  STADEN", font: '800 120px "Big Shoulders Display", "Arial Narrow", sans-serif', y: 128, track: 14 }],
-      { w: 1024, h: 256, bg: "#123a3e", fg: "#ece9e0", border: "rgba(236,233,224,.85)", bw: 6, wear: true }), 1.3, .325, new V3(-4.48, 2.35, -2.4), new V3(1, 0, 0), { boost: 1.5, minL: .08 });
-    // graffiti nere i spårgraven
-    [[-3.6, 23], [-12.8, 41], [-21.2, 57]].forEach(([z, s]) => decal(graffitiCanvas(s, 1024, 420), 2.6, 1.07, new V3(4.48, -.35, z), new V3(-1, 0, 0), { transparent: true }));
-    decal(graffitiCanvas(77, 1024, 420), 2.2, .9, new V3(1.02, -.5, -8), new V3(1, 0, 0), { transparent: true });
+      { w: 1024, h: 256, bg: "#123a3e", fg: "#ece9e0", border: "rgba(236,233,224,.85)", bw: 6, wear: true }), 1.3, .325, new V3(-3.3, 3.3, -.02), new V3(0, 0, -1), { boost: 1.5, minL: .08 });
+    // graffiti nere i spårgravarna
+    [[-1, -4.2, 23], [-1, -18.6, 41], [1, -11.2, 57], [1, -26.4, 66]].forEach(([s, z, sd]) => decal(graffitiCanvas(sd, 1024, 420), 2.4, .99, new V3(s * (ST.XO - .02), -.4, z), new V3(-s, 0, 0), { transparent: true }));
+    [[-1, -13, 77], [1, -9, 81]].forEach(([s, z, sd]) => decal(graffitiCanvas(sd, 1024, 420), 2.0, .82, new V3(s * (ST.PE + .02), -.55, z), new V3(s, 0, 0), { transparent: true }));
   }
   function lightDecals() {
     for (const d of decals) { const L = shade(d.pos.x + d.n.x * .02, d.pos.y, d.pos.z + d.n.z * .02, d.n.x, d.n.y, d.n.z, null); d.mesh.material.color.setRGB(Math.max(d.minL, L[0] * d.boost), Math.max(d.minL * .95, L[1] * d.boost), Math.max(d.minL * .9, L[2] * d.boost)); }
@@ -1114,29 +1010,28 @@ function useRoom(key) {
 
   /* ---------- syllar (instansierade) ---------- */
   function buildSleepers() {
-    const n = Math.floor(53.4 / .62), inst = new THREE.InstancedMesh(new THREE.BoxGeometry(2.5, .12, .22), new THREE.MeshBasicMaterial({ color: PC.sleeper }), n), o = new THREE.Object3D(), c = new THREE.Color(), r = rng(8);
-    for (let i = 0; i < n; i++) { const z = 13.6 - i * .62; o.position.set(2.75 + (r() - .5) * .04, R.PIT + .06, z); o.rotation.y = (r() - .5) * .03; o.updateMatrix(); inst.setMatrixAt(i, o.matrix);
-      const L = shade(2.75, R.PIT + .14, z, 0, 1, 0, null); c.setRGB(L[0] * (.8 + r() * .4), L[1] * (.8 + r() * .4), L[2] * (.8 + r() * .4)); inst.setColorAt(i, c); }
-    scene.add(inst);
+    const n = Math.floor((ST.L + 16) / .62), c = new THREE.Color(), r = rng(8), o = new THREE.Object3D();
+    for (const s of [-1, 1]) {
+      const inst = new THREE.InstancedMesh(new THREE.BoxGeometry(2.5, .12, .22), new THREE.MeshBasicMaterial({ color: PC.sleeper }), n);
+      for (let i = 0; i < n; i++) { const z = 3.8 - i * .62; o.position.set(s * ST.TCX + (r() - .5) * .04, ST.PIT + .06, z); o.rotation.y = (r() - .5) * .03; o.updateMatrix(); inst.setMatrixAt(i, o.matrix);
+        const L = shade(s * ST.TCX, ST.PIT + .14, z, 0, 1, 0, null); c.setRGB(L[0] * (.8 + r() * .4), L[1] * (.8 + r() * .4), L[2] * (.8 + r() * .4)); inst.setColorAt(i, c); }
+      scene.add(inst);
+    }
   }
   /* ---------- lysande delar (syns direkt, bakas inte) ---------- */
   const tubeMats = [];
   function buildEmitters() {
-    TUBES_Z.forEach((z) => { const m = new THREE.MeshBasicMaterial({ color: new THREE.Color(.9, 2.6, 2.4) }); tubeMats.push(m);
-      const t = new THREE.Mesh(new THREE.CylinderGeometry(.022, .022, 1.36, 10), m); t.rotation.x = Math.PI / 2; t.position.set(TUBE_X, TUBE_Y, z); scene.add(t); });
-    const sod = new THREE.Mesh(new THREE.BoxGeometry(.16, .07, .02), new THREE.MeshBasicMaterial({ color: new THREE.Color(4, 2.2, .6) })); sod.position.set(-2.6, 3.02, -.13); scene.add(sod);
-    for (const [p, s] of [[[1.6, .55, -35.5], .07], [[2.6, 2.75, -26.15], .05], [[2.9, 2.75, .15], .05]]) { const r = new THREE.Mesh(new THREE.SphereGeometry(s, 12, 8), new THREE.MeshBasicMaterial({ color: new THREE.Color(6, .25, .15) })); r.position.set(...p); scene.add(r); }
-    const wl = new THREE.Mesh(new THREE.SphereGeometry(.06, 12, 8), new THREE.MeshBasicMaterial({ color: new THREE.Color(5, 2.6, .7) })); wl.position.set(4.2, .95, 9.5); scene.add(wl);
+    for (const s of [-1, 1]) ST_TZ.forEach((z) => { const m = new THREE.MeshBasicMaterial({ color: new THREE.Color(1.9, 2.6, 2.5) }); tubeMats.push(m);
+      const t = new THREE.Mesh(new THREE.CylinderGeometry(.022, .022, 1.36, 10), m); t.rotation.x = Math.PI / 2; t.position.set(s * ST_TX, ST_TY, z); scene.add(t); });
+    for (const s of [-1, 1]) for (const [p, sz] of [[[s * 7.4, .55, -ST.L - 9], .07], [[s * 7.4, 3.05, -ST.L + .15], .05]]) {
+      const r = new THREE.Mesh(new THREE.SphereGeometry(sz, 12, 8), new THREE.MeshBasicMaterial({ color: new THREE.Color(6, .25, .15) })); r.position.set(...p); scene.add(r); }
+    for (const pz of ST.PZ) { const b = new THREE.Mesh(new THREE.BoxGeometry(1.2, .03, .08), new THREE.MeshBasicMaterial({ color: new THREE.Color(2.6, 1.9, 1.2) })); b.position.set(0, ST.PH - .03, pz); scene.add(b); }
   }
-
-  /* ---------- kusliga detaljer ---------- */
-  let flickerDark = null, ghost = null;
+  /* ---------- ett lysrör som flimrar ---------- */
+  let flickerDark = null;
   function buildEerie() {
     const fd = new THREE.Mesh(new THREE.PlaneGeometry(7, 7), new THREE.MeshBasicMaterial({ map: T(radial([[0, "rgba(0,0,0,.9)"], [.6, "rgba(0,0,0,.45)"], [1, "rgba(0,0,0,0)"]], 256), false, false), transparent: true, opacity: 0, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3 }));
-    fd.rotation.x = -Math.PI / 2; fd.position.set(TUBE_X, .006, TUBES_Z[3]); scene.add(fd); flickerDark = fd;
-    // gestalten i spårgraven syns bara ibland
-    let gm = null; ghostFig.traverse((o) => { if (o.isMesh) gm = o.material; });
-    ghostFig.visible = false; ghost = { set(o) { ghostFig.visible = o > .01; gm.uniforms.uOpacity.value = o; } };
+    fd.rotation.x = -Math.PI / 2; fd.position.set(ST_TX, .006, ST_TZ[3]); scene.add(fd); flickerDark = fd;
   }
 
   /* ================= gemensamt för alla rum ================= */
@@ -1486,33 +1381,25 @@ function useRoom(key) {
 
   /* ================= 01 STADEN: sammansatt ================= */
   function buildStaden() {
-    buildShell(); buildProps(); buildFigures(); buildSigns(); buildEmitters(); buildEerie();
+    buildShell(); buildProps(); buildSigns(); buildEmitters(); buildEerie();
     // korridoren in från foajén, med en tavelplats på varje vägg
     planar({ name: "korridorgolv", floor: true, O: [SC.x0, 0, SC.z1], U: [1, 0, 0], V: [0, 0, -1], lu: SC.x1 - SC.x0, lv: SC.z1, map: TEX.floor, tu: 5.5, tv: 2.4 });
     planar({ O: [SC.x0, 0, SC.z1], U: [0, 0, -1], V: [0, 1, 0], lu: SC.z1, lv: SC.h, map: TEX.wall, tu: 4, tv: 3.2 });
     planar({ O: [SC.x1, 0, 0], U: [0, 0, 1], V: [0, 1, 0], lu: SC.z1, lv: SC.h, map: TEX.wall, tu: 4, tv: 3.2 });
     planar({ O: [SC.x0, SC.h, 0], U: [1, 0, 0], V: [0, 0, 1], lu: SC.x1 - SC.x0, lv: SC.z1, map: TEX.vault, tu: 3, tv: 3 });
     planar({ O: [SC.x1, 0, SC.z1], U: [-1, 0, 0], V: [0, 1, 0], lu: SC.x1 - SC.x0, lv: SC.h, map: TEX.wall, tu: 4, tv: 3.2 });
-    { const bar = new THREE.Mesh(new THREE.BoxGeometry(.06, .03, 2.9), new THREE.MeshBasicMaterial({ color: new THREE.Color(2.6, 1.9, 1.2) })); bar.position.set(-2.6, SC.h - .05, 2.6); scene.add(bar); }
-    opening({ C: [-2.6, 0, SC.z1], N: [0, 0, -1], U: [-1, 0, 0], w: 1.2, h: 2.2, to: "foajen", sign: ["00  FOAJÉN", "TILLBAKA"], glow: new THREE.Color(1.1, .82, .55) });
-    // dörren längst bort står öppen och leder vidare till Naturen
-    exits.push({ x0: -4.5, x1: -3.95, z0: -23.1, z1: -22.15, to: "naturen", title: "02 NATUREN" });
-    decal(signCanvas([{ text: "02  NATUREN", font: '800 110px "Big Shoulders Display", "Arial Narrow", sans-serif', y: 104, track: 12 },
-      { text: "GÅ VIDARE", font: '500 40px "IBM Plex Mono", monospace', y: 196, track: 6, alpha: .75 }],
-      { w: 1024, h: 256, bg: "#14302f", fg: "#ece9e0", border: "rgba(236,233,224,.6)", bw: 5, wear: true }), 1.1, .275, new V3(-4.48, 2.55, -22.62), new V3(1, 0, 0), { boost: 1.5, minL: .06 });
-    const flick = { on: 1, until: 0, burstEnd: 0, next: 4000 }, ghostT = { next: performance.now() + 14000, start: 0 };
+    { const bar = new THREE.Mesh(new THREE.BoxGeometry(.06, .03, 2.9), new THREE.MeshBasicMaterial({ color: new THREE.Color(2.6, 1.9, 1.2) })); bar.position.set(-3.3, SC.h - .05, 2.6); scene.add(bar); }
+    opening({ C: [-3.3, 0, SC.z1], N: [0, 0, -1], U: [-1, 0, 0], w: 1.2, h: 2.2, to: "foajen", sign: ["00  FOAJÉN", "TILLBAKA"], glow: new THREE.Color(1.1, .82, .55) });
+    // vidare till Naturen längst bort på perrong B
+    opening({ C: [3.3, 0, -ST.L], N: [0, 0, 1], U: [1, 0, 0], w: 1.3, h: 2.4, to: "naturen", sign: ["02  NATUREN", "GÅ VIDARE"], glow: new THREE.Color(1.15, 1.2, 1.3) });
+    const flick = { on: 1, until: 0, burstEnd: 0, next: 4000 }, FI = 9; // lysrör nr 9: perrong B, z -17,5
     return {
       afterBake: buildSleepers,
       update(now, dt) {
-        if (!reduceMotion && tubeMats.length) {
+        if (!reduceMotion && tubeMats.length > FI) {
           if (now > flick.next && now > flick.burstEnd) { flick.burstEnd = now + 500 + Math.random() * 1400; flick.next = flick.burstEnd + 5000 + Math.random() * 11000; }
           let on = 1; if (now < flick.burstEnd) { if (now > flick.until) { flick.on = Math.random() < .45 ? 0 : 1; flick.until = now + 70 + Math.random() * 180; if (!flick.on) Sound.flick(); } on = flick.on; }
-          const m = tubeMats[3]; m.color.setRGB(.9 * on + .04, 2.6 * on + .08, 2.4 * on + .08); flickerDark.material.opacity += ((1 - on) * .62 - flickerDark.material.opacity) * Math.min(1, dt * 30);
-        }
-        if (ghost && entered && !reduceMotion) {
-          if (!ghostT.start && now > ghostT.next) ghostT.start = now;
-          if (ghostT.start) { const t = (now - ghostT.start) / 1000, o = t < 2.5 ? t / 2.5 : t < 6 ? 1 : t < 9 ? 1 - (t - 6) / 3 : 0; ghost.set(o * .92);
-            if (t > 9) { ghostT.start = 0; ghostT.next = now + 22000 + Math.random() * 30000; } }
+          tubeMats[FI].color.setRGB(1.9 * on + .04, 2.6 * on + .08, 2.5 * on + .08); flickerDark.material.opacity += ((1 - on) * .62 - flickerDark.material.opacity) * Math.min(1, dt * 30);
         }
       }
     };
@@ -1581,7 +1468,7 @@ function useRoom(key) {
     });
     while (scene.children.length) scene.remove(scene.children[0]);
     [surfaces, props, occluders, photoMeshes, colliders, decals, exits, arts, tubeMats].forEach((a) => { a.length = 0; });
-    dust = null; dustBase = null; dustPh = null; dustMat = null; floorGlowTex = null; flickerDark = null; ghost = null; ghostFig = null; marker = null; glowTexC = null; leafTexC = null; RT = null;
+    dust = null; dustBase = null; dustPh = null; dustMat = null; floorGlowTex = null; flickerDark = null; marker = null; glowTexC = null; leafTexC = null; RT = null;
   }
   async function buildRoom(key) {
     if (!fontsReady) {
@@ -1599,12 +1486,12 @@ function useRoom(key) {
     progress(.12, "Bygger rummet…"); await nextFrame();
     RT = BUILD[key]() || {};
     // tom plats: ett passepartout som visar att här kommer ett foto
-    const emptySlot = (light) => { const c = cnv(720, 1000), x = c.getContext("2d"); x.fillStyle = light ? "#d9d5cc" : "#1c1d1c"; x.fillRect(0, 0, 720, 1000);
-      x.strokeStyle = light ? "rgba(30,30,28,.35)" : "rgba(236,233,224,.3)"; x.lineWidth = 3; x.setLineDash([14, 12]); x.strokeRect(70, 70, 580, 860); x.setLineDash([]);
+    const emptySlot = (light, asp) => { const W = Math.round(1000 * asp), c = cnv(W, 1000), x = c.getContext("2d"), cx = W / 2; x.fillStyle = light ? "#d9d5cc" : "#1c1d1c"; x.fillRect(0, 0, W, 1000);
+      x.strokeStyle = light ? "rgba(30,30,28,.35)" : "rgba(236,233,224,.3)"; x.lineWidth = 3; x.setLineDash([14, 12]); x.strokeRect(70, 70, W - 140, 860); x.setLineDash([]);
       x.fillStyle = light ? "rgba(30,30,28,.6)" : "rgba(236,233,224,.55)"; x.textAlign = "center"; x.textBaseline = "middle";
-      x.font = '800 92px "Big Shoulders Display", "Arial Narrow", sans-serif'; if (x.letterSpacing !== undefined) x.letterSpacing = "10px"; x.fillText("LEDIG", 360, 450); x.fillText("PLATS", 360, 550);
-      x.font = '500 26px "IBM Plex Mono", monospace'; if (x.letterSpacing !== undefined) x.letterSpacing = "4px"; x.fillText("HÄR KOMMER ETT FOTO", 360, 660); return T(c, true, false); };
-    S.slots.forEach((slot) => { if (!photoTex[slot.key]) photoTex[slot.key] = emptySlot(PHOTOS[slot.key].tone === "light"); });
+      x.font = '800 92px "Big Shoulders Display", "Arial Narrow", sans-serif'; if (x.letterSpacing !== undefined) x.letterSpacing = "10px"; x.fillText("LEDIG", cx, 450); x.fillText("PLATS", cx, 550);
+      x.font = '500 26px "IBM Plex Mono", monospace'; if (x.letterSpacing !== undefined) x.letterSpacing = "4px"; x.fillText("HÄR KOMMER ETT FOTO", cx, 660); return T(c, true, false); };
+    S.slots.forEach((slot) => { if (!photoTex[slot.key]) photoTex[slot.key] = emptySlot(PHOTOS[slot.key].tone === "light", slot.w ? 1.5 : .72); });
     S.slots.forEach((slot) => { const t = photoTex[slot.key]; const aspect = slot.aspect || (t ? t.image.width / t.image.height : .72); const a = frameFor(slot, aspect, S); a.s.map = t; a.tex = t; });
     fixtures(S);
     const total = surfaces.reduce((s, x) => s + (x.kind === "plane" ? x.lu * x.lv : x.arcLen * Math.abs(x.z1 - x.z0)) * x.res * x.res, 0) + props.length * 40;
@@ -1960,6 +1847,7 @@ function useRoom(key) {
   // ?debug visar bildfrekvens, upplösning och grafikkort
   const dbg = /[?&]debug/.test(location.search) ? Object.assign(document.body.appendChild(document.createElement("div")), { style: "position:fixed;left:8px;top:40px;z-index:20;font:11px/1.4 monospace;color:#9fe;background:rgba(0,0,0,.6);padding:4px 6px;pointer-events:none;white-space:pre" }) : null;
   let dbgT = 0, dbgN = 0, gpuName = "?";
+  if (dbg) window.__setView = (v) => { player.x = v[0]; player.z = v[1]; player.yaw = v[2]; player.pitch = v[3] || 0; };
   try { const gl = renderer.getContext(), ext = gl.getExtension("WEBGL_debug_renderer_info"); if (ext) gpuName = gl.getParameter(ext.UNMASKED_RENDERER_WEBGL); } catch (e) {}
   function frame(now) {
     const raw = now - last, dt = Math.min(.05, raw / 1000); last = now;

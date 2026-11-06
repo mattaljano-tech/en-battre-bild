@@ -429,8 +429,8 @@ const STANDS = {
     { x: 1.7, z: -3.8, w: 2.1, h: 2.6, t: .2, ax: "z", keys: ["manhattan", "neonregn"] },
     { x: 1.9, z: -17.0, w: 2.1, h: 2.6, t: .2, ax: "z", keys: ["taget", "norrtull-natt"] }],
   naturen: [
-    { x: -2.0, z: -4.6, w: 2.4, h: 2.8, t: .16, ax: "x", keys: ["solnedgangen", "atlantkusten"] },
-    { x: 2.0, z: -15.4, w: 2.4, h: 2.8, t: .16, ax: "x", keys: ["fonstervy", "bordet"] }],
+    { x: -4.9, z: -7.8, w: 2.2, h: 2.8, t: .16, ax: "z", keys: ["solnedgangen", "atlantkusten"] },
+    { x: 4.9, z: -12.5, w: 2.2, h: 2.8, t: .16, ax: "z", keys: ["fonstervy", "bordet"] }],
   berattelser: [
     { x: -3.9, z: -4.0, w: 2.4, h: 3.0, t: .2, ax: "z", keys: ["porten", "nallen"] },
     { x: 3.9, z: -4.0, w: 2.4, h: 3.0, t: .2, ax: "z", keys: ["pickupen", "kickflip"] },
@@ -499,7 +499,7 @@ function natSlots() {
   const X = NAT.X, L = NAT.L, o = { d: 1.9, ly: 4.4, a: .4, T: 1.7, only: (x, y, z) => z < .05 };
   return [wslot("korsbarsblom", [-X, 1.8, -10], [1, 0, 0], 1.6, o), wslot("hagen", [X, 1.8, -3.6], [-1, 0, 0], 1.6, o), wslot("spegeln", [X, 1.8, -14], [-1, 0, 0], 1.4, o),
     wslot("pionerna", [-3.3, 1.7, 0], [0, 0, -1], 1.2, o), wslot("hosteld", [3.3, 1.7, 0], [0, 0, -1], 1.4, o),
-    wslot("fran-ovan", [-4.6, 1.8, -L], [0, 0, 1], 1.4, o), wslot("piren", [4.6, 1.8, -L], [0, 0, 1], 1.4, o)].concat(standSlots("naturen", 1.45, o));
+    wslot("fran-ovan", [-4.6, 1.8, -L], [0, 0, 1], 1.4, o), wslot("piren", [4.6, 1.8, -L], [0, 0, 1], 1.4, o)].concat(standSlots("naturen", 1.25, o));
 }
 function naturenSDF(x, y, z) {
   if (z > 0) return Math.min(x + NAT.CW, NAT.CW - x, y, NAT.CH - y, NAT.CL - z);

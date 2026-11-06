@@ -88,7 +88,8 @@ button { font: inherit; }
 .tourbar b { font-family: var(--font-display); font-weight: 800; font-size: 26px; letter-spacing: .04em; text-transform: uppercase; line-height: 1; }
 .tourbar .tcount { font-family: var(--font-mono); font-size: 11px; color: var(--dim); margin-left: auto; }
 .tourbar .tbtns { display: flex; gap: 8px; }
-.tourbar .tbtns .btn { flex: 1; text-align: center; }
+.tourbar .tbtns .btn { flex: 1; text-align: center; white-space: nowrap; }
+.tourbar .tbtns .chip { white-space: nowrap; }
 .tourbar .chip { justify-content: center; }
 .tourbar .chip:disabled { opacity: .35; cursor: default; }
 .fade { position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none; transition: opacity .28s; z-index: 4; }
@@ -1862,7 +1863,7 @@ function useRoom(key) {
     roomReady = false;
     try { clearScene(); currentKey = key; await buildRoom(key); }
     catch (err) { stepEl.textContent = "Något gick fel när rummet byggdes: " + (err && err.message ? err.message : err); loading = false; throw err; }
-    player.x = S.start.x; player.z = S.start.z; player.yaw = S.start.yaw; player.pitch = -.02; bob = 0;
+    player.x = S.start.x; player.z = S.start.z; player.yaw = S.start.yaw; player.pitch = -.02; player.eyeOff = 0; bob = 0;
     applyLook(S);
     // förvärm: skicka alla texturer och shaders till grafikkortet nu, under laddningen,
     // annars laddas de först när de syns och då hackar det när man vänder sig
@@ -2039,7 +2040,7 @@ function useRoom(key) {
 
   /* ================= rörelse och styrning ================= */
   const EYE = 1.62;
-  const player = { x: -1.4, z: -1.5, yaw: -.2, pitch: -.02 };
+  const player = { x: -1.4, z: -1.5, yaw: -.2, pitch: -.02, eyeOff: 0 }; // eyeOff: turen lyfter blicken till bildens mitt
   let walkTarget = null, entered = false, locked = false, bob = 0, stepAcc = 0, stepSide = 1;
   const walkRects = () => (currentKey ? SPECS[currentKey].walk : []);
   function blocked(px, pz) {
@@ -2203,9 +2204,10 @@ function useRoom(key) {
   function segClear(ax, az, bx, bz) { const n = Math.ceil(Math.hypot(bx - ax, bz - az) / .2); for (let k = 1; k < n; k++) { const t = k / n; if (blocked(ax + (bx - ax) * t, az + (bz - az) * t)) return false; } return true; }
   // var man ska stå för att se en bild: rakt framför, på ett avstånd som passar bildens storlek
   // fri sikt från ögonhöjd till bilden, mätt mot rummets väggar och de fasta volymerna
+  const eyeFor = (C) => clamp(C[1] - EYE, -.3, .9);
   function canSee(px, pz, C, N) {
-    const tx = C[0] + N[0] * .15, ty = C[1], tz = C[2] + N[2] * .15, n = 40;
-    for (let k = 1; k < n; k++) { const t = k / n, x = px + (tx - px) * t, y = EYE + (ty - EYE) * t, z = pz + (tz - pz) * t;
+    const tx = C[0] + N[0] * .15, ty = C[1], tz = C[2] + N[2] * .15, n = 40, ey = EYE + eyeFor(C);
+    for (let k = 1; k < n; k++) { const t = k / n, x = px + (tx - px) * t, y = ey + (ty - ey) * t, z = pz + (tz - pz) * t;
       if (Math.min(SDF(x, y, z), objSDF(x, y, z, null)) < .04) return false; }
     return true;
   }
@@ -2217,7 +2219,8 @@ function useRoom(key) {
     for (const d of ds) { const x = C[0] + N[0] * d, z = C[2] + N[2] * d; if (!blocked(x, z) && canSee(x, z, C, N)) { best = { x, z }; break; } }
     if (!best) { const c = clampWalk(C[0] + N[0] * ideal, C[2] + N[2] * ideal); best = { x: c.x, z: c.z }; }
     const dx = C[0] - best.x, dz = C[2] - best.z, h = Math.max(.3, Math.hypot(dx, dz));
-    return { x: best.x, z: best.z, yaw: Math.atan2(-dx, -dz), pitch: clamp(Math.atan2(C[1] - EYE, h), -.5, .5) };
+    const eo = eyeFor(C); // rakt framifrån: ögat i bildens höjd, blicken vågrät
+    return { x: best.x, z: best.z, yaw: Math.atan2(-dx, -dz), pitch: clamp(Math.atan2(C[1] - EYE - eo, h), -.5, .5), eyeOff: eo };
   }
   // ordningen: närmaste bild härnäst, men helst utan att behöva gå genom en vägg
   function tourStops() {
@@ -2240,9 +2243,9 @@ function useRoom(key) {
     tour.i = clamp(i, 0, tour.stops.length - 1); const v = tour.stops[tour.i].v; walkTarget = null;
     if (reduceMotion || !segClear(player.x, player.z, v.x, v.z)) { // går inte att glida dit: tona till svart och flytta
       tour.anim = null; fadeEl.classList.add("on");
-      setTimeout(() => { Object.assign(player, { x: v.x, z: v.z, yaw: v.yaw, pitch: v.pitch }); fadeEl.classList.remove("on"); }, reduceMotion ? 0 : 320);
+      setTimeout(() => { Object.assign(player, { x: v.x, z: v.z, yaw: v.yaw, pitch: v.pitch, eyeOff: v.eyeOff }); fadeEl.classList.remove("on"); }, reduceMotion ? 0 : 320);
     } else { let dy = v.yaw - player.yaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
-      tour.anim = { t: 0, T: clamp(Math.hypot(v.x - player.x, v.z - player.z) / 1.5, .9, 3.2), from: { x: player.x, z: player.z, yaw: player.yaw, pitch: player.pitch }, to: { x: v.x, z: v.z, yaw: player.yaw + dy, pitch: v.pitch } }; }
+      tour.anim = { t: 0, T: clamp(Math.hypot(v.x - player.x, v.z - player.z) / 1.5, .9, 3.2), from: { x: player.x, z: player.z, yaw: player.yaw, pitch: player.pitch, eyeOff: player.eyeOff }, to: { x: v.x, z: v.z, yaw: player.yaw + dy, pitch: v.pitch, eyeOff: v.eyeOff } }; }
     tourUI();
   }
   function tourNext() {
@@ -2260,7 +2263,7 @@ function useRoom(key) {
     $("tourTitle").textContent = !n ? "Inga bilder här ännu" : tour.i >= 0 ? PHOTOS[tour.stops[tour.i].art.slot.key].title : "";
     $("tourCount").textContent = n && tour.i >= 0 ? (tour.i + 1) + " / " + n : "";
     $("tourPrev").disabled = tour.i <= 0;
-    $("tourNext").textContent = n && !last ? "Nästa bild →" : S.next === "foajen" ? "Avsluta turen →" : "Nästa rum: " + SPECS[S.next].name + " →";
+    $("tourNext").textContent = n && !last ? "Nästa bild →" : S.next === "foajen" ? "Avsluta turen →" : "Nästa: " + SPECS[S.next].name + " →";
   }
   $("tourNext").addEventListener("click", (e) => { e.currentTarget.blur(); tourNext(); });
   $("tourPrev").addEventListener("click", (e) => { e.currentTarget.blur(); tourPrev(); });
@@ -2290,7 +2293,7 @@ function useRoom(key) {
         if (tour.anim && (walkTarget || ["KeyW", "KeyA", "KeyS", "KeyD", "ArrowUp", "ArrowDown"].some((k) => keys[k]))) tour.anim = null; // egen rörelse avbryter glidningen
         if (tour.anim) { const A = tour.anim; A.t = Math.min(1, A.t + Math.min(.25, raw / 1000) / A.T); const t = A.t, e = t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
           const nx = A.from.x + (A.to.x - A.from.x) * e, nz = A.from.z + (A.to.z - A.from.z) * e, mv = Math.hypot(nx - player.x, nz - player.z);
-          player.x = nx; player.z = nz; player.yaw = A.from.yaw + (A.to.yaw - A.from.yaw) * e; player.pitch = A.from.pitch + (A.to.pitch - A.from.pitch) * e;
+          player.x = nx; player.z = nz; player.yaw = A.from.yaw + (A.to.yaw - A.from.yaw) * e; player.pitch = A.from.pitch + (A.to.pitch - A.from.pitch) * e; player.eyeOff = A.from.eyeOff + (A.to.eyeOff - A.from.eyeOff) * e;
           if (mv > 0) { bob += mv * 5.2; stepAcc += mv; if (stepAcc > .72) { stepAcc = 0; stepSide = -stepSide; Sound.step(stepSide); } }
           if (t >= 1) tour.anim = null; }
         let f = 0, s = 0;
@@ -2302,6 +2305,7 @@ function useRoom(key) {
         let moved = 0;
         if (dx && !blocked(player.x + dx, player.z)) { player.x += dx; moved += Math.abs(dx); } else if (dx && walkTarget) walkTarget = null;
         if (dz && !blocked(player.x, player.z + dz)) { player.z += dz; moved += Math.abs(dz); } else if (dz && walkTarget) walkTarget = null;
+        if (player.eyeOff && !tour.anim && (moved > 0 || !tour.on)) { player.eyeOff *= Math.exp(-dt * 3); if (Math.abs(player.eyeOff) < .005) player.eyeOff = 0; } // går man själv sjunker blicken tillbaka
         if (moved > 0) { bob += moved * 5.2; stepAcc += moved; if (stepAcc > .72) { stepAcc = 0; stepSide = -stepSide; Sound.step(stepSide); } }
         if (!tour.anim) for (const ex of exits) if (player.x > ex.x0 && player.x < ex.x1 && player.z > ex.z0 && player.z < ex.z1) { goRoom(ex.to); break; }
       }
@@ -2311,7 +2315,7 @@ function useRoom(key) {
         if (Math.abs(ny) > .7) player.pitch = clamp(player.pitch - Math.sign(ny) * Math.pow((Math.abs(ny) - .7) / .3, 1.5) * .9 * dt, -.9, .9);
       }
       if (lookDX || lookDY) { const f = 1; const ax = lookDX * f, ay = lookDY * f; look(ax, ay, .0022); lookDX -= ax; lookDY -= ay; if (Math.abs(lookDX) < .01 && Math.abs(lookDY) < .01) { lookDX = 0; lookDY = 0; } }
-      camera.position.set(player.x, EYE + (reduceMotion ? 0 : Math.sin(bob) * .016), player.z);
+      camera.position.set(player.x, EYE + player.eyeOff + (reduceMotion ? 0 : Math.sin(bob) * .016), player.z);
       camera.rotation.set(player.pitch, player.yaw, 0);
       if (RT && RT.update) RT.update(now, dt);
       if (dustMat) dustMat.uniforms.time.value = now / 1000;

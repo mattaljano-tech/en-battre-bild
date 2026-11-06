@@ -343,68 +343,41 @@ const COL = { spot: [1, .93, .82], petrol: [.22, .78, .72], sodium: [1, .58, .18
   sky: [.66, .78, 1], sun: [1, .9, .74], day: [.92, .94, .98], tung: [1, .6, .28], amber: [1, .5, .2] };
 
 /* ================= 01 STADEN =================
-   En nedlagd tunnelbanestation: två perronger med var sitt spår och en tjock mittvägg med tre genomgångar.
-   x: tvärs (mittväggen x=±0,8, perrongkanten x=±5,8, spårväggen x=±9), y: upp, z: längs (ingången z=0, bortre väggen z=-30).
-   Varje sida har ett eget valv (halvellips) som vilar på mittväggen och spårväggen. Sida A är x<0, sida B x>0. */
-const ST = { L: 30, W2: .8, PE: 5.8, XO: 9, PIT: -1.1, SPR: 3.6, VCX: 4.9, VA: 4.1, VB: 2.2, PZ: [-7.5, -15, -22.5], PW: 2.4, PH: 2.7,
-  TCX: 7.4, TCY: 1.2, TR: 1.6, TF: 12, TN: 4 };
-const PLATB = { c: [ST.PE / 2, -.6, -ST.L / 2], h: [ST.PE / 2, .6, ST.L / 2 + .5] };
-const SC = { x0: -4.4, x1: -2.2, z1: 5, h: 2.8 };   // korridoren in från foajén, på perrong A
-const inSC = (x, y, z) => z > 0 && x < 0 && x > -ST.PE, notSC = (x, y, z) => !inSC(x, y, z);
-const sideA = (x) => x < .1, sideB = (x) => x > -.1;
-const stVault = (ax) => ST.SPR + ST.VB * Math.sqrt(Math.max(0, 1 - ((ax - ST.VCX) / ST.VA) ** 2));
-function stTunnel(ax, y, dz) { let d = Math.min(ax - ST.PE, ST.XO - ax, y - ST.PIT, dz); if (y > ST.TCY) d = Math.min(d, ST.TR - Math.hypot(ax - ST.TCX, y - ST.TCY)); return d; }
+   En gränd i Gamla stan en sen kväll: smal och hög, gör en liten sväng och mynnar ut i ett litet torg med en brunn.
+   x: tvärs, z: längs (porten mot foajén z=0, torgets bortre vägg z=-29). Inget tak, bara natthimmel ovanför husen. */
+const GS = { H: 10,
+  POLY: [[-1.8, 0], [1.8, 0], [1.8, -9], [2.4, -9], [2.4, -17], [6.5, -17], [6.5, -29], [-6.5, -29], [-6.5, -17], [-1.2, -17], [-1.2, -9], [-1.8, -9]],
+  WELL: [0, -23], POST: [-2.0, -21.3], HANG: [.6, 5.7, -15.7], MAN: [.75, -6.3] };
+// smidda lyktor på husväggarna: w = fästet på väggen, n = väggens normal, p = lyktans mitt
+const GS_LANTERNS = [[1.8, -1.4, -1, 0], [-1.8, -5.2, 1, 0], [1.8, -8.0, -1, 0], [2.4, -10.8, -1, 0], [-1.2, -13.4, 1, 0], [-6.5, -23, 1, 0], [6.5, -23, -1, 0], [.6, -29, 0, 1]]
+  .map(([x, z, nx, nz]) => ({ w: [x, 3.45, z], n: [nx, 0, nz], p: [x + nx * .62, 3.45, z + nz * .62] }));
+// gränden som en polygon sedd ovanifrån: avståndet till närmaste husvägg (positivt inne i gränden)
 function stadenSDF(x, y, z) {
-  const ax = Math.abs(x);
-  if (z > 0) { if (ax > ST.PE) return stTunnel(ax, y, ST.TN - z); if (x < 0) return Math.min(x - SC.x0, SC.x1 - x, y, SC.h - y, SC.z1 - z); return -z; }
-  if (z < -ST.L) return ax > ST.PE ? stTunnel(ax, y, z + ST.L + ST.TF) : z + ST.L;
-  let d = Math.min(ST.XO - ax, y - ST.PIT);
-  let pz = ST.PZ[0]; for (const p of ST.PZ) if (Math.abs(z - p) < Math.abs(z - pz)) pz = p;
-  const inPass = Math.abs(z - pz) < ST.PW / 2 && y < ST.PH;
-  if (!inPass) d = Math.min(d, ax - ST.W2);
-  else if (ax < ST.W2 + .05) d = Math.min(d, ST.PH - y, ST.PW / 2 - Math.abs(z - pz));
-  const inMouth = ax > ST.PE && (y < ST.TCY || Math.hypot(ax - ST.TCX, y - ST.TCY) < ST.TR);
-  if (!inMouth) d = Math.min(d, z + ST.L);
-  if (!inMouth && !(x > SC.x0 && x < SC.x1 && y < SC.h)) d = Math.min(d, -z);
-  d = Math.min(d, sdBox(ax, y, z, PLATB));
-  if (y > ST.SPR) { const ex = (ax - ST.VCX) / ST.VA, ey = (y - ST.SPR) / ST.VB; d = Math.min(d, (1 - Math.sqrt(ex * ex + ey * ey)) * ST.VB); }
-  return d;
-}
-// fasta block som kastar skugga: perrongerna och mittväggen (mellan och ovanför genomgångarna)
-const ST_SOLIDS = (() => {
-  const b = [], L = ST.L, W2 = ST.W2; let z0 = 0;
-  ST.PZ.forEach((pz, i) => { const z1 = pz + ST.PW / 2; b.push({ c: [0, ST.SPR / 2, (z0 + z1) / 2], h: [W2, ST.SPR / 2, (z0 - z1) / 2], id: "mv" + i }); z0 = pz - ST.PW / 2;
-    b.push({ c: [0, (ST.PH + ST.SPR) / 2, pz], h: [W2, (ST.SPR - ST.PH) / 2, ST.PW / 2], id: "mo" + i }); });
-  b.push({ c: [0, ST.SPR / 2, (z0 - L - .5) / 2], h: [W2, ST.SPR / 2, (z0 + L + .5) / 2], id: "mv3" });
-  b.push({ c: [0, ST.SPR + 1.2, -L / 2], h: [W2, 1.2, L / 2 + .5], id: "mtop" });
-  for (const s of [-1, 1]) b.push({ c: [s * (W2 + ST.PE) / 2, -.6, -L / 2], h: [(ST.PE - W2) / 2, .6, L / 2 + .5], id: "plat" + s });
-  return b;
-})();
-const ST_TZ = [-2.5, -7.5, -12.5, -17.5, -22.5, -27.5], ST_TX = 3.4, ST_TY = 4.3;
-function stadenLights() {
-  for (const s of [-1, 1]) { const side = s < 0 ? sideA : sideB;
-    ST_TZ.forEach((z) => addTube([s * ST_TX, ST_TY, z], 1.4, 3.2, [.8, .96, .93], { only: (x, y, z) => side(x) && notSC(x, y, z) }));
-    addPoint([s * 7.4, .55, -ST.L - 9], .5, COL.red, 7, .01, { only: side });          // signalljus djupt inne i tunneln
-    addPoint([s * 7.4, 3.05, -ST.L + .2], .3, COL.red, 5, .005, { only: side });      // rött ljus ovanför tunnelmynningen
+  const P = GS.POLY; let d = 1e9, inside = false;
+  for (let i = 0, j = P.length - 1; i < P.length; j = i++) {
+    const ax = P[j][0], az = P[j][1], bx = P[i][0], bz = P[i][1], ex = bx - ax, ez = bz - az, wx = x - ax, wz = z - az;
+    const t = clamp((wx * ex + wz * ez) / (ex * ex + ez * ez), 0, 1), dx = wx - ex * t, dz = wz - ez * t, dd = dx * dx + dz * dz; if (dd < d) d = dd;
+    if ((az > z) !== (bz > z) && x < ax + (z - az) * ex / ez) inside = !inside;
   }
-  for (const pz of ST.PZ) addPoint([0, 2.45, pz], .55, [1, .8, .58], 5, .02);          // varmt ljus i genomgångarna
-  addTube([-3.3, 2.74, 2.6], 3.0, .8, [1, .8, .58], { only: inSC });                   // mjukt ljus i korridoren
-  addPoint([-3.3, 2.0, 4.75], .45, [1, .76, .5], 4, .02, { only: inSC });               // ljus från foajén
+  return Math.min((inside ? 1 : -1) * Math.sqrt(d), y);
+}
+const GS_WARM = [1, .7, .4];
+function stadenLights() {
+  for (const L of GS_LANTERNS) addPoint(L.p, 1.05, GS_WARM, 9, .04);
+  addPoint([GS.POST[0], 3.75, GS.POST[1]], 1.0, GS_WARM, 9, .04);   // gatlyktan vid brunnen
+  addPoint(GS.HANG, .95, [1, .76, .48], 9, .03);                      // lampan som hänger på en vajer över gränden
+  addPoint([0, 1.3, 1.2], .35, [1, .8, .55], 4, .01);                   // varmt ljus genom porten från foajén
 }
 function stadenSlots() {
-  const out = [], W2 = ST.W2, XO = ST.XO; let n = 0; const next = () => "plats-s" + String(++n).padStart(2, "0");
-  const wallZ = [-1.9, -4.4, -10, -12.5, -17.5, -20, -25.6, -28.1], A = ["perrongen", "telefonen", "trappan"];
-  // mittväggen, båda sidor
-  for (const s of [-1, 1]) { const side = s < 0 ? sideA : sideB;
-    wallZ.forEach((z, i) => out.push({ key: s < 0 && i < 3 ? A[i] : next(), C: [s * W2, 1.6, z], U: [0, 0, -s], N: [s, 0, 0], h: 1.25,
-      spots: [{ p: [s * (W2 + 1.7), 3.55, z], t: [s * W2, 1.6, z], a: .34, T: 1.9, o: { only: side } }] })); }
-  // stora affischplatser på spårväggarna, tvärs över spåret
-  for (const s of [-1, 1]) { const side = s < 0 ? sideA : sideB;
-    ST.PZ.forEach((z, i) => out.push({ key: s < 0 && i === 1 ? "tunneln" : next(), C: [s * XO, 1.9, z], U: [0, 0, s], N: [-s, 0, 0], w: 3.0,
-      spots: [-.95, .95].map((dz) => ({ p: [s * 5.5, 4.6, z + dz], t: [s * XO, 1.9, z + dz], a: .4, T: 1.05, o: { only: side } })) })); }
-  out.push({ key: "norrtull", C: [-3.3, 1.9, -ST.L], U: [1, 0, 0], N: [0, 0, 1], w: 3.0, spots: [{ p: [-3.3, 4.4, -ST.L + 2.6], t: [-3.3, 1.9, -ST.L], a: .42, T: 1.45, o: { only: sideA } }] });
-  out.push({ key: "plats-a1", C: [SC.x0, 1.55, 2.5], U: [0, 0, -1], N: [1, 0, 0], h: 1.1, spots: [{ p: [SC.x0 + .85, 2.72, 2.5], t: [SC.x0, 1.55, 2.5], a: .48, T: 1.5, o: { fx: "head", only: inSC } }] });
-  out.push({ key: "plats-a2", C: [SC.x1, 1.55, 2.5], U: [0, 0, 1], N: [-1, 0, 0], h: 1.1, spots: [{ p: [SC.x1 - .85, 2.72, 2.5], t: [SC.x1, 1.55, 2.5], a: .48, T: 1.5, o: { fx: "head", only: inSC } }] });
+  const out = [];
+  // N = väggens normal; bildlampan sitter på en arm ovanför ramen
+  const W = (x, z, nx, nz, key, size, wide) => { const N = [nx, 0, nz], C = [x, wide ? 1.75 : 1.65, z], hh = wide ? size / 1.5 : size;
+    const p = [x + nx * .55, C[1] + hh / 2 + .42, z + nz * .55];
+    out.push(Object.assign({ key, C, U: [nz, 0, -nx], N, spots: [{ p, t: [x, C[1] - .05, z], a: .62, T: 1.7, o: { fx: "none", hard: false, k: 12 } }] }, wide ? { w: size } : { h: size })); };
+  W(-1.8, -2.9, 1, 0, "perrongen", 1.1); W(1.8, -4.9, -1, 0, "telefonen", 1.1); W(-1.8, -7.4, 1, 0, "plats-s01", 1.1);
+  W(-1.2, -11.0, 1, 0, "trappan", 1.15); W(2.4, -13.7, -1, 0, "plats-s02", 1.1); W(-1.2, -15.7, 1, 0, "plats-s03", 1.05);
+  W(-6.5, -20.6, 1, 0, "tunneln", 1.6); W(-6.5, -25.4, 1, 0, "plats-s04", 1.6); W(6.5, -20.6, -1, 0, "plats-s05", 1.6); W(6.5, -25.4, -1, 0, "plats-s06", 1.6);
+  W(-2.6, -29, 0, 1, "norrtull", 2.7, true); W(-3.9, -17, 0, -1, "plats-s07", 1.4); W(4.45, -17, 0, -1, "plats-s08", 1.4);
   return out;
 }
 
@@ -585,14 +558,14 @@ function manSlots() {
 
 /* ================= rummen ================= */
 const SPECS = {
-  staden: { num: "01", name: "Staden", sub: "Betong, stål och kallt ljus", next: "naturen",
-    intro: "En nedlagd tunnelbanestation med två perronger. Gå genom valven i mittväggen för att se båda sidor, och tryck på en bild för att se den i full storlek.",
-    sdf: stadenSDF, amb: (x, y, z) => z > 0 ? [.02, .02, .02] : [.05, .062, .062], solids: ST_SOLIDS, lights: stadenLights,
-    ceil: (x, z) => z > 0 ? SC.h : Math.abs(x) < ST.W2 ? ST.PH : stVault(Math.abs(x)),
-    start: { x: -3.3, z: 4.2, yaw: 0 },
-    walk: [{ x0: -5.55, x1: -1.05, z0: -29.55, z1: -.4 }, { x0: 1.05, x1: 5.55, z0: -29.55, z1: -.4 }, { x0: -3.95, x1: -2.65, z0: -.6, z1: 4.6 }]
-      .concat(ST.PZ.map((pz) => ({ x0: -1.2, x1: 1.2, z0: pz - .85, z1: pz + .85 }))),
-    look: { fog: 0x060909, density: .016, bg: 0x020303, exposure: 1.3, bloom: .5, thr: 1.3 }, step: 500, wet: .4,
+  staden: { num: "01", name: "Staden", sub: "Gränder, lyktor och kullersten", next: "naturen",
+    intro: "En gränd i Gamla stan en sen kväll. Följ lyktorna mot torget och tryck på en bild för att se den i full storlek.",
+    sdf: stadenSDF, amb: (x, y, z) => [.014 + y * .002, .018 + y * .0027, .03 + y * .0044], solids: [], lights: stadenLights,
+    ceil: () => GS.H,
+    start: { x: 0, z: -1.1, yaw: 0 },
+    walk: [{ x0: -1.55, x1: 1.55, z0: -8.75, z1: -.45 }, { x0: -.95, x1: 1.55, z0: -9.3, z1: -8.7 }, { x0: -.95, x1: 2.15, z0: -16.75, z1: -9.25 },
+      { x0: -.95, x1: 2.15, z0: -17.3, z1: -16.7 }, { x0: -6.25, x1: 6.25, z0: -28.75, z1: -17.25 }],
+    look: { fog: 0x0b1019, density: .021, bg: 0x0a0e17, exposure: 1.12, bloom: .55, thr: 1.15 }, step: 620, wet: .45,
     slots: stadenSlots() },
   naturen: { num: "02", name: "Naturen", sub: "Ut ur mörkret, in i ljuset", next: "berattelser",
     intro: "Du kliver ut ur mörkret. Dagsljus, luft och färg: havet, kusten, bergen och hösten.",
@@ -1015,93 +988,9 @@ function useRoom(key) {
   const colliders = [];
   const exits = [];
 
-  /* ================= 01 STADEN ================= */
-  let TEX;
-  // ändväggens form i (|x|, v) där v = y + 1,1: perrong, tunnelmynning över spåret och valvet upptill
-  function stEndPoly(notch) {
-    const P = [[ST.W2, 1.1]];
-    if (notch) P.push([-SC.x1, 1.1], [-SC.x1, SC.h + 1.1], [-SC.x0, SC.h + 1.1], [-SC.x0, 1.1]);
-    P.push([ST.PE, 1.1], [ST.PE, ST.TCY + 1.1]);
-    for (let i = 1; i < 16; i++) { const a = Math.PI - Math.PI * i / 16; P.push([ST.TCX + ST.TR * Math.cos(a), ST.TCY + 1.1 + ST.TR * Math.sin(a)]); }
-    P.push([ST.XO, ST.TCY + 1.1], [ST.XO, ST.SPR + 1.1]);
-    for (let i = 1; i < 28; i++) { const th = Math.PI * i / 28; P.push([ST.VCX + ST.VA * Math.cos(th), ST.SPR + 1.1 + ST.VB * Math.sin(th)]); }
-    P.push([ST.W2, ST.SPR + 1.1]);
-    return P;
-  }
-  function endWall(side, far) {
-    const poly = stEndPoly(!far && side < 0), W2 = ST.W2, XO = ST.XO; let O, U, toU;
-    if (far) { U = [1, 0, 0]; if (side < 0) { O = [-XO, ST.PIT, -ST.L]; toU = (ax) => XO - ax; } else { O = [W2, ST.PIT, -ST.L]; toU = (ax) => ax - W2; } }
-    else { U = [-1, 0, 0]; if (side < 0) { O = [-W2, ST.PIT, 0]; toU = (ax) => ax - W2; } else { O = [XO, ST.PIT, 0]; toU = (ax) => XO - ax; } }
-    planar({ name: far ? "bortre vägg" : "ingångsvägg", O, U, V: [0, 1, 0], lu: XO - W2, lv: ST.SPR + ST.VB + 1.1, shape: poly.map(([ax, v]) => [toU(ax), v]), map: TEX.end, tu: 4.5, tv: 6.3 });
-  }
-  function buildShell() {
-    TEX = {
-      wall: T(concreteWall(11, 4, 3.2, "#6b6c67", { dirtM: .5 })),
-      track: T(concreteWall(23, 4, 4.3, "#575954", { dirtM: .4, oilBand: 1.25, efflor: true })),
-      end: T(concreteWall(37, 4.5, 6.3, "#5e605a", { dirtM: .5, oilBand: 1.1 })),
-      vault: T(vaultTex(5)), floor: T(floorTex(7)), ballast: T(ballastTex(3)), tunnel: T(vaultTex(19))
-    };
-    const L = ST.L, W2 = ST.W2, PE = ST.PE, XO = ST.XO, PIT = ST.PIT, lo = RES * .6;
-    for (const s of [-1, 1]) {
-      const A = s < 0;
-      planar({ name: "perrong", floor: true, O: [A ? -PE : W2, 0, 0], U: [1, 0, 0], V: [0, 0, -1], lu: PE - W2, lv: L, map: TEX.floor, tu: 5.5, tv: 2.4 });
-      planar({ name: "spårbädd", O: [A ? -XO : PE, PIT, 0], U: [1, 0, 0], V: [0, 0, -1], lu: XO - PE, lv: L, map: TEX.ballast, tu: 1.5, tv: 1.5, res: lo });
-      planar({ name: "kantvägg", O: A ? [-PE, PIT, -L] : [PE, PIT, 0], U: A ? [0, 0, 1] : [0, 0, -1], V: [0, 1, 0], lu: L, lv: -PIT, map: TEX.track, tu: 4, tv: 4.3, color: 0x8a8a84 });
-      planar({ name: "spårvägg", O: A ? [-XO, PIT, 0] : [XO, PIT, -L], U: A ? [0, 0, -1] : [0, 0, 1], V: [0, 1, 0], lu: L, lv: ST.SPR - PIT, map: TEX.track, tu: 4, tv: 4.3 });
-      arc({ name: "valv", cx: s * ST.VCX, cy: ST.SPR, a: ST.VA, b: ST.VB, th0: 0, th1: Math.PI, z0: 0, z1: -L, map: TEX.vault, tu: 3, tv: 3, res: RES * .75 });
-      endWall(s, true); endWall(s, false);
-      // mittväggens sida, med genomgångarna urtagna nertill
-      const toU = (z) => A ? z + L : -z, sh = [[0, 0]];
-      ST.PZ.map((pz) => [toU(pz - ST.PW / 2), toU(pz + ST.PW / 2)].sort((a, b) => a - b)).sort((a, b) => a[0] - b[0])
-        .forEach(([u0, u1]) => sh.push([u0, 0], [u0, ST.PH], [u1, ST.PH], [u1, 0]));
-      sh.push([L, 0], [L, ST.SPR], [0, ST.SPR]);
-      planar({ name: "mittvägg", O: A ? [-W2, 0, -L] : [W2, 0, 0], U: A ? [0, 0, 1] : [0, 0, -1], V: [0, 1, 0], lu: L, lv: ST.SPR, shape: sh, map: TEX.wall, tu: 4, tv: 3.2 });
-      // tunnlarna: en lång i bortre änden, en kort bakom ingången
-      for (const [z0, len] of [[-L, ST.TF], [ST.TN, ST.TN]]) {
-        planar({ O: [A ? -XO : PE, PIT, z0], U: [1, 0, 0], V: [0, 0, -1], lu: XO - PE, lv: len, map: TEX.ballast, tu: 1.5, tv: 1.5, res: lo });
-        planar({ O: A ? [-PE, PIT, z0 - len] : [PE, PIT, z0], U: A ? [0, 0, 1] : [0, 0, -1], V: [0, 1, 0], lu: len, lv: ST.TCY - PIT, map: TEX.tunnel, tu: 3, tv: 3, res: lo });
-        planar({ O: A ? [-XO, PIT, z0] : [XO, PIT, z0 - len], U: A ? [0, 0, -1] : [0, 0, 1], V: [0, 1, 0], lu: len, lv: ST.TCY - PIT, map: TEX.tunnel, tu: 3, tv: 3, res: lo });
-        arc({ cx: s * ST.TCX, cy: ST.TCY, a: ST.TR, b: ST.TR, th0: 0, th1: Math.PI, z0, z1: z0 - len, map: TEX.tunnel, tu: 3, tv: 3, res: lo });
-        const end = new THREE.Mesh(new THREE.PlaneGeometry(XO - PE, 3.2), new THREE.MeshBasicMaterial({ color: 0x000000 }));
-        if (z0 > 0) { end.position.set(s * ST.TCX, 1.0, z0 - .05); end.rotation.y = Math.PI; } else end.position.set(s * ST.TCX, 1.0, z0 - len + .05);
-        scene.add(end);
-      }
-    }
-    // genomgångarna genom mittväggen
-    for (const pz of ST.PZ) {
-      const z0 = pz + ST.PW / 2, z1 = pz - ST.PW / 2;
-      planar({ name: "genomgång", floor: true, O: [-W2, 0, z0], U: [1, 0, 0], V: [0, 0, -1], lu: 2 * W2, lv: ST.PW, map: TEX.floor, tu: 5.5, tv: 2.4 });
-      planar({ O: [-W2, ST.PH, z1], U: [1, 0, 0], V: [0, 0, 1], lu: 2 * W2, lv: ST.PW, map: TEX.wall, tu: 4, tv: 3.2 });
-      planar({ O: [W2, 0, z0], U: [-1, 0, 0], V: [0, 1, 0], lu: 2 * W2, lv: ST.PH, map: TEX.wall, tu: 4, tv: 3.2 });
-      planar({ O: [-W2, 0, z1], U: [1, 0, 0], V: [0, 1, 0], lu: 2 * W2, lv: ST.PH, map: TEX.wall, tu: 4, tv: 3.2 });
-    }
-  }
-
   /* ---------- material för föremål ---------- */
   const PC = { steel: 0x2a2c2c, black: 0x111212, frame: 0x0b0b0b, wood: 0xb07a42, rail: 0x6e6a64, sleeper: 0x2e2621, white: 0xe4e1d8, door: 0x3a3f3d, pale: 0x8b8e8a };
 
-  function stBench(bx, bz, s) { // s: åt vilket håll bänken vetter (+1 = +x)
-    const id = "bench" + bx + bz;
-    for (const dx of [-.16, 0, .16]) prop(new THREE.BoxGeometry(.13, .04, 2.0, 1, 1, 8), { color: PC.wood }, new V3(bx + dx, .46, bz), null, { id });
-    for (const dy of [.62, .78]) prop(new THREE.BoxGeometry(.04, .13, 2.0, 1, 1, 8), { color: PC.wood }, new V3(bx - s * .24, dy, bz), [0, 0, -.12 * s], { id });
-    for (const dz of [-.8, .8]) { prop(new THREE.BoxGeometry(.05, .46, .05), { color: PC.pale }, new V3(bx, .23, bz + dz), null, { id }); prop(new THREE.BoxGeometry(.05, .5, .05), { color: PC.pale }, new V3(bx - s * .22, .62, bz + dz), [0, 0, -.12 * s], { id }); }
-    colliders.push({ x0: bx - .32, x1: bx + .32, z0: bz - 1.05, z1: bz + 1.05 });
-  }
-  function buildProps() {
-    for (const s of [-1, 1]) {
-      // lysrör i armaturer längs perrongen
-      ST_TZ.forEach((z) => { prop(new THREE.BoxGeometry(.16, .07, 1.5, 1, 1, 6), { color: 0x9a9d98 }, new V3(s * ST_TX, ST_TY + .06, z), null, { shadow: false });
-        const vY = stVault(ST_TX); for (const dz of [-.6, .6]) prop(new THREE.CylinderGeometry(.006, .006, vY - ST_TY - .1, 4), { color: PC.black }, new V3(s * ST_TX, (vY + ST_TY + .1) / 2, z + dz), null, { shadow: false }); });
-      // perrongkant: vit kantsten och gul varningsrand
-      prop(new THREE.BoxGeometry(.3, .02, ST.L, 1, 1, 60), { color: 0xcfcbc0 }, new V3(s * (ST.PE - .15), .01, -ST.L / 2), null, { shadow: false });
-      prop(new THREE.BoxGeometry(.22, .012, ST.L, 1, 1, 60), { color: 0xb8962a }, new V3(s * (ST.PE - .48), .006, -ST.L / 2), null, { shadow: false });
-      // räls
-      for (const dx of [-.72, .72]) prop(new THREE.BoxGeometry(.07, .14, ST.L + 16, 1, 1, 120), { color: PC.rail }, new V3(s * (ST.TCX + dx), ST.PIT + .19, -ST.L / 2 - 4), null, { shadow: false });
-      // papperskorg vid mittväggen
-      prop(new THREE.CylinderGeometry(.21, .19, .78, 24, 3), { color: 0x23302c }, new V3(s * 1.15, .39, s < 0 ? -8.9 : -16.4), null, { collide: true });
-    }
-    stBench(-3.6, -11.25, -1); stBench(-3.6, -26.25, -1); stBench(3.6, -3.75, 1); stBench(3.6, -18.75, 1);
-  }
   /* ---------- fotona i tjocka svarta ramar ---------- */
   const arts = [];
   function frameFor(slot, aspect, S) {
@@ -1134,24 +1023,13 @@ function useRoom(key) {
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), m); mesh.position.copy(pos); mesh.lookAt(pos.clone().add(normal)); scene.add(mesh);
     decals.push({ mesh, pos: pos.clone(), n: normal.clone(), boost: o.boost || 1, minL: o.minL || 0 }); return mesh;
   }
-  function buildSigns() {
-    const name = () => signCanvas([{ text: "EN BÄTTRE BILD", font: '800 150px "Big Shoulders Display", "Arial Narrow", sans-serif', y: 132, track: 16 }],
-      { w: 1536, h: 256, bg: "#123a3e", fg: "#ece9e0", border: "rgba(236,233,224,.85)", bw: 6, wear: true });
-    // stationsnamnet över varje genomgång, på båda sidor
-    for (const s of [-1, 1]) for (const pz of ST.PZ) decal(name(), 2.2, .367, new V3(s * (ST.W2 + .02), 3.12, pz), new V3(s, 0, 0), { boost: 1.8, minL: .08 });
-    decal(signCanvas([{ text: "01  STADEN", font: '800 120px "Big Shoulders Display", "Arial Narrow", sans-serif', y: 128, track: 14 }],
-      { w: 1024, h: 256, bg: "#123a3e", fg: "#ece9e0", border: "rgba(236,233,224,.85)", bw: 6, wear: true }), 1.3, .325, new V3(-3.3, 3.3, -.02), new V3(0, 0, -1), { boost: 1.5, minL: .08 });
-    // graffiti nere i spårgravarna
-    [[-1, -4.2, 23], [-1, -18.6, 41], [1, -11.2, 57], [1, -26.4, 66]].forEach(([s, z, sd]) => decal(graffitiCanvas(sd, 1024, 420), 2.4, .99, new V3(s * (ST.XO - .02), -.4, z), new V3(-s, 0, 0), { transparent: true }));
-    [[-1, -13, 77], [1, -9, 81]].forEach(([s, z, sd]) => decal(graffitiCanvas(sd, 1024, 420), 2.0, .82, new V3(s * (ST.PE + .02), -.55, z), new V3(s, 0, 0), { transparent: true }));
-  }
   /* ---------- vägvisning: slitna stenciltexter målade på golvet ---------- */
   const HP = Math.PI / 2;
   const FLOOR_INK = { foajen: "#24221f", naturen: "#2a2926" }; // mörk färg på ljusa golv, ljus på mörka
   // bara vid utgångarna: först när man har gått runt i rummet visar golvet vägen vidare
   const FLOOR_MARKS = {
     foajen: [{ x: 0, z: -3.3, yaw: 0, text: "VERNISSAGEN", sub: "FYRA RUM  ·  TA TUREN", arrow: 0 }],
-    staden: [{ x: 3.3, z: -27.4, yaw: 0, text: "02 NATUREN", sub: "GÅ VIDARE", arrow: 0, w: 1.2 }],
+    staden: [{ x: 3.6, z: -27.3, yaw: 0, text: "02 NATUREN", sub: "GÅ VIDARE", arrow: 0, w: 1.2 }],
     naturen: [{ x: 3.4, z: -17.5, yaw: 0, text: "03 BERÄTTELSER", sub: "GÅ VIDARE", arrow: -HP, w: 1.2 }],
     berattelser: [{ x: 4.2, z: -19, yaw: 0, text: "04 MÄNNISKORNA", sub: "GÅ VIDARE", arrow: -HP, w: 1.2 }],
     manniskorna: [{ x: 0, z: -1.7, yaw: Math.PI, text: "00 FOAJÉN", sub: "TILLBAKA TILL ENTRÉN", arrow: 0 }]
@@ -1185,31 +1063,8 @@ function useRoom(key) {
     for (const a of arts) { const p = a.labelPos, n = a.s.N; const L = shade(p.x + n[0] * .02, p.y, p.z + n[2] * .02, n[0], n[1], n[2], null); a.label.material.color.setRGB(L[0], L[1], L[2]); }
   }
 
-  /* ---------- syllar (instansierade) ---------- */
-  function buildSleepers() {
-    const n = Math.floor((ST.L + 16) / .62), c = new THREE.Color(), r = rng(8), o = new THREE.Object3D();
-    for (const s of [-1, 1]) {
-      const inst = new THREE.InstancedMesh(new THREE.BoxGeometry(2.5, .12, .22), new THREE.MeshBasicMaterial({ color: PC.sleeper }), n);
-      for (let i = 0; i < n; i++) { const z = 3.8 - i * .62; o.position.set(s * ST.TCX + (r() - .5) * .04, ST.PIT + .06, z); o.rotation.y = (r() - .5) * .03; o.updateMatrix(); inst.setMatrixAt(i, o.matrix);
-        const L = shade(s * ST.TCX, ST.PIT + .14, z, 0, 1, 0, null); c.setRGB(L[0] * (.8 + r() * .4), L[1] * (.8 + r() * .4), L[2] * (.8 + r() * .4)); inst.setColorAt(i, c); }
-      scene.add(inst);
-    }
-  }
-  /* ---------- lysande delar (syns direkt, bakas inte) ---------- */
   const tubeMats = [];
-  function buildEmitters() {
-    for (const s of [-1, 1]) ST_TZ.forEach((z) => { const m = new THREE.MeshBasicMaterial({ color: new THREE.Color(1.9, 2.6, 2.5) }); tubeMats.push(m);
-      const t = new THREE.Mesh(new THREE.CylinderGeometry(.022, .022, 1.36, 10), m); t.rotation.x = Math.PI / 2; t.position.set(s * ST_TX, ST_TY, z); scene.add(t); });
-    for (const s of [-1, 1]) for (const [p, sz] of [[[s * 7.4, .55, -ST.L - 9], .07], [[s * 7.4, 3.05, -ST.L + .15], .05]]) {
-      const r = new THREE.Mesh(new THREE.SphereGeometry(sz, 12, 8), new THREE.MeshBasicMaterial({ color: new THREE.Color(6, .25, .15) })); r.position.set(...p); scene.add(r); }
-    for (const pz of ST.PZ) { const b = new THREE.Mesh(new THREE.BoxGeometry(1.2, .03, .08), new THREE.MeshBasicMaterial({ color: new THREE.Color(2.6, 1.9, 1.2) })); b.position.set(0, ST.PH - .03, pz); scene.add(b); }
-  }
-  /* ---------- ett lysrör som flimrar ---------- */
   let flickerDark = null;
-  function buildEerie() {
-    const fd = new THREE.Mesh(new THREE.PlaneGeometry(7, 7), new THREE.MeshBasicMaterial({ map: T(radial([[0, "rgba(0,0,0,.9)"], [.6, "rgba(0,0,0,.45)"], [1, "rgba(0,0,0,0)"]], 256), false, false), transparent: true, opacity: 0, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3 }));
-    fd.rotation.x = -Math.PI / 2; fd.position.set(ST_TX, .006, ST_TZ[3]); scene.add(fd); flickerDark = fd;
-  }
 
   /* ================= gemensamt för alla rum ================= */
   // armaturer för spotlights: huvud, lins och stång upp i taket
@@ -1568,31 +1423,238 @@ function useRoom(key) {
     return { dust: sunDust };
   }
 
-  /* ================= 01 STADEN: sammansatt ================= */
-  function buildStaden() {
-    buildShell(); buildProps(); buildSigns(); buildEmitters(); buildEerie();
-    // korridoren in från foajén, med en tavelplats på varje vägg
-    planar({ name: "korridorgolv", floor: true, O: [SC.x0, 0, SC.z1], U: [1, 0, 0], V: [0, 0, -1], lu: SC.x1 - SC.x0, lv: SC.z1, map: TEX.floor, tu: 5.5, tv: 2.4 });
-    planar({ O: [SC.x0, 0, SC.z1], U: [0, 0, -1], V: [0, 1, 0], lu: SC.z1, lv: SC.h, map: TEX.wall, tu: 4, tv: 3.2 });
-    planar({ O: [SC.x1, 0, 0], U: [0, 0, 1], V: [0, 1, 0], lu: SC.z1, lv: SC.h, map: TEX.wall, tu: 4, tv: 3.2 });
-    planar({ O: [SC.x0, SC.h, 0], U: [1, 0, 0], V: [0, 0, 1], lu: SC.x1 - SC.x0, lv: SC.z1, map: TEX.vault, tu: 3, tv: 3 });
-    planar({ O: [SC.x1, 0, SC.z1], U: [-1, 0, 0], V: [0, 1, 0], lu: SC.x1 - SC.x0, lv: SC.h, map: TEX.wall, tu: 4, tv: 3.2 });
-    { const bar = new THREE.Mesh(new THREE.BoxGeometry(.06, .03, 2.9), new THREE.MeshBasicMaterial({ color: new THREE.Color(2.6, 1.9, 1.2) })); bar.position.set(-3.3, SC.h - .05, 2.6); scene.add(bar); }
-    opening({ C: [-3.3, 0, SC.z1], N: [0, 0, -1], U: [-1, 0, 0], w: 1.2, h: 2.2, to: "foajen", sign: ["00  FOAJÉN", "TILLBAKA"], glow: new THREE.Color(1.1, .82, .55) });
-    // vidare till Naturen längst bort på perrong B
-    opening({ C: [3.3, 0, -ST.L], N: [0, 0, 1], U: [1, 0, 0], w: 1.3, h: 2.4, to: "naturen", sign: ["02  NATUREN", "GÅ VIDARE"], glow: new THREE.Color(1.15, 1.2, 1.3) });
-    const flick = { on: 1, until: 0, burstEnd: 0, next: 4000 }, FI = 9; // lysrör nr 9: perrong B, z -17,5
-    return {
-      noDust: true, // inget damm i Staden
-      afterBake: buildSleepers,
-      update(now, dt) {
-        if (!reduceMotion && tubeMats.length > FI) {
-          if (now > flick.next && now > flick.burstEnd) { flick.burstEnd = now + 500 + Math.random() * 1400; flick.next = flick.burstEnd + 5000 + Math.random() * 11000; }
-          let on = 1; if (now < flick.burstEnd) { if (now > flick.until) { flick.on = Math.random() < .45 ? 0 : 1; flick.until = now + 70 + Math.random() * 180; if (!flick.on) Sound.flick(); } on = flick.on; }
-          tubeMats[FI].color.setRGB(1.9 * on + .04, 2.6 * on + .08, 2.5 * on + .08); flickerDark.material.opacity += ((1 - on) * .62 - flickerDark.material.opacity) * Math.min(1, dt * 30);
+  /* ================= 01 STADEN: gränd i Gamla stan ================= */
+  const GS_COLS = ["#b98a52", "#b06a4e", "#c4ab83", "#9a4f37", "#c49a55", "#a39380", "#b5714a", "#8f6a4a"];
+  function rrPath(x, X, Y, w, h, r) { r = Math.min(r, w / 2, h / 2); x.beginPath(); x.moveTo(X + r, Y); x.arcTo(X + w, Y, X + w, Y + h, r); x.arcTo(X + w, Y + h, X, Y + h, r); x.arcTo(X, Y + h, X, Y, r); x.arcTo(X, Y, X + w, Y, r); x.closePath(); }
+  // putsfasad, ett hus i taget: egen kulör, mörk stensockel, fönster med ljusa foder, portar, takfot och smuts som runnit från taket
+  function facadeTex(seed, wM, hM, houses, keep) {
+    const ppm = Math.min(96, 2048 / Math.max(wM, hM)), W = Math.max(8, Math.round(wM * ppm)), Hh = Math.round(hM * ppm), c = cnv(W, Hh), x = c.getContext("2d"), r = rng(seed), wins = [];
+    const Y = (y) => Hh - y * ppm, P = (m) => m * ppm;
+    houses.forEach(([u0, u1, ci], hi) => {
+      const X0 = P(u0), X1 = P(u1), w = X1 - X0, hs = seed * 7 + hi * 31;
+      x.save(); x.beginPath(); x.rect(X0, 0, w, Hh); x.clip();
+      x.fillStyle = GS_COLS[ci % GS_COLS.length]; x.fillRect(X0, 0, w, Hh);
+      blotches(x, W, Hh, 140, hs, ["60,40,26", "240,226,206", "130,96,64"], 20, 150, .05, .17);
+      streaks(x, W, 90, hs + 2, "40,28,18", Hh * .55, .05, .22);
+      // fönster i tre våningar
+      const n = Math.max(1, Math.floor((u1 - u0 - .5) / 1.75)), s = (u1 - u0) / n;
+      for (const [sill, hh] of [[3.3, 1.3], [5.95, 1.3], [8.25, 1.15]]) for (let k = 0; k < n; k++) {
+        const cu = u0 + s * (k + .5), ww = .86, L = P(cu - ww / 2), T0 = Y(sill + hh);
+        x.fillStyle = "rgba(25,18,12,.35)"; x.fillRect(L - P(.11), T0 - P(.1), P(ww + .22), P(hh + .2));
+        x.fillStyle = "#d9d0bc"; x.fillRect(L - P(.08), T0 - P(.08), P(ww + .16), P(hh + .14));
+        const g = x.createLinearGradient(0, T0, 0, T0 + P(hh)); g.addColorStop(0, "#2a3038"); g.addColorStop(.5, "#14181d"); g.addColorStop(1, "#1d2228"); x.fillStyle = g; x.fillRect(L, T0, P(ww), P(hh));
+        x.fillStyle = "#cfc6b2"; x.fillRect(L + P(ww / 2) - 2, T0, 4, P(hh)); x.fillRect(L, T0 + P(hh * .36) - 2, P(ww), 4);
+        x.fillStyle = "#5c574f"; x.fillRect(L - P(.13), Y(sill) + 1, P(ww + .26), P(.06));
+        const sg = x.createLinearGradient(0, Y(sill), 0, Y(sill) + P(.9)); sg.addColorStop(0, "rgba(30,22,14,.28)"); sg.addColorStop(1, "rgba(30,22,14,0)"); x.fillStyle = sg; x.fillRect(L, Y(sill), P(ww), P(.9));
+        wins.push({ u: cu, y: sill + hh / 2, w: ww, h: hh });
+      }
+      // port på bottenvåningen, inte där en bild eller lykta sitter
+      if (u1 - u0 > 2.4 && r() < .75) {
+        let du = null; for (let tries = 0; tries < 8 && du === null; tries++) { const cand = u0 + 1 + r() * (u1 - u0 - 2); if (keep.every((k) => Math.abs(k - cand) > 1.35)) du = cand; }
+        if (du !== null) {
+          x.fillStyle = "#777064"; x.fillRect(P(du - .66), Y(2.62), P(1.32), P(2.62));
+          x.fillStyle = "#3a2416"; x.fillRect(P(du - .52), Y(2.32), P(1.04), P(2.32));
+          for (let k = 1; k < 6; k++) { x.fillStyle = "rgba(15,8,4,.6)"; x.fillRect(P(du - .52 + k * 1.04 / 6) - 1, Y(2.32), 2, P(2.32)); }
+          x.fillStyle = "#14171b"; x.fillRect(P(du - .52), Y(2.56), P(1.04), P(.18));
+          x.fillStyle = "#b8955a"; x.fillRect(P(du + .3), Y(1.1), 4, 10);
         }
       }
-    };
+      // sockel i mörk sten och takfot
+      x.fillStyle = "#3b3834"; x.fillRect(X0, Y(.62), w, P(.62)); x.fillStyle = "#57524b"; x.fillRect(X0, Y(.62), w, 3);
+      blotches(x, W, Hh, 30, hs + 5, ["10,10,10"], 10, 50, .1, .3);
+      x.fillStyle = "rgba(18,12,8,.5)"; x.fillRect(X0, 0, w, P(.34)); x.fillStyle = "rgba(230,215,190,.35)"; x.fillRect(X0, P(.34), w, 3);
+      x.restore();
+      x.fillStyle = "rgba(20,14,10,.55)"; x.fillRect(X0 - 1, 0, 2, Hh);
+    });
+    grain(x, W, Hh, 14, seed + 3);
+    return { c, wins };
+  }
+  function gsHouses(len, seed) { const r = rng(seed), out = []; let u = 0, ci = seed % GS_COLS.length;
+    while (u < len - .01) { let w = 3.2 + r() * 2.6; if (len - (u + w) < 2.2) w = len - u; out.push([u, Math.min(len, u + w), ci]); ci += 1 + (r() * 3 | 0); u += w; } return out; }
+  // gatsten, 2 × 2 m per textur: rundade stenar i rader, mörka fogar och blanka våta partier
+  function cobbleTex(seed) {
+    const S = 1024, c = cnv(S, S), x = c.getContext("2d"), r = rng(seed), ppm = S / 2, rowH = .1 * ppm;
+    x.fillStyle = "#1c1a18"; x.fillRect(0, 0, S, S);
+    for (let y = 0; y < S - 1; y += rowH) { let xx = -r() * 40;
+      while (xx < S) { const w = (.085 + r() * .06) * ppm, h = rowH - 5 - r() * 4, yy = y + 2.5 + r() * 2, l = 28 + r() * 20;
+        x.fillStyle = `hsl(${25 + r() * 25},${4 + r() * 8}%,${l}%)`; rrPath(x, xx + 2.5, yy, w - 5, h, 8); x.fill();
+        const g = x.createLinearGradient(0, yy, 0, yy + h); g.addColorStop(0, "rgba(255,240,220,.13)"); g.addColorStop(1, "rgba(0,0,0,.28)"); x.fillStyle = g; rrPath(x, xx + 2.5, yy, w - 5, h, 8); x.fill();
+        xx += w; } }
+    blotches(x, S, S, 60, seed + 3, ["8,9,12", "50,58,70"], 30, 170, .1, .35);
+    grain(x, S, S, 14, seed + 5); return c;
+  }
+  // rännsten av flata hällar
+  function gutterCanvas(lenM) {
+    const W = 128, Hh = Math.min(2048, Math.round(lenM * 218)), c = cnv(W, Hh), x = c.getContext("2d"), r = rng(17), ppm = Hh / lenM;
+    x.fillStyle = "#121111"; x.fillRect(0, 0, W, Hh);
+    for (let y = 0; y < Hh; y += .55 * ppm) { const l = 22 + r() * 10; x.fillStyle = `hsl(30,4%,${l}%)`; x.fillRect(4, y + 3, W - 8, .55 * ppm - 6); }
+    const g = x.createLinearGradient(0, 0, W, 0); g.addColorStop(0, "rgba(0,0,0,.35)"); g.addColorStop(.5, "rgba(140,150,165,.18)"); g.addColorStop(1, "rgba(0,0,0,.35)"); x.fillStyle = g; x.fillRect(0, 0, W, Hh);
+    grain(x, W, Hh, 12, 4); return c;
+  }
+  function manholeCanvas() {
+    const S = 256, c = cnv(S, S), x = c.getContext("2d");
+    x.fillStyle = "#1a1918"; x.beginPath(); x.arc(S / 2, S / 2, S / 2 - 2, 0, 7); x.fill();
+    x.save(); x.beginPath(); x.arc(S / 2, S / 2, S / 2 - 18, 0, 7); x.clip(); x.fillStyle = "#2b2a28"; x.fillRect(0, 0, S, S);
+    x.strokeStyle = "#151413"; x.lineWidth = 6; for (let k = -6; k <= 6; k++) { x.beginPath(); x.moveTo(S / 2 + k * 18, 0); x.lineTo(S / 2 + k * 18, S); x.stroke(); x.beginPath(); x.moveTo(0, S / 2 + k * 18); x.lineTo(S, S / 2 + k * 18); x.stroke(); }
+    x.restore(); x.strokeStyle = "#3a3936"; x.lineWidth = 5; x.beginPath(); x.arc(S / 2, S / 2, S / 2 - 12, 0, 7); x.stroke(); grain(x, S, S, 16, 2); return c;
+  }
+  // platt dekal på marken, ljussätts som skyltarna
+  function groundDecal(canvas, w, l, x, z, o) {
+    o = o || {};
+    const m = new THREE.MeshBasicMaterial({ map: T(canvas, true, false), transparent: !!o.transparent, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -6 });
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, l), m); mesh.rotation.x = -Math.PI / 2; mesh.position.set(x, .006, z); scene.add(mesh);
+    decals.push({ mesh, pos: new V3(x, .05, z), n: new V3(0, 1, 0), boost: o.boost || 1, minL: o.minL || .02 });
+  }
+  // en husvägg: nedre delen med full ljusupplösning, övre delen grövre. Några fönster lyser.
+  function gsWall(O, N, len, seed) {
+    const H = GS.H, U = [N[2], 0, -N[0]], split = 4.4, on = (P) => Math.abs((P[0] - O[0]) * N[0] + (P[2] - O[2]) * N[2]) < .05;
+    const uOf = (P) => (P[0] - O[0]) * U[0] + (P[2] - O[2]) * U[2];
+    const keep = SPECS.staden.slots.filter((s) => s.N[0] === N[0] && s.N[2] === N[2] && on(s.C)).map((s) => uOf(s.C))
+      .concat(GS_LANTERNS.filter((L) => L.n[0] === N[0] && L.n[2] === N[2] && on(L.w)).map((L) => uOf(L.w)));
+    const ft = facadeTex(seed, len, H, gsHouses(len, seed), keep), tex = T(ft.c);
+    planar({ name: "fasad", O, U, V: [0, 1, 0], lu: len, lv: split, map: tex, uvFn: (u, v) => [u / len, v / H] });
+    planar({ name: "fasad uppe", O: [O[0], split, O[2]], U, V: [0, 1, 0], lu: len, lv: H - split, map: tex, uvFn: (u, v) => [u / len, (v + split) / H], res: RES * .45 });
+    const r = rng(seed + 77), Nv = new V3(...N);
+    for (const w of ft.wins) if (r() < .17) {
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(w.w * .84, w.h * .9), new THREE.MeshBasicMaterial({ color: new THREE.Color(1, .6, .27).multiplyScalar(.32 + r() * .4) }));
+      m.position.set(O[0] + U[0] * w.u + N[0] * .012, w.y, O[2] + U[2] * w.u + N[2] * .012); m.lookAt(m.position.clone().add(Nv)); scene.add(m);
+      const bar = new THREE.Mesh(new THREE.PlaneGeometry(.035, w.h * .92), new THREE.MeshBasicMaterial({ color: 0x1a1612 })); bar.position.copy(m.position).addScaledVector(Nv, .002); bar.lookAt(bar.position.clone().add(Nv)); scene.add(bar);
+      const hb = new THREE.Mesh(new THREE.PlaneGeometry(w.w * .84, .035), bar.material); hb.position.copy(bar.position); hb.position.y += w.h * .14; hb.lookAt(hb.position.clone().add(Nv)); scene.add(hb);
+    }
+    // takfoten sticker ut mot himlen
+    if (len > 1) { prop(new THREE.BoxGeometry(len, .16, .5, 4, 1, 1), { color: 0x2b2420 }, new V3(O[0] + U[0] * len / 2 + N[0] * .18, H + .06, O[2] + U[2] * len / 2 + N[2] * .18), [0, Math.atan2(-U[2], U[0]), 0], { shadow: false }); }
+  }
+  const GS_DARK = 0x131110;
+  function gsLanternBody(x, y, z, sc) {
+    sc = sc || 1;
+    prop(new THREE.CylinderGeometry(.025 * sc, .17 * sc, .16 * sc, 4, 1), { color: GS_DARK }, new V3(x, y + .245 * sc, z), [0, Math.PI / 4, 0], { shadow: false });
+    prop(new THREE.SphereGeometry(.032 * sc, 8, 6), { color: GS_DARK }, new V3(x, y + .35 * sc, z), null, { shadow: false });
+    prop(new THREE.CylinderGeometry(.14 * sc, .14 * sc, .03 * sc, 4, 1), { color: GS_DARK }, new V3(x, y + .17 * sc, z), [0, Math.PI / 4, 0], { shadow: false });
+    const glass = new THREE.Mesh(new THREE.CylinderGeometry(.13 * sc, .09 * sc, .32 * sc, 4, 1, true), new THREE.MeshBasicMaterial({ color: new THREE.Color(2.9, 1.9, .9), side: THREE.DoubleSide }));
+    glass.position.set(x, y, z); glass.rotation.y = Math.PI / 4; scene.add(glass);
+    for (let k = 0; k < 4; k++) { const a = k * Math.PI / 2; rodProp([x + Math.sin(a) * .13 * sc, y + .16 * sc, z + Math.cos(a) * .13 * sc], [x + Math.sin(a) * .09 * sc, y - .16 * sc, z + Math.cos(a) * .09 * sc], .007 * sc, GS_DARK); }
+    prop(new THREE.CylinderGeometry(.1 * sc, .05 * sc, .07 * sc, 4), { color: GS_DARK }, new V3(x, y - .19 * sc, z), [0, Math.PI / 4, 0], { shadow: false });
+    glow(x, y, z, 1.8 * sc, 0xffb565, .55);
+  }
+  function gsLantern(L) {
+    const [x, y, z] = L.p, n = L.n, top = y + .44, w = L.w, alongX = n[0] !== 0;
+    rodProp([w[0], top, w[2]], [x, top, z], .017, GS_DARK);
+    rodProp([w[0], top - .34, w[2]], [w[0] + n[0] * .42, top, w[2] + n[2] * .42], .011, GS_DARK);
+    rodProp([x, top, z], [x, y + .36, z], .009, GS_DARK);
+    prop(new THREE.TorusGeometry(.085, .011, 6, 18, Math.PI * 1.5), { color: GS_DARK }, new V3(w[0] + n[0] * .2, top - .13, w[2] + n[2] * .2), [0, alongX ? 0 : Math.PI / 2, 0], { shadow: false });
+    prop(new THREE.BoxGeometry(alongX ? .03 : .16, .24, alongX ? .16 : .03), { color: GS_DARK }, new V3(w[0] + n[0] * .015, top - .16, w[2] + n[2] * .015), null, { shadow: false });
+    gsLanternBody(x, y, z, 1);
+  }
+  function gsPicLight(sl) {
+    const p = sl.spots[0].p, N = sl.N, w0 = [p[0] - N[0] * .55, p[1] + .03, p[2] - N[2] * .55];
+    rodProp(w0, [p[0], p[1] + .03, p[2]], .011, 0x1a1712);
+    const hood = prop(new THREE.BoxGeometry(.36, .06, .1, 2, 1, 1), { color: 0x1a1712 }, new V3(...p), null, { shadow: false }); hood.lookAt(new V3(p[0] + N[0], p[1], p[2] + N[2]));
+    const lens = new THREE.Mesh(new THREE.BoxGeometry(.32, .012, .05), new THREE.MeshBasicMaterial({ color: new THREE.Color(3.2, 2.7, 2.0) }));
+    lens.position.set(p[0], p[1] - .032, p[2]); lens.lookAt(new V3(p[0] + N[0], p[1] - .032, p[2] + N[2])); scene.add(lens);
+  }
+  function gsCable(a, b, sag, r, col) {
+    const A = new V3(...a), B = new V3(...b), M = A.clone().add(B).multiplyScalar(.5); M.y -= sag * 2;
+    const curve = new THREE.QuadraticBezierCurve3(A, M, B);
+    scene.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 28, r || .012, 5, false), new THREE.MeshBasicMaterial({ color: col || 0x060606 })));
+    return curve;
+  }
+  function gsPipe(O, N, u) { // stuprör från takfoten ner till marken
+    const U = [N[2], 0, -N[0]], x = O[0] + U[0] * u + N[0] * .09, z = O[2] + U[2] * u + N[2] * .09;
+    prop(new THREE.CylinderGeometry(.055, .055, GS.H - .25, 10, 8), { color: 0x151515 }, new V3(x, (GS.H - .25) / 2, z), null, { shadow: false });
+    prop(new THREE.CylinderGeometry(.13, .06, .22, 10), { color: 0x151515 }, new V3(x, GS.H - .2, z), null, { shadow: false });
+    prop(new THREE.CylinderGeometry(.06, .075, .3, 10), { color: 0x151515 }, new V3(x + N[0] * .1, .12, z + N[2] * .1), [N[2] * .7, 0, -N[0] * .7], { shadow: false });
+  }
+  function buildStaden() {
+    const H = GS.H;
+    const tx = { cob: T(cobbleTex(13)) };
+    // marken: kullersten i gränden och på torget
+    planar({ name: "gränd 1", floor: true, O: [-1.8, 0, 0], U: [1, 0, 0], V: [0, 0, -1], lu: 3.6, lv: 9, map: tx.cob, tu: 2, tv: 2 });
+    planar({ name: "gränd 2", floor: true, O: [-1.2, 0, -9], U: [1, 0, 0], V: [0, 0, -1], lu: 3.6, lv: 8, map: tx.cob, tu: 2, tv: 2, uvFn: (u, v) => [(u + .6) / 2, (v + 9) / 2] });
+    planar({ name: "torget", floor: true, O: [-6.5, 0, -17], U: [1, 0, 0], V: [0, 0, -1], lu: 13, lv: 12, map: tx.cob, tu: 2, tv: 2 });
+    // husväggarna (O = vänstra nedre hörnet sett från gränden, N = mot gränden)
+    gsWall([-1.8, 0, 0], [1, 0, 0], 9, 3);
+    gsWall([1.8, 0, -9], [-1, 0, 0], 9, 4);
+    gsWall([1.8, 0, 0], [0, 0, -1], 3.6, 5);
+    gsWall([-1.8, 0, -9], [0, 0, 1], .6, 6);
+    gsWall([2.4, 0, -9], [0, 0, -1], .6, 7);
+    gsWall([-1.2, 0, -9], [1, 0, 0], 8, 8);
+    gsWall([2.4, 0, -17], [-1, 0, 0], 8, 9);
+    gsWall([-1.2, 0, -17], [0, 0, -1], 5.3, 10);
+    gsWall([6.5, 0, -17], [0, 0, -1], 4.1, 11);
+    gsWall([-6.5, 0, -17], [1, 0, 0], 12, 12);
+    gsWall([6.5, 0, -29], [-1, 0, 0], 12, 14);
+    gsWall([-6.5, 0, -29], [0, 0, 1], 13, 15);
+    // rännsten mitt i gränden och ett brunnslock som det ryker ur
+    groundDecal(gutterCanvas(9), .42, 9, 0, -4.5, { boost: 1 });
+    groundDecal(gutterCanvas(8), .42, 8, .6, -13, { boost: 1 });
+    groundDecal(manholeCanvas(), .72, .72, GS.MAN[0], GS.MAN[1], { transparent: true, boost: 1 });
+    // lyktor, bildlampor och stuprör
+    GS_LANTERNS.forEach(gsLantern);
+    SPECS.staden.slots.forEach(gsPicLight);
+    gsPipe([-1.8, 0, 0], [1, 0, 0], 4.2); gsPipe([1.8, 0, -9], [-1, 0, 0], 6.2); gsPipe([-1.2, 0, -9], [1, 0, 0], .6); gsPipe([2.4, 0, -17], [-1, 0, 0], 1.0);
+    gsPipe([-6.5, 0, -17], [1, 0, 0], 1.0); gsPipe([6.5, 0, -29], [-1, 0, 0], 1.2); gsPipe([-6.5, 0, -29], [0, 0, 1], .9); gsPipe([-6.5, 0, -29], [0, 0, 1], 12.1);
+    // sladdar och en tvättlina högt uppe mellan husen
+    gsCable([-1.8, 7.3, -2.6], [1.8, 6.9, -3.9], .45); gsCable([-1.8, 8.5, -6.8], [1.8, 8.1, -5.7], .35); gsCable([-1.8, 6.4, -8.3], [1.8, 6.7, -7.4], .5, .009);
+    gsCable([-1.2, 7.8, -14.6], [2.4, 8.1, -16.0], .4); gsCable([-6.5, 7.6, -18.2], [-1.2, 8.0, -17], .6, .009); gsCable([2.4, 7.2, -17], [6.5, 7.5, -19.5], .5, .009);
+    { const line = gsCable([-1.2, 5.3, -12.0], [2.4, 5.5, -12.7], .32, .006, 0x2a2826), r = rng(41);
+      const cloth = [[.5, .62, 0x8b3a2c, 1], [.42, .5, 0xd8d0bf, 0], [.6, .7, 0x4a5a70, 1], [.36, .52, 0xc2b597, 0], [.5, .58, 0x6b5a40, 1], [.7, .5, 0xcfc8b8, 0]];
+      cloth.forEach(([w, h, col, shirt], i) => { const t = .12 + i * .15, P = line.getPoint(t), sh = new THREE.Shape();
+        if (shirt) sh.moveTo(-w / 2, 0), sh.lineTo(w / 2, 0), sh.lineTo(w / 2 + .14, -.16), sh.lineTo(w / 2 - .02, -.24), sh.lineTo(w / 2 - .04, -h), sh.lineTo(-w / 2 + .04, -h), sh.lineTo(-w / 2 + .02, -.24), sh.lineTo(-w / 2 - .14, -.16), sh.closePath();
+        else sh.moveTo(-w / 2, 0), sh.lineTo(w / 2, 0), sh.lineTo(w / 2, -h), sh.lineTo(-w / 2, -h), sh.closePath();
+        prop(new THREE.ShapeGeometry(sh), { color: col, side: THREE.DoubleSide }, new V3(P.x, P.y + .01, P.z), [(r() - .5) * .08, -.19 + (r() - .5) * .2, (r() - .5) * .06], { shadow: false });
+        for (const dx of [-w / 2 + .05, w / 2 - .05]) prop(new THREE.BoxGeometry(.02, .06, .015), { color: 0x9a9284 }, new V3(P.x + dx, P.y, P.z), null, { shadow: false }); }); }
+    // lampan som hänger på vajrar över gränden
+    { const [hx, hy, hz] = GS.HANG; gsCable([-1.2, 6.3, hz], [hx, hy + .32, hz], .05, .008); gsCable([2.4, 6.3, hz], [hx, hy + .32, hz], .05, .008);
+      prop(new THREE.CylinderGeometry(.05, .26, .16, 24, 1, true), { color: 0x1d1f1e, side: THREE.DoubleSide }, new V3(hx, hy + .14, hz), null, { shadow: false });
+      prop(new THREE.CylinderGeometry(.03, .05, .1, 12), { color: 0x1d1f1e }, new V3(hx, hy + .26, hz), null, { shadow: false });
+      const b = new THREE.Mesh(new THREE.SphereGeometry(.06, 16, 10), new THREE.MeshBasicMaterial({ color: new THREE.Color(4.5, 3, 1.5) })); b.position.set(hx, hy + .08, hz); scene.add(b);
+      glow(hx, hy + .05, hz, 1.6, 0xffb060, .5); }
+    // hängande skylt med firmans namn och en gatuskylt
+    { const sx = 1.8, sz = -3.15, sy = 4.25;
+      rodProp([sx, sy + .36, sz], [sx - .95, sy + .36, sz], .015, GS_DARK); rodProp([sx, sy + .02, sz], [sx - .45, sy + .36, sz], .01, GS_DARK);
+      for (const dx of [-.12, -.82]) rodProp([sx + dx, sy + .36, sz], [sx + dx, sy + .25, sz], .006, GS_DARK);
+      prop(new THREE.BoxGeometry(.8, .5, .03), { color: 0x15130f }, new V3(sx - .47, sy, sz), null, { shadow: false });
+      const sc = () => signCanvas([{ text: "EN BÄTTRE BILD", font: '800 128px "Big Shoulders Display", "Arial Narrow", sans-serif', y: 270, track: 10, fit: true },
+        { text: "FOTOGRAFI", font: '500 52px "IBM Plex Mono", monospace', y: 420, track: 16, alpha: .85 }], { w: 1024, h: 640, bg: "#15130f", fg: "#d8b874", border: "rgba(216,184,116,.8)", bw: 8, wear: true });
+      decal(sc(), .76, .475, new V3(sx - .47, sy, sz + .017), new V3(0, 0, 1), { boost: 1.5, minL: .05 });
+      decal(sc(), .76, .475, new V3(sx - .47, sy, sz - .017), new V3(0, 0, -1), { boost: 1.5, minL: .05 });
+      decal(signCanvas([{ text: "BILDGRÄND", font: '800 150px "Big Shoulders Display", "Arial Narrow", sans-serif', y: 132, track: 18 }],
+        { w: 1024, h: 256, bg: "#1d3a63", fg: "#eeede6", border: "rgba(238,237,230,.85)", bw: 6, wear: true }), .95, .24, new V3(-1.78, 3.0, -.95), new V3(1, 0, 0), { boost: 1.6, minL: .05 }); }
+    // brunnen mitt på torget och en gatlykta bredvid
+    { const [wx, wz] = GS.WELL;
+      prop(new THREE.CylinderGeometry(.92, .98, .72, 40, 2), { color: 0x4f4a43, map: T(brickTex(21, 2, 1)) }, new V3(wx, .36, wz), null, { id: "well", collide: true });
+      prop(new THREE.TorusGeometry(.9, .07, 8, 40), { color: 0x5e5850 }, new V3(wx, .73, wz), [Math.PI / 2, 0, 0], { id: "well", shadow: false });
+      prop(new THREE.CircleGeometry(.84, 32), { color: 0x0b0b0b }, new V3(wx, .7, wz), [-Math.PI / 2, 0, 0], { id: "well", shadow: false });
+      prop(new THREE.TorusGeometry(.78, .028, 8, 32, Math.PI), { color: GS_DARK }, new V3(wx, .74, wz), null, { id: "well", shadow: false });
+      prop(new THREE.CylinderGeometry(.06, .06, .14, 12), { color: GS_DARK }, new V3(wx, 1.5, wz), [0, 0, Math.PI / 2], { id: "well", shadow: false });
+      const [px, pz] = GS.POST;
+      prop(new THREE.CylinderGeometry(.11, .15, .5, 16), { color: GS_DARK }, new V3(px, .25, pz), null, { collide: true });
+      prop(new THREE.CylinderGeometry(.05, .07, 3.05, 12), { color: GS_DARK }, new V3(px, 1.95, pz), null, { shadow: false });
+      gsLanternBody(px, 3.75, pz, 1.15); }
+    // kyrktornet bakom husen och himlen
+    { const tm = (c) => new THREE.MeshBasicMaterial({ color: c });
+      const body = new THREE.Mesh(new THREE.BoxGeometry(3.4, 20, 3.4), tm(0x111725)); body.position.set(-1.5, 10, -37); scene.add(body);
+      const bel = new THREE.Mesh(new THREE.BoxGeometry(3.0, 3.6, 3.0), tm(0x141b2a)); bel.position.set(-1.5, 21.8, -37); scene.add(bel);
+      const sp = new THREE.Mesh(new THREE.ConeGeometry(2.3, 7.5, 4), tm(0x0e1320)); sp.position.set(-1.5, 27.35, -37); sp.rotation.y = Math.PI / 4; scene.add(sp);
+      const clock = new THREE.Mesh(new THREE.CircleGeometry(.85, 32), new THREE.MeshBasicMaterial({ color: new THREE.Color(.55, .48, .34) })); clock.position.set(-1.5, 17.6, -35.28); scene.add(clock);
+      for (const [len, ang] of [[.5, .5], [.7, 2.2]]) { const hand = new THREE.Mesh(new THREE.PlaneGeometry(.06, len), tm(0x16130f)); hand.geometry.translate(0, len / 2, 0); hand.position.set(-1.5, 17.6, -35.27); hand.rotation.z = ang; scene.add(hand); }
+      for (const dx of [-.6, .6]) { const ow = new THREE.Mesh(new THREE.PlaneGeometry(.5, 1.5), new THREE.MeshBasicMaterial({ color: new THREE.Color(.9, .55, .25) })); ow.position.set(-1.5 + dx, 21.8, -35.48); scene.add(ow); }
+      const sg = new THREE.SphereGeometry(62, 32, 16), pc = sg.attributes.position, cols = new Float32Array(pc.count * 3);
+      for (let i = 0; i < pc.count; i++) { const t = clamp(pc.getY(i) / 62, 0, 1), k = Math.pow(t, .5);
+        cols[i * 3] = .09 * (1 - k) + .012 * k; cols[i * 3 + 1] = .075 * (1 - k) + .018 * k; cols[i * 3 + 2] = .085 * (1 - k) + .04 * k; }
+      sg.setAttribute("color", new THREE.BufferAttribute(cols, 3));
+      scene.add(new THREE.Mesh(sg, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, fog: false, depthWrite: false }))); }
+    // portarna: tillbaka till foajén och vidare till Naturen
+    opening({ C: [0, 0, 0], N: [0, 0, -1], U: [-1, 0, 0], w: 1.5, h: 2.6, to: "foajen", sign: ["00  FOAJÉN", "TILLBAKA"], glow: new THREE.Color(1.1, .82, .55) });
+    opening({ C: [3.6, 0, -29], N: [0, 0, 1], U: [1, 0, 0], w: 1.5, h: 2.6, to: "naturen", sign: ["02  NATUREN", "GÅ VIDARE"], glow: new THREE.Color(1.15, 1.2, 1.3) });
+    // ånga ur brunnslocket
+    const steamTex = T(radial([[0, "rgba(255,255,255,.9)"], [.5, "rgba(255,255,255,.32)"], [1, "rgba(255,255,255,0)"]], 128), false, false), steam = [], sr = rng(5);
+    for (let i = 0; i < 18; i++) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: steamTex, color: new THREE.Color(.52, .48, .44), transparent: true, opacity: 0, depthWrite: false })); scene.add(s);
+      steam.push({ s, ph: i / 18, sp: .065 + sr() * .03, dx: (sr() - .5) * .7, dz: (sr() - .5) * .5, w: sr() * 6 }); }
+    const puff = (t0) => { for (const p of steam) { const t = (t0 * p.sp + p.ph) % 1;
+      p.s.position.set(GS.MAN[0] + p.dx * t + Math.sin(t0 * .5 + p.w) * .15 * t, .08 + t * 3.6, GS.MAN[1] + p.dz * t); p.s.scale.setScalar(.35 + t * 2.1); p.s.material.opacity = .17 * Math.sin(Math.PI * t); } };
+    puff(0);
+    return { noDust: true, update(now) { if (!reduceMotion) puff(now / 1000); } };
   }
   /* ================= 04 MÄNNISKORNA: gammal fotoateljé ================= */
   function buildManniskorna() {
@@ -1963,11 +2025,11 @@ function useRoom(key) {
       this.profiles[this.room].call(this, ctx);
     },
     profiles: {
-      staden(ctx) {
-        const hum = ctx.createGain(); hum.gain.value = .032; const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 380; hum.connect(lp); lp.connect(this.amb);
-        [[50, 1], [100, .45], [150, .15], [200, .08]].forEach(([f, a]) => this.osc("sine", f, a, hum));
-        const g = this.loop(this.brown, "lowpass", 160, .5); g.connect(this.send);
-        this.every(this.drip, 1600, 6800);
+      staden(ctx) { // gränden en sen kväll: staden långt borta, vind mellan husen, droppar och en kyrkklocka ibland
+        this.loop(this.brown, "lowpass", 170, .34);
+        const wind = this.loop(this.brown, "bandpass", 640, .12, .7);
+        const lfo = ctx.createOscillator(), lg = ctx.createGain(); lfo.frequency.value = .06; lg.gain.value = .09; lfo.connect(lg); lg.connect(wind.gain); lfo.start(); this.amb._src.push(lfo);
+        this.every(this.drip, 2600, 8500); this.every(this.bell, 24000, 50000);
       },
       naturen(ctx) {
         const air = this.loop(this.brown, "bandpass", 900, .32, .5);
@@ -2005,6 +2067,11 @@ function useRoom(key) {
         o.frequency.setValueAtTime(f, t); o.frequency.exponentialRampToValueAtTime(f * (Math.random() < .5 ? 1.35 : .7), t + .05);
         g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.022, t + .008); g.gain.exponentialRampToValueAtTime(.0001, t + .07);
         o.connect(g); this.out(g, pan, .35); o.start(t); o.stop(t + .09); } },
+    bell() { // kyrkklocka långt bort: några slag med långa, låga deltoner
+      const ctx = this.ctx, t0 = ctx.currentTime, n = 1 + (Math.random() * 3 | 0), lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 1300; this.out(lp, -.35, 1.2);
+      for (let k = 0; k < n; k++) { const t = t0 + k * 2.6;
+        [[.5, .5], [1, 1], [1.19, .55], [1.5, .4], [2, .3], [2.52, .18], [3.01, .12]].forEach(([r, a]) => { const o = ctx.createOscillator(), g = ctx.createGain(); o.frequency.value = 196 * r;
+          g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.022 * a, t + .01); g.gain.exponentialRampToValueAtTime(.0001, t + 5.5 / Math.sqrt(r)); o.connect(g); g.connect(lp); o.start(t); o.stop(t + 6); }); } },
     creak() { const ctx = this.ctx, t = ctx.currentTime, s = ctx.createBufferSource(), bp = ctx.createBiquadFilter(), g = ctx.createGain();
       s.buffer = this.brown; bp.type = "bandpass"; bp.Q.value = 9; bp.frequency.setValueAtTime(260, t); bp.frequency.exponentialRampToValueAtTime(820, t + .7);
       g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.35, t + .15); g.gain.exponentialRampToValueAtTime(.0001, t + .9);

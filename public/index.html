@@ -8,7 +8,7 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@500;700;800&family=Archivo:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@500;700;800&family=Jost:wght@300;400&family=Archivo:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
 *, *::before, *::after { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
@@ -1170,26 +1170,33 @@ function useRoom(key) {
       m.position.set(x + (br() - .5) * .06, y, z); m.scale.setScalar(.9 + br() * .25); scene.add(m); }
   }
   // fristående bokstäver i mörkt stål, bakbelysta så att ljuset faller som en gloria på väggen
+  // bakbelyst skylt: tunna bokstäver i mörk brons med ett mjukt varmt sken bakom
   function haloSign(text, sub, C, N, width) {
-    const W = 2048, Hh = 512, mask = cnv(W, Hh), m = mask.getContext("2d");
+    const W = 4096, Hh = 1024, mask = cnv(W, Hh), m = mask.getContext("2d");
     m.fillStyle = "#fff"; m.textAlign = "center"; m.textBaseline = "alphabetic";
-    let fs = 300; const setF = () => { m.font = `800 ${fs}px "Big Shoulders Display", "Arial Narrow", sans-serif`; if (m.letterSpacing !== undefined) m.letterSpacing = "14px"; }; setF();
-    while (m.measureText(text).width > W * .94 && fs > 120) { fs -= 10; setF(); }
-    m.fillText(text, W / 2, Hh * .64);
-    m.font = '700 64px "Big Shoulders Display", "Arial Narrow", sans-serif'; if (m.letterSpacing !== undefined) m.letterSpacing = "38px"; m.fillText(sub, W / 2 + 19, Hh * .9);
-    m.fillRect(W * .2, Hh * .79, W * .6, 5);
+    let fs = 420; const setF = () => { m.font = `300 ${fs}px Jost, "Futura", "Century Gothic", sans-serif`; if (m.letterSpacing !== undefined) m.letterSpacing = Math.round(fs * .2) + "px"; }; setF();
+    while (m.measureText(text).width > W * .9 && fs > 160) { fs -= 10; setF(); }
+    m.fillText(text, W / 2 + fs * .1, Hh * .6);
+    m.font = '400 96px Jost, "Futura", "Century Gothic", sans-serif'; if (m.letterSpacing !== undefined) m.letterSpacing = "62px";
+    const sw = m.measureText(sub).width; m.fillText(sub, W / 2 + 31, Hh * .86);
+    m.fillRect(W / 2 - sw / 2 - 260, Hh * .86 - 34, 180, 4); m.fillRect(W / 2 + sw / 2 + 80, Hh * .86 - 34, 180, 4);
+    // bokstävernas yta: mörk borstad brons med en ljus kant upptill
     const col = cnv(W, Hh), c = col.getContext("2d"), r = rng(77);
-    c.fillStyle = "#3a3c3b"; c.fillRect(0, 0, W, Hh);
-    for (let y = 0; y < Hh; y += 2) { c.fillStyle = `rgba(${r() > .5 ? "255,255,255" : "0,0,0"},${r() * .07})`; c.fillRect(0, y, W, 1); }
-    blotches(c, W, Hh, 70, 5, ["120,62,28", "150,90,40", "60,40,30"], 10, 70, .2, .55);
+    const g = c.createLinearGradient(0, Hh * .3, 0, Hh * .62); g.addColorStop(0, "#7a6648"); g.addColorStop(.15, "#4c4031"); g.addColorStop(1, "#2e2820"); c.fillStyle = g; c.fillRect(0, 0, W, Hh);
+    for (let y = 0; y < Hh; y += 2) { c.fillStyle = `rgba(${r() > .5 ? "255,240,210" : "0,0,0"},${r() * .05})`; c.fillRect(0, y, W, 1); }
     c.globalCompositeOperation = "destination-in"; c.drawImage(mask, 0, 0); c.globalCompositeOperation = "source-over";
-    const halo = cnv(1024, 256), hg = halo.getContext("2d"); hg.filter = "blur(18px)"; hg.drawImage(mask, 0, 0, 1024, 256); hg.filter = "blur(6px)"; hg.globalAlpha = .7; hg.drawImage(mask, 0, 0, 1024, 256); hg.globalAlpha = 1; hg.filter = "none";
+    // skenet bakom: mjukt och brett, inga hårda kanter
+    const halo = cnv(2048, 512), hg = halo.getContext("2d");
+    hg.filter = "blur(34px)"; hg.globalAlpha = .9; hg.drawImage(mask, 0, 0, 2048, 512);
+    hg.filter = "blur(12px)"; hg.globalAlpha = .55; hg.drawImage(mask, 0, 0, 2048, 512); hg.globalAlpha = 1; hg.filter = "none";
     const Nv = new V3(...N), pos = new V3(...C), Hs = width / 4;
-    const hm = new THREE.Mesh(new THREE.PlaneGeometry(width * 1.04, Hs * 1.1), new THREE.MeshBasicMaterial({ map: T(halo, false, false), color: new THREE.Color(2.6, 1.6, .8), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
+    const hm = new THREE.Mesh(new THREE.PlaneGeometry(width * 1.06, Hs * 1.12), new THREE.MeshBasicMaterial({ map: T(halo, false, false), color: new THREE.Color(2.1, 1.45, .85), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
     hm.position.copy(pos).addScaledVector(Nv, .004); hm.lookAt(hm.position.clone().add(Nv)); scene.add(hm);
-    const lm = new THREE.MeshBasicMaterial({ map: T(col, true, false), alphaTest: .5 });
-    for (let k = 0; k < 3; k++) { const p = new THREE.Mesh(new THREE.PlaneGeometry(width, Hs), lm); p.position.copy(pos).addScaledVector(Nv, .05 + k * .006); p.lookAt(p.position.clone().add(Nv)); scene.add(p);
-      if (k === 2) decals.push({ mesh: p, pos: p.position.clone(), n: Nv.clone(), boost: 1.4, minL: .05 }); }
+    const tex = T(col, true, false); tex.anisotropy = maxAniso;
+    const back = new THREE.MeshBasicMaterial({ map: tex, color: 0x555555, alphaTest: .5 });
+    const front = new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: .04, depthWrite: false });
+    [[back, .04], [front, .052]].forEach(([mat, off], k) => { const p = new THREE.Mesh(new THREE.PlaneGeometry(width, Hs), mat); p.position.copy(pos).addScaledVector(Nv, off); p.lookAt(p.position.clone().add(Nv)); scene.add(p);
+      if (k === 1) decals.push({ mesh: p, pos: p.position.clone(), n: Nv.clone(), boost: 1.6, minL: .06 }); });
   }
   function cageLamp(x, y, z, ceilY) {
     const cm = new THREE.MeshBasicMaterial({ color: 0x0c0c0c });
@@ -1531,7 +1538,7 @@ function useRoom(key) {
   async function buildRoom(key) {
     if (!fontsReady) {
       progress(.02, "Laddar typsnitt…");
-      try { await Promise.race([Promise.all([document.fonts.load('800 150px "Big Shoulders Display"'), document.fonts.load('700 64px "Big Shoulders Display"'), document.fonts.load('500 24px "IBM Plex Mono"'), document.fonts.load('italic 500 50px Archivo')]), new Promise((r) => setTimeout(r, 2500))]); } catch (e) {}
+      try { await Promise.race([Promise.all([document.fonts.load('800 150px "Big Shoulders Display"'), document.fonts.load('700 64px "Big Shoulders Display"'), document.fonts.load('500 24px "IBM Plex Mono"'), document.fonts.load('300 150px Jost'), document.fonts.load('400 56px Jost'), document.fonts.load('italic 500 50px Archivo')]), new Promise((r) => setTimeout(r, 2500))]); } catch (e) {}
       fontsReady = true;
     }
     const S = useRoom(key);

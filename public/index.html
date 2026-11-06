@@ -496,6 +496,7 @@ function manSDF(x, y, z) {
   return d;
 }
 const MAN_SOFT = [[-1.9, 2.05, -13.2], [1.9, 2.05, -13.2]], MAN_STOOL = [0, 1.2, -14.3];
+const MAN_LOUNGE = { x: .6, z: -6.6, lampY: 1.5 }; // soffgruppen mitt i rummet
 const SUNM = (() => { const v = [-.82, .62, .22], l = Math.hypot(...v); return v.map((c) => c / l); })(); // mot solen, utanför västra fönstren
 function manSunGate(px, py, pz) {
   if (pz > 0 || px <= -MAN.X + .01) return 0;
@@ -516,6 +517,7 @@ function manLights() {
   for (const [x, z] of [[-2.6, -3.5], [2.6, -3.5], [-2.6, -9], [2.6, -9]]) addPoint([x, 3.75, z], 1.0, COL.tung, 9, .035, { only: inMR });
   // softboxarna i fotohörnan
   for (const p of MAN_SOFT) { const n = [MAN_STOOL[0] - p[0], MAN_STOOL[1] - p[1], MAN_STOOL[2] - p[2]], l = Math.hypot(...n); addPanel(p, n.map((c) => c / l), .5, [1, .97, .92], 7, inMR); }
+  addPoint([MAN_LOUNGE.x, MAN_LOUNGE.lampY - .1, MAN_LOUNGE.z], .55, COL.tung, 5, .02, { only: inMR }); // lampan över soffbordet
   addTube([0, 2.74, 2.4], 3.0, .8, [1, .8, .58], { only: inMC });
   addPoint([0, 2.0, 4.25], .45, [1, .76, .5], 4, .02, { only: inMC });
 }
@@ -1567,7 +1569,74 @@ function useRoom(key) {
     prop(new THREE.BoxGeometry(1.8, .06, .8, 4, 1, 2), { color: 0x6a4a30 }, new V3(4.9, .82, -15.0), null, { id: "table", collide: true });
     for (const [dx, dz] of [[-.82, -.34], [.82, -.34], [-.82, .34], [.82, .34]]) prop(new THREE.BoxGeometry(.06, .8, .06), { color: 0x4a3420 }, new V3(4.9 + dx, .4, -15.0 + dz), null, { id: "table" });
     plant(-5.2, -15.2, 2.0, 21);
+    buildLounge();
     return {};
+  }
+  // gammalt läder: konjaksbrunt med mörkare veck och slitna, ljusare partier
+  function leatherTex(seed) {
+    const S = 512, c = cnv(S, S), x = c.getContext("2d"), r = rng(seed);
+    x.fillStyle = "#6a3a20"; x.fillRect(0, 0, S, S);
+    blotches(x, S, S, 120, seed, ["60,28,14", "150,96,60", "110,58,30"], 10, 90, .08, .3);
+    for (let i = 0; i < 90; i++) { x.strokeStyle = `rgba(40,18,8,${.12 + r() * .25})`; x.lineWidth = .6 + r() * 1.2; x.beginPath(); let px = r() * S, py = r() * S; x.moveTo(px, py);
+      for (let k = 0; k < 4; k++) { px += (r() - .5) * 40; py += (r() - .5) * 18; x.lineTo(px, py); } x.stroke(); }
+    grain(x, S, S, 14, seed + 1); return T(c);
+  }
+  // stor gammal matta: blekt röd botten, mörkblå bård och ett mönster i mitten, sliten
+  function rugTex(seed) {
+    const W = 800, Hh = 920, c = cnv(W, Hh), x = c.getContext("2d"), r = rng(seed);
+    x.fillStyle = "#5c2a24"; x.fillRect(0, 0, W, Hh);
+    // fältet: ett tätt rutmönster av små romber, nött och ojämnt
+    for (let yy = 120; yy < Hh - 120; yy += 26) for (let xx = 120; xx < W - 120; xx += 26) { x.fillStyle = `rgba(${r() > .5 ? "150,118,80" : "30,34,48"},${.18 + r() * .2})`;
+      x.save(); x.translate(xx + ((yy / 26) % 2) * 13, yy); x.rotate(.785); x.fillRect(-4, -4, 8, 8); x.restore(); }
+    const band = (m, col, w) => { x.strokeStyle = col; x.lineWidth = w; x.strokeRect(m, m, W - 2 * m, Hh - 2 * m); };
+    band(26, "#222a38", 46); band(64, "#8c7452", 5); band(92, "#2b2f3c", 26); band(110, "#8c7452", 3);
+    for (let k = 0; k <= 36; k++) { const t = k / 36; for (const yy of [26, Hh - 26]) { x.fillStyle = "rgba(160,132,92,.7)"; x.save(); x.translate(26 + t * (W - 52), yy); x.rotate(.785); x.fillRect(-7, -7, 14, 14); x.restore(); } }
+    x.save(); x.translate(W / 2, Hh / 2);
+    for (const [rx, ry, col] of [[200, 270, "rgba(34,40,56,.85)"], [165, 225, "rgba(110,44,34,.9)"], [120, 165, "rgba(140,116,82,.75)"], [80, 110, "rgba(43,47,60,.85)"], [40, 55, "rgba(92,42,36,.9)"]]) { x.fillStyle = col; x.beginPath();
+      for (let a = 0; a < 6.29; a += .05) { const k2 = 1 + .07 * Math.cos(a * 8); x.lineTo(Math.cos(a) * rx * k2, Math.sin(a) * ry * k2); } x.closePath(); x.fill(); }
+    x.restore();
+    // slitage: ljusa nötta stråk, mörka fläckar och blekning mot fönstret
+    for (let i = 0; i < 420; i++) { x.fillStyle = `rgba(${r() > .45 ? "190,160,120" : "25,18,16"},${r() * .14})`; x.fillRect(r() * W, r() * Hh, 6 + r() * 40, 1 + r() * 4); }
+    blotches(x, W, Hh, 60, seed + 4, ["200,175,140", "30,20,18"], 30, 180, .08, .22);
+    x.fillStyle = "rgba(40,30,26,.22)"; x.fillRect(0, 0, W, Hh);
+    grain(x, W, Hh, 22, seed + 2); return T(c, true, false);
+  }
+  // soffa eller fåtölj i gammalt läder. Byggs vänd mot +z och vrids sedan på plats.
+  function leatherSeat(cx, cz, yaw, W, seats, mat, id) {
+    const g = new THREE.Group(); g.position.set(cx, 0, cz); g.rotation.y = yaw; scene.add(g);
+    const D = .92, leg = 0x2a1a10, P = (geo, pos, rot) => prop(geo, mat, new V3(...pos), rot || null, { parent: g, id });
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) prop(new THREE.CylinderGeometry(.03, .025, .08, 10), { color: leg }, new V3(sx * (W / 2 - .1), .04, sz * (D / 2 - .1)), null, { parent: g, id, shadow: false });
+    P(new THREE.BoxGeometry(W, .3, D, 4, 2, 2), [0, .23, 0]);
+    const sw = (W - .44) / seats;
+    for (let k = 0; k < seats; k++) P(new THREE.BoxGeometry(sw - .02, .16, D - .26, 3, 1, 3), [-W / 2 + .22 + sw * (k + .5), .46, .1]);
+    P(new THREE.BoxGeometry(W - .08, .52, .24, 6, 3, 1), [0, .64, -D / 2 + .13], [-.12, 0, 0]);
+    for (const sx of [-1, 1]) {
+      P(new THREE.BoxGeometry(.22, .34, D, 1, 2, 3), [sx * (W / 2 - .11), .53, 0]);
+      P(new THREE.CylinderGeometry(.13, .13, D, 16, 2), [sx * (W / 2 - .11), .7, 0], [Math.PI / 2, 0, 0]);
+    }
+    P(new THREE.CylinderGeometry(.11, .11, W - .08, 16, 3), [0, .92, -D / 2 + .1], [0, 0, Math.PI / 2]);
+    return g;
+  }
+  function buildLounge() {
+    const { x: lx, z: lz, lampY } = MAN_LOUNGE, leather = { color: 0xffffff, map: leatherTex(13) };
+    // mattan
+    planar({ name: "matta", floor: true, O: [lx - 2.1, .008, lz + 2.4], U: [1, 0, 0], V: [0, 0, -1], lu: 4.2, lv: 4.8, map: rugTex(7), tu: 4.2, tv: 4.8, res: RES });
+    // soffan vänd mot bordet, två fåtöljer på andra sidan
+    leatherSeat(lx, lz + 1.85, Math.PI, 2.2, 2, leather, "sofa"); colliders.push({ x0: lx - 1.15, x1: lx + 1.15, z0: lz + 1.38, z1: lz + 2.32 });
+    for (const [dx, yaw] of [[-.85, .22], [.85, -.22]]) { leatherSeat(lx + dx, lz - 1.85, yaw, .98, 1, leather, "chair" + dx); colliders.push({ x0: lx + dx - .55, x1: lx + dx + .55, z0: lz - 2.35, z1: lz - 1.35 }); }
+    // soffbordet i mörkt trä, med böcker
+    const wood = 0x4a3020;
+    prop(new THREE.BoxGeometry(1.25, .06, .7, 4, 1, 2), { color: wood }, new V3(lx, .45, lz), null, { id: "ctable" });
+    prop(new THREE.BoxGeometry(1.15, .03, .6, 4, 1, 2), { color: 0x3a2618 }, new V3(lx, .16, lz), null, { id: "ctable" });
+    for (const [dx, dz] of [[-.56, -.29], [.56, -.29], [-.56, .29], [.56, .29]]) prop(new THREE.BoxGeometry(.05, .42, .05), { color: wood }, new V3(lx + dx, .21, lz + dz), null, { id: "ctable" });
+    colliders.push({ x0: lx - .68, x1: lx + .68, z0: lz - .4, z1: lz + .4 });
+    [[.24, .05, .32, 0x26343a, .1], [.22, .04, .3, 0x8a6a3a, -.15], [.2, .035, .27, 0x5a1e1a, .3]].reduce((y, [w, h, d, col, rot]) => {
+      prop(new THREE.BoxGeometry(w, h, d), { color: col }, new V3(lx - .3, y + h / 2, lz + .05), [0, rot, 0], { id: "books" }); return y + h; }, .48);
+    // lampan: sladd hela vägen från taket, mässingsskärm lågt över bordet
+    prop(new THREE.CylinderGeometry(.005, .005, MAN.H - lampY - .1, 5), { color: 0x111111 }, new V3(lx, (MAN.H + lampY + .1) / 2, lz), null, { shadow: false });
+    prop(new THREE.CylinderGeometry(.015, .015, .06, 8), { color: 0x2a2014 }, new V3(lx, lampY + .12, lz), null, { shadow: false });
+    prop(new THREE.CylinderGeometry(.035, .24, .2, 28, 1, true), { color: 0xa07a3a, side: THREE.DoubleSide }, new V3(lx, lampY, lz), null, { shadow: false });
+    const bulb = new THREE.Mesh(new THREE.SphereGeometry(.05, 14, 10), new THREE.MeshBasicMaterial({ color: new THREE.Color(5, 3.2, 1.4) })); bulb.position.set(lx, lampY - .08, lz); scene.add(bulb);
   }
   const BUILD = { foajen: buildFoajen, staden: buildStaden, naturen: buildNaturen, berattelser: buildHall, manniskorna: buildManniskorna };
 

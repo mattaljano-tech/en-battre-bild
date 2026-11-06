@@ -496,10 +496,22 @@ function manSDF(x, y, z) {
   return d;
 }
 const MAN_SOFT = [[-1.9, 2.05, -13.2], [1.9, 2.05, -13.2]], MAN_STOOL = [0, 1.2, -14.3];
+const SUNM = (() => { const v = [-.82, .62, .22], l = Math.hypot(...v); return v.map((c) => c / l); })(); // mot solen, utanför västra fönstren
+function manSunGate(px, py, pz) {
+  if (pz > 0 || px <= -MAN.X + .01) return 0;
+  const t = (-MAN.X - px) / SUNM[0], hy = py + SUNM[1] * t, hz = pz + SUNM[2] * t;
+  for (const w of MAN.WIN) {
+    const m = Math.min(hy - w.y0, w.y1 - hy, hz - w.z0, w.z1 - hz); if (m <= 0) continue;
+    const pz4 = (w.z1 - w.z0) / 4, py5 = (w.y1 - w.y0) / 5, fz = (hz - w.z0) / pz4, fy = (hy - w.y0) / py5;
+    return sstep(0, .04, m) * sstep(.035, .06, Math.min(Math.abs(fz - Math.round(fz)) * pz4, Math.abs(fy - Math.round(fy)) * py5));
+  }
+  return 0;
+}
 function manLights() {
   // dagsljus från norr genom de stora fönstren: mjukt, inga solfläckar
   for (const w of MAN.WIN) for (let i = 0; i < 2; i++) for (let j = 0; j < 2; j++)
-    addPanel([-MAN.X + .05, w.y0 + (j + .5) * (w.y1 - w.y0) / 2, w.z0 + (i + .5) * (w.z1 - w.z0) / 2], [1, 0, 0], .62, COL.sky, 15, inMR);
+    addPanel([-MAN.X + .05, w.y0 + (j + .5) * (w.y1 - w.y0) / 2, w.z0 + (i + .5) * (w.z1 - w.z0) / 2], [1, 0, 0], .9, COL.sky, 16, inMR);
+  addSun(SUNM, 2.6, COL.sun, manSunGate, MAN.H, { k: 40, only: inMR });
   // glödlampor i emaljskärmar
   for (const [x, z] of [[-2.6, -3.5], [2.6, -3.5], [-2.6, -9], [2.6, -9]]) addPoint([x, 3.75, z], 1.0, COL.tung, 9, .035, { only: inMR });
   // softboxarna i fotohörnan
@@ -561,7 +573,7 @@ const SPECS = {
   manniskorna: { num: "04", name: "Människorna", sub: "En gammal fotoateljé", next: "foajen",
     intro: "En gammal fotoateljé med tegelväggar, trägolv och ljus från norr. Här hänger porträtten: människorna framför kameran.",
     sdf: manSDF, solids: [], lights: manLights,
-    amb: (x, y, z) => z > 0 ? [.02, .017, .014] : [.06, .052, .044],
+    amb: (x, y, z) => z > 0 ? [.02, .017, .014] : [.08, .072, .062],
     ceil: (x, z) => z > 0 ? MAN.CH : MAN.H - .3,
     start: { x: 0, z: 4.0, yaw: 0 }, walk: [{ x0: -5.6, x1: 5.6, z0: -15.6, z1: -.4 }, { x0: -.75, x1: .75, z0: -.6, z1: 4.1 }],
     look: { fog: 0x1a1410, density: .012, bg: 0x0b0907, exposure: 1.25, bloom: .45, thr: 1.5 }, step: 540, wet: .2,
@@ -1507,11 +1519,16 @@ function useRoom(key) {
       const wz = w.z1 - w.z0, wy = w.y1 - w.y0, c = cnv(256, 320), x = c.getContext("2d"), r = rng(41 + wi);
       const g = x.createLinearGradient(0, 0, 0, 320); g.addColorStop(0, "#f2f4f5"); g.addColorStop(1, "#d5d9d6"); x.fillStyle = g; x.fillRect(0, 0, 256, 320);
       for (let i = 0; i < 20; i++) { x.fillStyle = `rgba(150,160,155,${r() * .15})`; x.fillRect((i % 4) * 64, (i / 4 | 0) * 64, 64, 64); }
-      const gl = new THREE.Mesh(new THREE.PlaneGeometry(wz, wy), new THREE.MeshBasicMaterial({ map: T(c, true, false), color: new THREE.Color(1.7, 1.75, 1.85) }));
+      const gl = new THREE.Mesh(new THREE.PlaneGeometry(wz, wy), new THREE.MeshBasicMaterial({ map: T(c, true, false), color: new THREE.Color(2.1, 2.05, 1.95) }));
       gl.rotation.y = Math.PI / 2; gl.position.set(-X - .03, (w.y0 + w.y1) / 2, (w.z0 + w.z1) / 2); scene.add(gl);
       for (let k = 0; k <= 4; k++) prop(new THREE.BoxGeometry(.07, wy, .06, 1, 4, 1), { color: steel }, new V3(-X + .03, (w.y0 + w.y1) / 2, w.z0 + k * wz / 4), null, { shadow: false });
       for (let k = 0; k <= 5; k++) prop(new THREE.BoxGeometry(.07, .06, wz, 1, 1, 4), { color: steel }, new V3(-X + .03, w.y0 + k * wy / 5, (w.z0 + w.z1) / 2), null, { shadow: false });
       prop(new THREE.BoxGeometry(.3, .07, wz + .2, 1, 1, 4), { color: 0x6b5a48 }, new V3(-X + .15, w.y0 - .035, (w.z0 + w.z1) / 2), null, { shadow: false }); // fönsterbänk i trä
+      const corners = [[-X, w.y0, w.z0], [-X, w.y0, w.z1], [-X, w.y1, w.z1], [-X, w.y1, w.z0]], pos = [], col = [], idx = [];
+      corners.concat(corners.map((p) => { const t2 = p[1] / SUNM[1]; return [p[0] - SUNM[0] * t2, .02, p[2] - SUNM[2] * t2]; })).forEach((p, i) => { pos.push(...p); const k = i < 4 ? .9 : .05; col.push(k, k * .9, k * .74); });
+      for (let i = 0; i < 4; i++) { const i2 = (i + 1) % 4; idx.push(i, i2, i2 + 4, i, i2 + 4, i + 4); }
+      const sg = new THREE.BufferGeometry(); sg.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); sg.setAttribute("color", new THREE.Float32BufferAttribute(col, 3)); sg.setIndex(idx);
+      scene.add(new THREE.Mesh(sg, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: .03, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })));
     });
     // takbjälkar i trä
     for (let z = -1.5; z > -L; z -= 3) prop(new THREE.BoxGeometry(2 * X, .3, .24, 8, 1, 1), { color: 0x4a3626 }, new V3(0, H - .15, z), null, { shadow: false });
@@ -1654,7 +1671,7 @@ function useRoom(key) {
     }
     for (const p of props) { bakeProp(p); await tick(40); }
     if (RT.afterBake) RT.afterBake();
-    mergeProps(); lightDecals(); if (!RT.noDust) buildDust(RT.dust);
+    mergeProps(); lightDecals(); // dammet är borttaget i alla rum
     progress(1, "Klart.");
     return S;
   }

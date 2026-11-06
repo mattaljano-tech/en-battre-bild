@@ -723,7 +723,7 @@ function useRoom(key) {
 
   /* ================= renderer ================= */
   const canvas = $("c");
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: "high-performance", stencil: false });
   renderer.setPixelRatio(Math.min(devicePixelRatio || 1, isTouch ? 1.4 : 1.6));
   renderer.outputEncoding = THREE.sRGBEncoding;
   let maxAniso = Math.min(8, renderer.capabilities.getMaxAnisotropy());
@@ -1901,13 +1901,19 @@ function useRoom(key) {
 
   /* ================= loop ================= */
   let last = performance.now();
-  let frameEMA = 16, lastQ = 0, lastAim = 0, lastHover = 0;
+  let frameEMA = 16, lastQ = 0, lastAim = 0, lastHover = 0, lowTier = false;
+  // ?debug visar bildfrekvens, upplösning och grafikkort
+  const dbg = /[?&]debug/.test(location.search) ? Object.assign(document.body.appendChild(document.createElement("div")), { style: "position:fixed;left:8px;top:40px;z-index:20;font:11px/1.4 monospace;color:#9fe;background:rgba(0,0,0,.6);padding:4px 6px;pointer-events:none;white-space:pre" }) : null;
+  let dbgT = 0, dbgN = 0, gpuName = "?";
+  try { const gl = renderer.getContext(), ext = gl.getExtension("WEBGL_debug_renderer_info"); if (ext) gpuName = gl.getParameter(ext.UNMASKED_RENDERER_WEBGL); } catch (e) {}
   function frame(now) {
     const raw = now - last, dt = Math.min(.05, raw / 1000); last = now;
     // håll bildfrekvensen jämn: sänk upplösningen om det går tungt, höj igen när det finns marginal
     if (raw < 120) frameEMA = frameEMA * .94 + raw * .06;
+    if (dbg) { dbgN++; if (now - dbgT > 500) { const c = renderer.domElement; dbg.textContent = (dbgN * 1000 / (now - dbgT)).toFixed(0) + " fps · " + c.width + "×" + c.height + " · kvalitet " + quality.toFixed(2) + (lowTier ? " · låg nivå" : "") + "\n" + gpuName; dbgT = now; dbgN = 0; } }
     if (roomReady && !loading && now - lastQ > 1800) { lastQ = now;
-      const minQ = isTouch ? .75 : .85;
+      const minQ = lowTier ? .65 : isTouch ? .75 : .85;
+      if (!lowTier && !isTouch && frameEMA > 24 && quality <= minQ + .001) { lowTier = true; if (bloomPass) bloomPass.enabled = false; }
       if (frameEMA > 26 && quality > minQ) { quality = Math.max(minQ, quality - .075); applyQuality(); }
       else if (frameEMA < 18 && quality < 1) { quality = Math.min(1, quality + .075); applyQuality(); } }
     if (roomReady) {
@@ -1929,7 +1935,7 @@ function useRoom(key) {
         if (Math.abs(nx) > E) player.yaw -= Math.sign(nx) * Math.pow((Math.abs(nx) - E) / (1 - E), 1.5) * 1.9 * dt;
         if (Math.abs(ny) > .7) player.pitch = clamp(player.pitch - Math.sign(ny) * Math.pow((Math.abs(ny) - .7) / .3, 1.5) * .9 * dt, -.9, .9);
       }
-      if (lookDX || lookDY) { const f = reduceMotion ? 1 : Math.min(1, dt * 28); const ax = lookDX * f, ay = lookDY * f; look(ax, ay, .0022); lookDX -= ax; lookDY -= ay; if (Math.abs(lookDX) < .01 && Math.abs(lookDY) < .01) { lookDX = 0; lookDY = 0; } }
+      if (lookDX || lookDY) { const f = 1; const ax = lookDX * f, ay = lookDY * f; look(ax, ay, .0022); lookDX -= ax; lookDY -= ay; if (Math.abs(lookDX) < .01 && Math.abs(lookDY) < .01) { lookDX = 0; lookDY = 0; } }
       camera.position.set(player.x, EYE + (reduceMotion ? 0 : Math.sin(bob) * .016), player.z);
       camera.rotation.set(player.pitch, player.yaw, 0);
       if (RT && RT.update) RT.update(now, dt);

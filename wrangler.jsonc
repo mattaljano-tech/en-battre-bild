@@ -1,0 +1,9 @@
+{
+  // Cloudflare: sajten är helt statisk, allt i public/ läggs ut som det är
+  "name": "en-battre-bild",
+  "compatibility_date": "2025-10-01",
+  "assets": {
+    "directory": "./public",
+    "not_found_handling": "single-page-application"
+  }
+}

@@ -1176,9 +1176,11 @@ function useRoom(key) {
     m.fillStyle = "#fff"; m.textAlign = "center"; m.textBaseline = "alphabetic";
     let fs = 420; const setF = () => { m.font = `300 ${fs}px Jost, "Futura", "Century Gothic", sans-serif`; if (m.letterSpacing !== undefined) m.letterSpacing = Math.round(fs * .2) + "px"; }; setF();
     while (m.measureText(text).width > W * .9 && fs > 160) { fs -= 10; setF(); }
-    m.fillText(text, W / 2 + fs * .1, Hh * .58);
-    m.font = '300 150px Jost, "Futura", "Century Gothic", sans-serif'; if (m.letterSpacing !== undefined) m.letterSpacing = "30px";
-    m.fillText(sub, W / 2 + 15, Hh * .86);
+    const ls = Math.round(fs * .2), mw = m.measureText(text).width; m.fillText(text, W / 2 + ls / 2, Hh * .58);
+    // undertexten: små versaler, högerställd under huvudtextens högra kant
+    const right = W / 2 + mw / 2 - ls / 2, sls = 34;
+    m.font = '400 78px Jost, "Futura", "Century Gothic", sans-serif'; if (m.letterSpacing !== undefined) m.letterSpacing = sls + "px";
+    m.textAlign = "right"; m.fillText(sub.toUpperCase(), right + sls, Hh * .58 + 150);
     const tex = T(mask, true, false); tex.anisotropy = maxAniso;
     const Nv = new V3(...N), pos = new V3(...C), Hs = width / 4;
     const mat = new THREE.MeshBasicMaterial({ map: tex, color: new THREE.Color(.95, .94, .91), transparent: true, alphaTest: .04, depthWrite: false });

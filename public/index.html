@@ -1,9 +1,18 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="En bättre bild – fotografi. Gå runt i ett 3D-showroom med bilder från staden, naturen och berättelser.">
 <title>En bättre bild · Showroom</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@500;700;800&family=Archivo:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+[hidden] { display: none !important; }
 /* Layout: helskärms-3D. Text ligger som skyltar i hörnen; allt annat är rummet och fotona. */
 :root {
   --ink: #070909;
@@ -113,6 +122,8 @@ body.viewing #soundBtn { visibility: hidden; pointer-events: none; }
 @media (max-width: 640px) { .where .room { font-size: 22px; } .brand { font-size: 15px; } .rooms button b { display: none; } .where { padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px)); } }
 @media (prefers-reduced-motion: reduce) { .intro, .loader, .toast { transition: none; } }
 </style>
+</head>
+<body>
 
 <canvas id="c" tabindex="0" aria-label="En bättre bilds showroom: fyra rum med fotografier att gå runt i"></canvas>
 
@@ -1949,3 +1960,5 @@ function useRoom(key) {
 })();
 
 </script>
+</body>
+</html>

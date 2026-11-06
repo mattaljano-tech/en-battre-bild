@@ -440,8 +440,8 @@ const STANDS = {
 function standSlots(room, size, o) {
   const out = [];
   for (const s of STANDS[room]) for (const sg of [1, -1]) {
-    const N = s.ax === "z" ? [0, 0, sg] : [sg, 0, 0], C = s.ax === "z" ? [s.x, 1.7, s.z + sg * s.t / 2] : [s.x + sg * s.t / 2, 1.7, s.z];
-    out.push(wslot(s.keys[sg > 0 ? 0 : 1], C, N, size, o));
+    const N = s.ax === "z" ? [0, 0, sg] : [sg, 0, 0], C = s.ax === "z" ? [s.x, 1.85, s.z + sg * s.t / 2] : [s.x + sg * s.t / 2, 1.85, s.z];
+    const sl = wslot(s.keys[sg > 0 ? 0 : 1], C, N, size, o); sl.maxW = s.w - .7; sl.labelBelow = true; out.push(sl);
   }
   return out;
 }
@@ -1118,6 +1118,7 @@ function useRoom(key) {
   const arts = [];
   function frameFor(slot, aspect, S) {
     let w, h; if (slot.h) { h = slot.h; w = h * aspect; } else { w = slot.w; h = w / aspect; }
+    if (slot.maxW && w > slot.maxW) { w = slot.maxW; h = w / aspect; } // på en skiva: alltid luft runt bilden
     const C = slot.C, U = slot.U, Vv = [0, 1, 0], N = slot.N;
     const g = new THREE.Group(); g.matrixAutoUpdate = false;
     g.matrix.makeBasis(new V3(...U), new V3(...Vv), new V3(...N)).setPosition(new V3(...C)); scene.add(g);
@@ -1133,7 +1134,8 @@ function useRoom(key) {
       { text: "EN BÄTTRE BILD · RUM " + S.num + " " + S.name.toUpperCase(), font: '500 24px "IBM Plex Mono", monospace', y: 160, x: 36, track: 2, alpha: .7 }
     ], { w: 640, h: 220, bg: "#d9d5cb", fg: "#141514", align: "left" });
     const lp = new THREE.Mesh(new THREE.PlaneGeometry(.32, .11), new THREE.MeshBasicMaterial({ map: T(label, true, false) }));
-    const lpos = new V3(...C).add(new V3(...U).multiplyScalar(w / 2 + fw + .25)).add(new V3(0, -h / 2 + .06, 0)).add(new V3(...N).multiplyScalar(.012));
+    const lpos = slot.labelBelow ? new V3(...C).add(new V3(0, -h / 2 - fw - .16, 0)).add(new V3(...N).multiplyScalar(.012)) // under bilden, på skivan
+      : new V3(...C).add(new V3(...U).multiplyScalar(w / 2 + fw + .25)).add(new V3(0, -h / 2 + .06, 0)).add(new V3(...N).multiplyScalar(.012));
     lp.position.copy(lpos); lp.lookAt(lpos.clone().add(new V3(...N))); scene.add(lp);
     const art = { slot, s, w, h, label: lp, labelPos: lpos }; arts.push(art); return art;
   }
@@ -1714,7 +1716,7 @@ function useRoom(key) {
     colliders.push({ x0: N.x - .3, x1: X, z0: N.z - N.w / 2 - .05, z1: N.z + N.w / 2 + .05 });
     // burlampor, en bänk i betong och lite skräp som blivit kvar
     for (const z of CV.LAMPS) cageLamp(-1.6, 3.4, z, H);
-    buildStands("staden", 0x6c6963, 0x1b1d1d);
+    buildStands("staden", 0x52504c, 0x1b1d1d);
     prop(new THREE.BoxGeometry(2.2, .44, .62, 8, 2, 2), { color: 0x8c8981 }, new V3(-3.3, .22, -11), null, { id: "cbench", collide: true });
     opening({ C: [0, 0, 0], N: [0, 0, -1], U: [-1, 0, 0], w: 1.4, h: 2.5, to: "foajen", sign: ["00  FOAJÉN", "TILLBAKA"], glow: new THREE.Color(1.1, .82, .55) });
     // neonen surrar och blinkar till ibland

@@ -496,7 +496,7 @@ function manSDF(x, y, z) {
   return d;
 }
 const MAN_SOFT = [[-1.9, 2.05, -13.2], [1.9, 2.05, -13.2]], MAN_STOOL = [0, 1.2, -14.3];
-const MAN_LOUNGE = { x: .6, z: -6.6, lampY: 1.5 }; // soffgruppen mitt i rummet
+const MAN_LOUNGE = { x: 0, z: -6.6, lampY: 1.5 }; // soffgruppen mitt i rummet
 const SUNM = (() => { const v = [-.82, .62, .22], l = Math.hypot(...v); return v.map((c) => c / l); })(); // mot solen, utanför västra fönstren
 function manSunGate(px, py, pz) {
   if (pz > 0 || px <= -MAN.X + .01) return 0;
@@ -516,7 +516,8 @@ function manLights() {
   // glödlampor i emaljskärmar
   for (const [x, z] of [[-2.6, -3.5], [2.6, -3.5], [-2.6, -9], [2.6, -9]]) addPoint([x, 3.75, z], 1.0, COL.tung, 9, .035, { only: inMR });
   // softboxarna i fotohörnan
-  for (const p of MAN_SOFT) { const n = [MAN_STOOL[0] - p[0], MAN_STOOL[1] - p[1], MAN_STOOL[2] - p[2]], l = Math.hypot(...n); addPanel(p, n.map((c) => c / l), .5, [1, .97, .92], 7, inMR); }
+  // softboxarna: mjukt, starkt ljus som faller på pallen och bakgrundspappret, med pallens skugga
+  for (const p of MAN_SOFT) addSpot(p, [MAN_STOOL[0], .66, MAN_STOOL[2]], .62, 1.8, [1, .97, .92], { hard: false, k: 8, bounce: .12, fx: "none", only: inMR });
   addPoint([MAN_LOUNGE.x, MAN_LOUNGE.lampY - .1, MAN_LOUNGE.z], .55, COL.tung, 5, .02, { only: inMR }); // lampan över soffbordet
   addTube([0, 2.74, 2.4], 3.0, .8, [1, .8, .58], { only: inMC });
   addPoint([0, 2.0, 4.25], .45, [1, .76, .5], 4, .02, { only: inMC });

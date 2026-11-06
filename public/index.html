@@ -380,7 +380,8 @@ function stadenSlots() {
   const W = (x, z, nx, nz, key, size, wide) => { const N = [nx, 0, nz], C = [x, wide ? 1.75 : 1.65, z];
     out.push(Object.assign({ key, C, U: [nz, 0, -nx], N, spots: [{ p: [x + nx * 1.6, H - .55, z + nz * 1.6], t: C, a: .42, T: 1.9 }] }, wide ? { w: size } : { h: size })); };
   W(-6, -3.4, 1, 0, "perrongen", 1.25); W(-6, -8.6, 1, 0, "telefonen", 1.25); W(-6, -13.8, 1, 0, "trappan", 1.35); W(-6, -19.0, 1, 0, "plats-s01", 1.25);
-  W(-3.4, -22, 0, 1, "norrtull", 2.6, true); W(3.4, -22, 0, 1, "tunneln", 1.25);
+  W(-3.4, -22, 0, 1, "norrtull", 2.6, true); // järnvägstunneln stor på bortre väggen, till höger om dörren, med två spotlights
+  out.push({ key: "tunneln", C: [3.35, 2.0, -22], U: [1, 0, 0], N: [0, 0, 1], w: 4.0, spots: [-1.1, 1.1].map((dx) => ({ p: [3.35 + dx, H - .55, -19.6], t: [3.35 + dx, 2.0, -22], a: .44, T: 1.6 })) });
   W(-3.5, 0, 0, -1, "plats-s02", 1.25); W(3.5, 0, 0, -1, "plats-s03", 1.25);
   return out;
 }

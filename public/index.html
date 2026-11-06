@@ -420,7 +420,7 @@ function halLights() {
 
 /* ================= 00 FOAJÉN =================
    Entrén och navet, 12 × 12 m, 5,5 m i tak. Öppningar till alla rum och tavlor för galleri, om, priser och kontakt. */
-const FOY = { X: 6, L: 12, H: 5.5 };
+const FOY = { X: 6, L: 12, H: 5.5, EX0: -2.0, EX1: 2.0, EH: 3.3 }; // EX/EH: glasentrén i väggen bakom ingången
 function foySDF(x, y, z) { return Math.min(x + FOY.X, FOY.X - x, y, FOY.H - y, z + FOY.L, -z); }
 function foyLights() {
   addPoint([0, 4.0, -11.4], .45, COL.tung, 5, 0);
@@ -428,6 +428,8 @@ function foyLights() {
   for (const z of [-3, -6, -9]) addSpot([-4.1, 5.3, z], [-6, 1.7, z], .3, 1.3, [1, .9, .76]);
   addSpot([4.0, 5.3, -6], [6, 1.8, -6], .38, 1.3, [1, .9, .76]);
   addTube([0, 4.35, -3.5], 2.4, 1.4, [1, .82, .6]); addTube([0, 4.35, -8.5], 2.4, 1.4, [1, .82, .6]);
+  // dagsljus genom glasentrén
+  for (let i = 0; i < 4; i++) for (let j = 0; j < 3; j++) addPanel([FOY.EX0 + (i + .5) * (FOY.EX1 - FOY.EX0) / 4, (j + .5) * FOY.EH / 3, -.05], [0, 0, -1], .75, COL.sky, 18);
 }
 
 /* ================= rummen ================= */
@@ -1396,6 +1398,44 @@ function useRoom(key) {
   }
 
   /* ================= 00 FOAJÉN ================= */
+  // stor glasentré: dubbeldörr i glas med smala glaspartier på sidorna och dagsljus utanför
+  function glassEntrance() {
+    const x0 = FOY.EX0, x1 = FOY.EX1, EH = FOY.EH, DH = 2.75, steel = 0x121313;
+    // gatan utanför: ljus, överexponerad, lite oskarp
+    const c = cnv(1024, 640), x = c.getContext("2d"), r = rng(91);
+    const sky = x.createLinearGradient(0, 0, 0, 260); sky.addColorStop(0, "#d9e2e8"); sky.addColorStop(1, "#f3f1eb"); x.fillStyle = sky; x.fillRect(0, 0, 1024, 640);
+    x.filter = "blur(4px)";
+    x.fillStyle = "#cbc5bb"; x.fillRect(-20, 110, 1064, 420);
+    for (let ry = 0; ry < 4; ry++) for (let cx = 0; cx < 11; cx++) { x.fillStyle = `rgba(${110 + r() * 30 | 0},${118 + r() * 30 | 0},${124 + r() * 30 | 0},.9)`; x.fillRect(20 + cx * 94, 140 + ry * 92, 52, 62); }
+    x.fillStyle = "#b9b3a8"; x.fillRect(-20, 500, 1064, 40);
+    x.fillStyle = "#d8d4cc"; x.fillRect(-20, 540, 1064, 120);
+    x.fillStyle = "rgba(60,70,58,.55)"; for (const tx of [180, 760]) { x.beginPath(); x.arc(tx, 420, 70, 0, 7); x.fill(); x.fillRect(tx - 6, 420, 12, 120); }
+    x.filter = "none";
+    const out = new THREE.Mesh(new THREE.PlaneGeometry(13, 8.1), new THREE.MeshBasicMaterial({ map: T(c, true, false), color: new THREE.Color(1.7, 1.7, 1.65), fog: false }));
+    out.position.set(0, 3.2, 4.5); out.rotation.y = Math.PI; scene.add(out);
+    const pave = new THREE.Mesh(new THREE.PlaneGeometry(13, 4.5), new THREE.MeshBasicMaterial({ color: new THREE.Color(1.25, 1.22, 1.15), fog: false })); pave.rotation.x = -Math.PI / 2; pave.position.set(0, -.01, 2.25); scene.add(pave);
+    // smyg i väggens tjocklek
+    for (const sx of [x0, x1]) prop(new THREE.BoxGeometry(.04, EH, .3, 1, 4, 1), { color: 0x2c2b28 }, new V3(sx + (sx < 0 ? -.02 : .02), EH / 2, .15), null, { shadow: false });
+    prop(new THREE.BoxGeometry(x1 - x0 + .08, .04, .3, 4, 1, 1), { color: 0x2c2b28 }, new V3(0, EH + .02, .15), null, { shadow: false });
+    // stålprofiler: ytterram, mellanposter, mittpost och överstycke över dörrarna
+    const bar = (cx, cy, w, h) => prop(new THREE.BoxGeometry(w, h, .1, 1, 2, 1), { color: steel }, new V3(cx, cy, .08), null, { shadow: false });
+    const dw = .95, sl = (x1 - x0 - 2 * dw) / 2; // två dörrblad och två sidopartier
+    for (const px of [x0, x0 + sl, 0, x1 - sl, x1]) bar(px, EH / 2, .07, EH);
+    bar(0, DH, x1 - x0, .07); bar(0, EH - .035, x1 - x0, .07); bar(0, .03, x1 - x0, .06);
+    for (const sx of [-1, 1]) bar(sx * dw / 2, .12, dw - .07, .2); // sparkplåt nertill på dörrbladen
+    // glaset: nästan osynligt, med en svag spegling
+    const gc = cnv(256, 512), gx = gc.getContext("2d"); gx.clearRect(0, 0, 256, 512);
+    const gg = gx.createLinearGradient(0, 0, 256, 512); gg.addColorStop(0, "rgba(255,255,255,0)"); gg.addColorStop(.42, "rgba(255,255,255,0)"); gg.addColorStop(.47, "rgba(255,255,255,.35)"); gg.addColorStop(.52, "rgba(255,255,255,0)"); gg.addColorStop(.62, "rgba(255,255,255,.18)"); gg.addColorStop(.66, "rgba(255,255,255,0)"); gx.fillStyle = gg; gx.fillRect(0, 0, 256, 512);
+    const gm = new THREE.MeshBasicMaterial({ map: T(gc, false, false), color: new THREE.Color(.55, .62, .64), transparent: true, opacity: .55, depthWrite: false, blending: THREE.AdditiveBlending });
+    const pane = (cx, cy, w, h) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), gm); m.position.set(cx, cy, .08); m.rotation.y = Math.PI; scene.add(m); };
+    pane(x0 + sl / 2, EH / 2, sl - .07, EH - .07); pane(x1 - sl / 2, EH / 2, sl - .07, EH - .07);
+    for (const sx of [-1, 1]) pane(sx * dw / 2, DH / 2 + .1, dw - .07, DH - .27);
+    pane(0, (DH + EH) / 2, x1 - x0 - .07, EH - DH - .07);
+    // långa dörrhandtag i borstat stål
+    for (const sx of [-1, 1]) { prop(new THREE.CylinderGeometry(.016, .016, 1.1, 10), { color: 0x9a9a96 }, new V3(sx * .13, 1.35, -.02), null, { shadow: false });
+      for (const dy of [-.45, .45]) prop(new THREE.BoxGeometry(.02, .02, .07), { color: 0x9a9a96 }, new V3(sx * .13, 1.35 + dy, .02), null, { shadow: false }); }
+  }
+
   function buildFoajen() {
     const X = FOY.X, L = FOY.L, H = FOY.H;
     const tx = { wall: T(concreteWall(53, 4, 3.2, "#4a4741", { dirtM: .35 })), floor: T(paleFloorTex(11)), ceil: T(concreteWall(57, 4, 4, "#2c2b28", {})) };
@@ -1403,7 +1443,8 @@ function useRoom(key) {
     planar({ O: [-X, 0, 0], U: [0, 0, -1], V: [0, 1, 0], lu: L, lv: H, map: tx.wall, tu: 4, tv: 3.2 });
     planar({ O: [X, 0, -L], U: [0, 0, 1], V: [0, 1, 0], lu: L, lv: H, map: tx.wall, tu: 4, tv: 3.2 });
     planar({ O: [-X, 0, -L], U: [1, 0, 0], V: [0, 1, 0], lu: 2 * X, lv: H, map: tx.wall, tu: 4, tv: 3.2 });
-    planar({ O: [X, 0, 0], U: [-1, 0, 0], V: [0, 1, 0], lu: 2 * X, lv: H, map: tx.wall, tu: 4, tv: 3.2 });
+    planar({ O: [X, 0, 0], U: [-1, 0, 0], V: [0, 1, 0], lu: 2 * X, lv: H, map: tx.wall, tu: 4, tv: 3.2, holes: [[[X - FOY.EX1, .003], [X - FOY.EX0, .003], [X - FOY.EX0, FOY.EH], [X - FOY.EX1, FOY.EH]]] });
+    glassEntrance();
     planar({ O: [-X, H, -L], U: [1, 0, 0], V: [0, 0, 1], lu: 2 * X, lv: L, map: tx.ceil, tu: 4, tv: 4 });
     haloSign("EN BÄTTRE BILD", "Stockholm", [0, 4.3, -L + .02], [0, 0, 1], 5.0);
     opening({ C: [-4, 0, -L], N: [0, 0, 1], U: [1, 0, 0], w: 1.6, h: 2.7, to: "staden", sign: ["01  STADEN", "BETONG OCH STÅL"], glow: new THREE.Color(.35, .85, .8) });

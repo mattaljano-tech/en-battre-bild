@@ -665,7 +665,7 @@ function manLights() {
   // softboxarna: mjukt, starkt ljus som faller på pallen och bakgrundspappret, med pallens skugga
   for (const p of MAN_SOFT) addSpot(p, [MAN_STOOL[0], .66, MAN_STOOL[2]], .62, 1.8, [1, .97, .92], { hard: false, k: 8, bounce: .12, fx: "none", only: inMR });
   for (const [dx, y] of MAN_PENDANTS) addPoint([MAN_LOUNGE.x + dx, y + .14, MAN_LOUNGE.z], .42, COL.tung, 5, .02, { only: inMR }); // pendlarna över soffbordet
-  for (const sx of [-1.2, 1.2]) addPoint([sx, 2.45, -.28], .3, COL.tung, 3.5, .015, { only: inMR }); // vägglamporna vid dörren
+  for (const sx of [-1.6, 1.6]) addPoint([sx, 2.45, -.28], .3, COL.tung, 3.5, .015, { only: inMR }); // vägglamporna vid dörren
   addTube([0, 2.74, 2.4], 3.0, .8, [1, .8, .58], { only: inMC });
   addPoint([0, 2.0, 4.25], .45, [1, .76, .5], 4, .02, { only: inMC });
 }
@@ -1314,9 +1314,9 @@ function useRoom(key) {
     const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexC, color, transparent: true, opacity: op || .6, blending: THREE.AdditiveBlending, depthWrite: false }));
     sp.position.set(x, y, z); sp.scale.set(s, s, 1); scene.add(sp); return sp;
   }
-  function rodProp(a, b, r, color, id) {
+  function rodProp(a, b, r, color, id, matOpts) {
     const A = new V3(...a), B = new V3(...b), d = B.clone().sub(A), len = d.length();
-    const m = prop(new THREE.CylinderGeometry(r, r, len, 8, 2), { color }, A.clone().add(B).multiplyScalar(.5), null, { id, shadow: false });
+    const m = prop(new THREE.CylinderGeometry(r, r, len, 8, 2), matOpts || { color }, A.clone().add(B).multiplyScalar(.5), null, { id, shadow: false });
     m.quaternion.setFromUnitVectors(new V3(0, 1, 0), d.normalize()); return m;
   }
   // fristående skivor för tavlor: en skiva på en låg sockel, med en tunn kant i svart stål
@@ -1523,7 +1523,7 @@ function useRoom(key) {
       "vec2 q = vUv.xy / vUv.w; float edge = vUv.w > 0. ? smoothstep(0., .1, q.x) * smoothstep(1., .9, q.x) * smoothstep(0., .1, q.y) * smoothstep(1., .9, q.y) : 0.;", "c = min(c, vec3(1.3)); gl_FragColor = vec4(c * strength * fr * (1. - rough * .5) * fog * edge, 1.); }"].join("\n") };
   let mirrorRT = null, mirrorCam = null; const mirrorTM = new THREE.Matrix4(), mirrorBias = new THREE.Matrix4().set(.5, 0, 0, .5, 0, .5, 0, .5, 0, 0, .5, .5, 0, 0, 0, 1), mirrorClip = [new THREE.Plane(new V3(0, 1, 0), -.012)];
   function addFloorMirror(S) {
-    const M = S.look.mirror; if (!M) return;
+    const M = S.look.mirror; if (!M || isTouch) return; // mobilen: ingen spegling, då räcker kraften till skarp bild
     let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9; for (const r of S.walk) { x0 = Math.min(x0, r.x0); x1 = Math.max(x1, r.x1); z0 = Math.min(z0, r.z0); z1 = Math.max(z1, r.z1); }
     x0 -= .45; x1 += .45; z0 -= .45; z1 = Math.min(z1 + .45, .05);
     const pr = Math.min(devicePixelRatio || 1, 1.5), k = isTouch ? .35 : .5;
@@ -1544,6 +1544,7 @@ function useRoom(key) {
     renderer.clippingPlanes = []; renderer.setRenderTarget(old); floorMirror.visible = true;
     mirrorTM.copy(mirrorBias).multiply(mirrorCam.projectionMatrix).multiply(mirrorCam.matrixWorldInverse);
   }
+  const STEEL = () => ({ color: 0x8a8a8a, map: MATTEX.rost2.diff }); // slitet, målat stål
   // föremål med fotograferat material: UV i meter så att texturen inte töjs ut på långa balkar
   function worldUV(geo, sc) {
     const p = geo.attributes.position, n = geo.attributes.normal, uv = geo.attributes.uv;
@@ -1936,21 +1937,22 @@ function useRoom(key) {
     colliders.push({ x0: -1.6, x1: 1.6, z0: -15.8, z1: -13.4 });
     placeModel("pall", [MAN_STOOL[0], 0, MAN_STOOL[2]], .4, { h: .8, id: "stool", shadow: true });
     MAN_SOFT.forEach(([px, py, pz]) => {
-      for (let k = 0; k < 3; k++) { const a = k * 2.094 + .5; rodProp([px, .9, pz], [px + Math.cos(a) * .45, 0, pz + Math.sin(a) * .45], .012, 0x1a1a1a, "stand"); }
-      rodProp([px, .9, pz], [px, py, pz], .016, 0x1a1a1a, "stand");
+      for (let k = 0; k < 3; k++) { const a = k * 2.094 + .5; rodProp([px, .9, pz], [px + Math.cos(a) * .45, 0, pz + Math.sin(a) * .45], .014, 0, "stand", STEEL()); }
+      rodProp([px, .9, pz], [px, py, pz], .02, 0, "stand", STEEL());
       const g = new THREE.Group(); g.position.set(px, py, pz); scene.add(g); g.lookAt(MAN_STOOL[0], MAN_STOOL[1], MAN_STOOL[2]);
-      const body = new THREE.Mesh(new THREE.CylinderGeometry(.42, .07, .45, 4, 1, true), new THREE.MeshBasicMaterial({ color: 0x141414, side: THREE.DoubleSide })); body.rotation.x = Math.PI / 2; body.rotation.y = Math.PI / 4; g.add(body);
+      const bg = new THREE.CylinderGeometry(.42, .07, .45, 4, 4, true); bg.rotateY(Math.PI / 4); bg.rotateX(Math.PI / 2);
+      prop(bg, { color: 0x34302e, map: MATTEX.lader.diff, side: THREE.DoubleSide }, new V3(0, 0, 0), null, { parent: g, shadow: false, id: "softbox" });
       const dif = new THREE.Mesh(new THREE.PlaneGeometry(.59, .59), new THREE.MeshBasicMaterial({ color: new THREE.Color(1.9, 1.85, 1.75) })); dif.position.z = .226; g.add(dif);
       colliders.push({ x0: px - .4, x1: px + .4, z0: pz - .4, z1: pz + .4 });
     });
     { const cx = 0, cz = -10.6, id = "tripod";
-      for (let k = 0; k < 3; k++) { const a = k * 2.094 + 1.57; rodProp([cx, 1.25, cz], [cx + Math.cos(a) * .42, 0, cz + Math.sin(a) * .42], .014, 0x1c1c1c, id); }
+      for (let k = 0; k < 3; k++) { const a = k * 2.094 + 1.57; rodProp([cx, 1.25, cz], [cx + Math.cos(a) * .42, 0, cz + Math.sin(a) * .42], .015, 0, id, STEEL()); }
       prop(new THREE.BoxGeometry(.16, .1, .16), { color: 0x1c1c1c }, new V3(cx, 1.3, cz), null, { id });
       prop(new THREE.BoxGeometry(.2, .14, .11), { color: 0x151515 }, new V3(cx, 1.42, cz), null, { id });
       prop(new THREE.CylinderGeometry(.045, .05, .14, 20), { color: 0x0e0e0e }, new V3(cx, 1.42, cz - .12), [Math.PI / 2, 0, 0], { id });
       colliders.push({ x0: cx - .45, x1: cx + .45, z0: cz - .45, z1: cz + .45 }); }
     // ett gammalt arbetsbord och en växt vid fönstren
-    for (const sx of [-1.2, 1.2]) placeModel("vagg", [sx, 2.2, -.13], Math.PI, { h: .34, glow: /bulb/, glowCol: [4.5, 3.2, 1.7] });
+    for (const sx of [-1.6, 1.6]) placeModel("vagg", [sx, 2.2, -.13], Math.PI, { h: .34, glow: /bulb/, glowCol: [4.5, 3.2, 1.7] });
     buildLounge();
     return {};
   }
@@ -2207,7 +2209,7 @@ function useRoom(key) {
     } catch (e) { composer = null; renderer.toneMapping = THREE.ACESFilmicToneMapping; }
   }
   let quality = 1;
-  const basePR = () => { const dpr = devicePixelRatio || 1; if (isTouch) return Math.min(dpr, 1.25); return Math.max(.75, Math.min(dpr, 1.25, 2400 / innerWidth, 1400 / innerHeight)); };
+  const basePR = () => { const dpr = devicePixelRatio || 1; if (isTouch) return Math.min(dpr, 1.6); return Math.max(.75, Math.min(dpr, 1.25, 2400 / innerWidth, 1400 / innerHeight)); };
   function applyQuality() {
     const pr = basePR() * quality; renderer.setPixelRatio(pr); renderer.setSize(innerWidth, innerHeight, false);
     if (composer) { composer.setPixelRatio(pr); composer.setSize(innerWidth, innerHeight); finalPass.uniforms.res.value.set(innerWidth * pr, innerHeight * pr); }
@@ -2576,7 +2578,7 @@ function useRoom(key) {
     if (raw < 120) frameEMA = frameEMA * .94 + raw * .06;
     if (dbg) { dbgN++; if (now - dbgT > 500) { const c = renderer.domElement; dbg.textContent = (dbgN * 1000 / (now - dbgT)).toFixed(0) + " fps · " + c.width + "×" + c.height + " · kvalitet " + quality.toFixed(2) + (lowTier ? " · låg nivå" : "") + "\n" + gpuName; dbgT = now; dbgN = 0; } }
     if (roomReady && !loading && now - lastQ > 1800) { lastQ = now;
-      const minQ = lowTier ? .65 : isTouch ? .75 : .85;
+      const minQ = lowTier ? .65 : isTouch ? .8 : .85;
       if (!lowTier && !isTouch && frameEMA > 24 && quality <= minQ + .001) { lowTier = true; if (bloomPass) bloomPass.enabled = false; }
       if (frameEMA > 26 && quality > minQ) { quality = Math.max(minQ, quality - .075); applyQuality(); }
       else if (frameEMA < 18 && quality < 1) { quality = Math.min(1, quality + .075); applyQuality(); } }

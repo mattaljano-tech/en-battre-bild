@@ -660,7 +660,7 @@ function manLights() {
     addPanel([-MAN.X + .05, w.y0 + (j + .5) * (w.y1 - w.y0) / 2, w.z0 + (i + .5) * (w.z1 - w.z0) / 2], [1, 0, 0], .9, COL.sky, 16, inMR);
   addSun(SUNM, 2.6, COL.sun, manSunGate, MAN.H, { k: 40, only: inMR });
   // glödlampor i emaljskärmar
-  for (const [x, z] of [[-2.6, -3.5], [2.6, -3.5], [-2.6, -9], [2.6, -9]]) addPoint([x, 3.75, z], 1.0, COL.tung, 9, .035, { only: inMR });
+  for (const z of [-4, -11]) addPoint([0, 4.6, z], .7, [1, .9, .8], 10, .04, { only: inMR }); // mjukt fyllnadsljus
   // softboxarna i fotohörnan
   // softboxarna: mjukt, starkt ljus som faller på pallen och bakgrundspappret, med pallens skugga
   for (const p of MAN_SOFT) addSpot(p, [MAN_STOOL[0], .66, MAN_STOOL[2]], .62, 1.8, [1, .97, .92], { hard: false, k: 8, bounce: .12, fx: "none", only: inMR });
@@ -870,7 +870,7 @@ function useRoom(key) {
   /* ---------- fotograferade material (Poly Haven, CC0): färg, ytstruktur (normal) och skugga i skrymslen (AO) ---------- */
   const MATDEF = { betong: ["concrete_wall_008", 3], betonggolv: ["concrete_floor_03", 2.6], garage: ["garage_floor", 3], puts: ["plastered_wall", 2.6],
     tegel: ["red_bricks_04", 2.2], tra: ["wood_floor_worn", 2.2], rost: ["rusty_metal_03", 2], element: ["precast_concrete_wall", 3], tegelputs: ["plaster_brick_pattern", 2.4],
-    lader: ["fabric_leather_02", 1], matta: ["dirty_carpet", 1.2], plat: ["rusty_corrugated_iron", 2], rost2: ["rusty_metal_05", 1.6], panel: ["rusty_metal_grid", 1.8], slitputs: ["damaged_plaster", 3.2] };
+    lader: ["fabric_leather_02", 1], matta: ["dirty_carpet", 1.2], plat: ["rusty_corrugated_iron", 2], rost2: ["rusty_metal_05", 1.6], panel: ["rusty_metal_grid", 1.8], slitputs: ["damaged_plaster", 3.2], kalk: ["plaster_brick_pattern", 2.4], mork: ["beige_wall_001", 2.6], radtegel: ["brick_wall_001", 2.2], morktra: ["dark_wood", 2.4] };
   const MATTEX = {};
   function loadMats() {
     const tl = new THREE.TextureLoader(), jobs = [];
@@ -879,7 +879,18 @@ function useRoom(key) {
         t[kind] = tl.load("tex/" + f + "_" + kind + ".jpg", res, undefined, res); t[kind].wrapS = t[kind].wrapT = THREE.RepeatWrapping; t[kind].anisotropy = maxAniso;
         if (srgb) t[kind].encoding = THREE.sRGBEncoding; }));
       MATTEX[k] = t; }
-    return Promise.all(jobs);
+    return Promise.all(jobs).then(plankify);
+  }
+  // mörkt trä blir ett golv av breda plankor: fogar på längden och skarvar på tvären
+  function plankify() {
+    const t = MATTEX.morktra; if (!t || t.planked || !t.diff.image) return; t.planked = true;
+    const S = 1024, c = cnv(S, S), x = c.getContext("2d"), r = rng(17), n = 11, pw = S / n;
+    for (let i = 0; i < n; i++) { const off = r() * S; x.save(); x.beginPath(); x.rect(i * pw, 0, pw, S); x.clip();
+      x.translate(i * pw, 0); x.rotate(Math.PI / 2); x.drawImage(t.diff.image, -off, -pw - r() * 400, S * 1.5, S * 1.5); x.restore();
+      x.fillStyle = `rgba(${r() > .5 ? "0,0,0" : "255,235,210"},${r() * .12})`; x.fillRect(i * pw, 0, pw, S); }
+    for (let i = 0; i <= n; i++) { x.fillStyle = "rgba(8,5,3,.85)"; x.fillRect(i * pw - 1.5, 0, 3, S); }
+    for (let i = 0; i < n; i++) { const y = r() * S; x.fillStyle = "rgba(8,5,3,.75)"; x.fillRect(i * pw, y, pw, 3); }
+    const tex = T(c); t.diff = tex;
   }
   /* ---------- 3D-modeller (Poly Haven, CC0): laddas en gång, ljuset bakas in som för övriga föremål ---------- */
   const MODELS = {}, MODEL_FILES = { bord: "industrial_coffee_table", krona: "Chandelier_01", bur: "caged_hanging_light", vagg: "industrial_wall_sconce", pall: "metal_stool_01", hylla: "worn_metal_rack" };
@@ -1865,12 +1876,12 @@ function useRoom(key) {
   /* ================= 04 MÄNNISKORNA: gammal fotoateljé ================= */
   function buildManniskorna() {
     const X = MAN.X, L = MAN.L, H = MAN.H, CW = MAN.CW, CL = MAN.CL, CH = MAN.CH;
-    const tx = { brick: mat("tegel", { color: 0xe6dcd4 }), floor: mat("tra", { color: 0xd8ccbc }), ceil: mat("tra", { color: 0x6e5c4c, relief: .5 }), paper: T((() => { const c = cnv(256, 256), x = c.getContext("2d"); x.fillStyle = "#dedad2"; x.fillRect(0, 0, 256, 256); grain(x, 256, 256, 6, 3); return c; })()) };
+    const tx = { brick: mat("kalk", { color: 0xfffaf2 }), dark: mat("mork", { color: 0x56585c }), raw: mat("radtegel", { color: 0xd8d0ca }), floor: mat("morktra", { color: 0x9a9a98 }), ceil: mat("mork", { color: 0x2c2c2e, relief: .4 }), paper: T((() => { const c = cnv(256, 256), x = c.getContext("2d"); x.fillStyle = "#dedad2"; x.fillRect(0, 0, 256, 256); grain(x, 256, 256, 6, 3); return c; })()) };
     planar({ name: "golv", floor: true, O: [-X, 0, 0], U: [1, 0, 0], V: [0, 0, -1], lu: 2 * X, lv: L, map: tx.floor, tu: 4, tv: 4 });
     planar({ name: "tak", O: [-X, H, -L], U: [1, 0, 0], V: [0, 0, 1], lu: 2 * X, lv: L, map: tx.ceil, tu: 4, tv: 4 });
     planar({ name: "fönsterväggen", O: [-X, 0, 0], U: [0, 0, -1], V: [0, 1, 0], lu: L, lv: H, map: tx.brick, tu: 4, tv: 3, holes: MAN.WIN.map((w) => [[-w.z1, w.y0], [-w.z0, w.y0], [-w.z0, w.y1], [-w.z1, w.y1]]) });
-    planar({ name: "östra väggen", O: [X, 0, -L], U: [0, 0, 1], V: [0, 1, 0], lu: L, lv: H, map: tx.brick, tu: 4, tv: 3 });
-    planar({ name: "bortre väggen", O: [-X, 0, -L], U: [1, 0, 0], V: [0, 1, 0], lu: 2 * X, lv: H, map: tx.brick, tu: 4, tv: 3 });
+    planar({ name: "östra väggen", O: [X, 0, -L], U: [0, 0, 1], V: [0, 1, 0], lu: L, lv: H, map: tx.dark, tu: 4, tv: 3 });
+    planar({ name: "bortre väggen", O: [-X, 0, -L], U: [1, 0, 0], V: [0, 1, 0], lu: 2 * X, lv: H, map: tx.raw, tu: 4, tv: 3 });
     planar({ name: "ingångsväggen", O: [X, 0, 0], U: [-1, 0, 0], V: [0, 1, 0], lu: 2 * X, lv: H, shape: [[0, 0], [X - CW, 0], [X - CW, CH], [X + CW, CH], [X + CW, 0], [2 * X, 0], [2 * X, H], [0, H]], map: tx.brick, tu: 4, tv: 3 });
     // korridoren in
     planar({ name: "korridorgolv", floor: true, O: [-CW, 0, CL], U: [1, 0, 0], V: [0, 0, -1], lu: 2 * CW, lv: CL, map: tx.floor, tu: 4, tv: 4 });
@@ -1898,13 +1909,10 @@ function useRoom(key) {
       scene.add(new THREE.Mesh(sg, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: .03, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })));
     });
     // takbjälkar i trä
-    for (let z = -1.5; z > -L; z -= 3) prop(new THREE.BoxGeometry(2 * X, .3, .24, 8, 1, 1), { color: 0x4a3626 }, new V3(0, H - .15, z), null, { shadow: false });
-    // glödlampor i gröna emaljskärmar
-    for (const [lx, lz] of [[-2.6, -3.5], [2.6, -3.5], [-2.6, -9], [2.6, -9]]) {
-      prop(new THREE.CylinderGeometry(.004, .004, H - 3.95, 4), { color: 0x111111 }, new V3(lx, (H + 3.95) / 2, lz), null, { shadow: false });
-      prop(new THREE.CylinderGeometry(.05, .26, .2, 24, 1, true), { color: 0x23382f, side: THREE.DoubleSide }, new V3(lx, 3.88, lz), null, { shadow: false });
-      const b = new THREE.Mesh(new THREE.SphereGeometry(.055, 14, 10), new THREE.MeshBasicMaterial({ color: new THREE.Color(5, 3.2, 1.4) })); b.position.set(lx, 3.76, lz); scene.add(b);
-    }
+    for (let z = -1.5; z > -L; z -= 3) prop(new THREE.BoxGeometry(2 * X, .3, .24, 8, 1, 1), { color: 0x161616 }, new V3(0, H - .15, z), null, { shadow: false });
+    // upphängningslist i mässing längs långväggarna, med en tunn vajer ner till varje tavla
+    for (const sx of [-1, 1]) prop(new THREE.BoxGeometry(.03, .05, L - .3), { color: 0xb08a4a }, new V3(sx * (X - .03), 3.25, -L / 2), null, { shadow: false });
+    SPECS.manniskorna.slots.forEach((sl) => { if (Math.abs(Math.abs(sl.C[0]) - X) > .01) return; const sx = Math.sign(sl.C[0]); for (const dz of [-.3, .3]) rodProp([sx * (X - .03), 3.22, sl.C[2] + dz], [sx * (X - .05), sl.C[1] + sl.h / 2 + .1, sl.C[2] + dz * .4], .0025, 0x9a9a96); });
     // fotohörnan: bakgrundspapper på rulle, pall, två softboxar och en kamera på stativ
     prop(new THREE.CylinderGeometry(.07, .07, 3.0, 16), { color: 0x2a2a28 }, new V3(0, 3.1, -15.62), [0, 0, Math.PI / 2], { shadow: false });
     for (const sx of [-1.55, 1.55]) prop(new THREE.CylinderGeometry(.015, .015, 3.1, 6), { color: 0x1a1a1a }, new V3(sx, 1.55, -15.62), null, { shadow: false });
@@ -1928,7 +1936,6 @@ function useRoom(key) {
       prop(new THREE.CylinderGeometry(.045, .05, .14, 20), { color: 0x0e0e0e }, new V3(cx, 1.42, cz - .12), [Math.PI / 2, 0, 0], { id });
       colliders.push({ x0: cx - .45, x1: cx + .45, z0: cz - .45, z1: cz + .45 }); }
     // ett gammalt arbetsbord och en växt vid fönstren
-    plant(-5.2, -15.2, 2.0, 21);
     for (const sx of [-1.2, 1.2]) placeModel("vagg", [sx, 2.2, -.13], Math.PI, { h: .34, glow: /bulb/, glowCol: [4.5, 3.2, 1.7] });
     buildLounge();
     return {};
@@ -1983,12 +1990,12 @@ function useRoom(key) {
   function buildLounge() {
     const { x: lx, z: lz, lampY } = MAN_LOUNGE, leather = { color: 0xe8d8cc, map: MATTEX.lader.diff };
     // mattan
-    planar({ name: "matta", floor: true, O: [lx - 2.1, .008, lz + 2.4], U: [1, 0, 0], V: [0, 0, -1], lu: 4.2, lv: 4.8, map: rugTex(7), tu: 4.2, tv: 4.8, res: RES, nor: MATTEX.matta.nor, arm: MATTEX.matta.arm, relK: .8, keepUV: true });
+    planar({ name: "matta", floor: true, O: [lx - 1.8, .008, lz + 2.2], U: [1, 0, 0], V: [0, 0, -1], lu: 3.6, lv: 4.4, map: mat("matta", { color: 0x9a8a80 }), res: RES });
     // soffan vänd mot bordet, två fåtöljer på andra sidan
     leatherSeat(lx, lz + 1.85, Math.PI, 2.2, 2, leather, "sofa"); colliders.push({ x0: lx - 1.15, x1: lx + 1.15, z0: lz + 1.38, z1: lz + 2.32 });
     for (const [dx, yaw] of [[-.85, .22], [.85, -.22]]) { leatherSeat(lx + dx, lz - 1.85, yaw, .98, 1, leather, "chair" + dx); colliders.push({ x0: lx + dx - .55, x1: lx + dx + .55, z0: lz - 2.35, z1: lz - 1.35 }); }
     // soffbordet i industristil, med böcker
-    const tb = placeModel("bord", [lx, 0, lz], 0, { w: 1.2, id: "ctable", shadow: true });
+    const tb = placeModel("bord", [lx, 0, lz], 0, { h: .46, id: "ctable", shadow: true });
     colliders.push({ x0: lx - .66, x1: lx + .66, z0: lz - .42, z1: lz + .42 });
     if (tb) [[.24, .05, .32, 0x26343a, .1], [.22, .04, .3, 0x8a6a3a, -.15], [.2, .035, .27, 0x5a1e1a, .3]].reduce((y, [w, h, d, col, rot]) => {
       prop(new THREE.BoxGeometry(w, h, d), { color: col }, new V3(lx - .3, y + h / 2, lz + .05), [0, rot, 0], { id: "books" }); return y + h; }, tb.top);

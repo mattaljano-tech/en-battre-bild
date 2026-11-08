@@ -870,7 +870,7 @@ function useRoom(key) {
   /* ---------- fotograferade material (Poly Haven, CC0): färg, ytstruktur (normal) och skugga i skrymslen (AO) ---------- */
   const MATDEF = { betong: ["concrete_wall_008", 3], betonggolv: ["concrete_floor_03", 2.6], garage: ["garage_floor", 3], puts: ["plastered_wall", 2.6],
     tegel: ["red_bricks_04", 2.2], tra: ["wood_floor_worn", 2.2], rost: ["rusty_metal_03", 2], element: ["precast_concrete_wall", 3], tegelputs: ["plaster_brick_pattern", 2.4],
-    lader: ["fabric_leather_02", 1], matta: ["dirty_carpet", 1.2], plat: ["rusty_corrugated_iron", 2], rost2: ["rusty_metal_05", 1.6], panel: ["rusty_metal_grid", 1.8] };
+    lader: ["fabric_leather_02", 1], matta: ["dirty_carpet", 1.2], plat: ["rusty_corrugated_iron", 2], rost2: ["rusty_metal_05", 1.6], panel: ["rusty_metal_grid", 1.8], slitputs: ["damaged_plaster", 3.2] };
   const MATTEX = {};
   function loadMats() {
     const tl = new THREE.TextureLoader(), jobs = [];
@@ -1774,7 +1774,7 @@ function useRoom(key) {
   function buildStaden() {
     const X = CV.X, L = CV.L, H = CV.H, W = CV.WIN;
     const tx = { floor: mat("garage", { color: 0x98abc8 }), ceil: mat("betong", { color: 0x9a9890, relief: .6 }), conc: mat("betong", { color: 0xa8b2c4 }),
-      west: mat("puts", { color: 0xa8a49b, layer: { m: mat("tegel", { color: 0xd8c8c0 }), mask: peelMask(5, L, H) } }), far: mat("puts", { color: 0xa8a49b, layer: { m: mat("tegel", { color: 0xd8c8c0 }), mask: peelMask(9, 2 * X, H, 9) } }) };
+      west: mat("slitputs", { color: 0xe8e4de }), far: mat("slitputs", { color: 0xe8e4de }) };
     planar({ name: "golv", floor: true, O: [-X, 0, 0], U: [1, 0, 0], V: [0, 0, -1], lu: 2 * X, lv: L, map: tx.floor, tu: 3.5, tv: 3.5, color: 0xa29e96 });
     planar({ name: "tak", O: [-X, H, -L], U: [1, 0, 0], V: [0, 0, 1], lu: 2 * X, lv: L, map: tx.ceil, tu: 4, tv: 4 });
     planar({ name: "tegelväggen", O: [-X, 0, 0], U: [0, 0, -1], V: [0, 1, 0], lu: L, lv: H, map: tx.west });

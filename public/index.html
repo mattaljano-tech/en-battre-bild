@@ -294,13 +294,13 @@ const PHOTOS = {
   "masen": { src: "img/masen.jpg", title: "Måsen", meta: "Berättelser", tone: "light" },
   "skorna": { src: "img/skorna.jpg", title: "Skorna", meta: "Berättelser", tone: "dark" },
   "porten": { src: "img/porten.jpg", title: "Porten", meta: "Berättelser", tone: "dark" },
-  "nallen": { src: "img/nallen.jpg", title: "Nallen", meta: "Berättelser", tone: "dark" },
+  "nallen": { src: "img/nallen.jpg", title: "Nallen", meta: "Foajén", tone: "dark" },
   "pickupen": { src: "img/pickupen.jpg", title: "Pickupen", meta: "Berättelser", tone: "dark" },
-  "kickflip": { src: "img/kickflip.jpg", title: "Kickflip", meta: "Berättelser", tone: "dark" },
+  "kickflip": { src: "img/kickflip.jpg", title: "Kickflip", meta: "Foajén", tone: "dark" },
   "uppfor": { src: "img/uppfor.jpg", title: "Uppför", meta: "Berättelser", tone: "light" },
   "pinnen": { src: "img/pinnen.jpg", title: "Pinnen", meta: "Berättelser", tone: "dark" },
-  "fasaden": { src: "img/fasaden.jpg", title: "Fasaden", meta: "Berättelser", tone: "dark" },
-  "klistermarken": { src: "img/klistermarken.jpg", title: "Klistermärken", meta: "Berättelser", tone: "dark" },
+  "fasaden": { src: "img/fasaden.jpg", title: "Fasaden", meta: "Foajén", tone: "dark" },
+  "klistermarken": { src: "img/klistermarken.jpg", title: "Klistermärken", meta: "Foajén", tone: "dark" },
   // Människorna
   "vila-i-frid": { src: "img/vila-i-frid.jpg", title: "Vila i frid", meta: "Människorna", tone: "light" },
   "azizam": { src: "img/azizam.jpg", title: "Azizam", meta: "Människorna", tone: "dark" },
@@ -431,11 +431,7 @@ const STANDS = {
   naturen: [
     { x: -4.9, z: -7.8, w: 2.2, h: 2.8, t: .16, ax: "z", keys: ["solnedgangen", "atlantkusten"] },
     { x: 4.9, z: -12.5, w: 2.2, h: 2.8, t: .16, ax: "z", keys: ["fonstervy", "bordet"] }],
-  berattelser: [
-    { x: -3.9, z: -4.0, w: 2.4, h: 3.0, t: .2, ax: "z", keys: ["porten", "nallen"] },
-    { x: 3.9, z: -4.0, w: 2.4, h: 3.0, t: .2, ax: "z", keys: ["pickupen", "kickflip"] },
-    { x: -3.9, z: -17.0, w: 2.4, h: 3.0, t: .2, ax: "z", keys: ["uppfor", "pinnen"] },
-    { x: 3.6, z: -17.2, w: 2.4, h: 3.0, t: .2, ax: "z", keys: ["fasaden", "klistermarken"] }]
+  berattelser: []
 };
 function standSlots(room, size, o) {
   const out = [];
@@ -558,7 +554,10 @@ function halSlots() {
   [["katten", -1.1], ["tvatten", -7.0], ["gangtunneln", -13.0], ["uppgangen", -19.9]].forEach(([k, z]) => out.push(wslot(k, [-X, 1.65, z], [1, 0, 0], 1.5, ho)));
   out.push(wslot("vakten", [-4.5, 1.65, 0], [0, 0, -1], 1.5, ho), wslot("grodden", [-1.5, 1.65, 0], [0, 0, -1], 1.4, ho));
   out.push(wslot("balkongerna", [X, 1.65, -7.3], [-1, 0, 0], 1.5, ho));
-  return out.concat(standSlots("berattelser", 1.55, ho));
+  // hörnen och ingångsväggen
+  out.push(wslot("porten", [X, 1.65, -1.6], [-1, 0, 0], 1.5, ho), wslot("pickupen", [6.1, 1.65, 0], [0, 0, -1], 1.3, ho));
+  out.push(wslot("uppfor", [-6.1, 1.75, -L], [0, 0, 1], 1.5, Object.assign({ ly: 5.5, d: 2.6 }, ho)), wslot("pinnen", [6.1, 1.75, -L], [0, 0, 1], 1.2, Object.assign({ ly: 5.5, d: 2.6 }, ho)));
+  return out;
 }
 function halSDF(x, y, z) {
   if (z > 0) return Math.min(x - HAL.CX0, HAL.CX1 - x, y, HAL.CH - y, HAL.CL - z);
@@ -610,8 +609,11 @@ function foySunGate(px, py, pz) {
 }
 // två stora bilder på var sida om öppningen till vernissagen
 function foySlots() {
-  return [["kusten", -3.9], ["norrtull", 3.9]].map(([key, x]) => ({ key, C: [x, 1.85, -FOY.L], U: [1, 0, 0], N: [0, 0, 1], w: 2.0,
+  const out = [["kickflip", -3.9], ["nallen", 3.9]].map(([key, x]) => ({ key, C: [x, 1.85, -FOY.L], U: [1, 0, 0], N: [0, 0, 1], w: 2.0,
     spots: [{ p: [x, 5.3, -FOY.L + 2.4], t: [x, 1.85, -FOY.L], a: .32, T: 1.5 }] }));
+  // östra väggen, på var sin sida om galleritavlan
+  out.push(wslot("fasaden", [FOY.X, 1.75, -2.5], [-1, 0, 0], 1.4, { ly: 4.6, d: 1.8 }), wslot("klistermarken", [FOY.X, 1.75, -9.5], [-1, 0, 0], 1.4, { ly: 4.6, d: 1.8 }));
+  return out;
 }
 function foySDF(x, y, z) { return Math.min(x + FOY.X, FOY.X - x, y, FOY.H - y, z + FOY.L, -z); }
 function foyLights() {
@@ -1482,7 +1484,7 @@ function useRoom(key) {
       prop(new THREE.CylinderGeometry(.02, .02, 6.35 - KY - .3, 6), { color: 0x2b2a27 }, new V3(-1.8, (6.35 + KY + .3) / 2, CZ), null, { shadow: false });
       prop(new THREE.BoxGeometry(.24, .34, .16), { color: ochre }, new V3(-1.8, KY + .15, CZ), null, { shadow: false });
       prop(new THREE.TorusGeometry(.11, .028, 8, 18, Math.PI * 1.4), { color: 0x2b2a27 }, new V3(-1.8, KY - .12, CZ), [0, 0, Math.PI * .8], { shadow: false }); }
-    plant(-6.2, -21.2, 2.3, 21); plant(6.2, -21.2, 2.0, 22);
+    plant(-6.3, -16.4, 2.2, 21);
     buildStands("berattelser", 0x56534f, 0x161717);
     opening({ C: [4, 0, CL], N: [0, 0, -1], U: [-1, 0, 0], w: 1.2, h: 2.3, to: "naturen", sign: ["02  NATUREN", "TILLBAKA"], glow: new THREE.Color(1.15, 1.2, 1.3) });
     opening({ C: [X, 0, -19], N: [-1, 0, 0], U: [0, 0, 1], w: 1.6, h: 2.8, to: "manniskorna", sign: ["04  MÄNNISKORNA", "GÅ VIDARE"], glow: new THREE.Color(1.2, .9, .6) });
@@ -2298,7 +2300,7 @@ function useRoom(key) {
         bt.append(n, t, ar); bt.addEventListener("click", () => { closePanel(); goRoom(k); }); list.append(bt); }
     } else if (kind === "galleri") {
       head("Foajén · Galleri", "Galleri"); para("Alla bilder från rummen. Tryck på en bild för att se den i full storlek.");
-      for (const k of ["staden", "naturen", "berattelser", "manniskorna"]) {
+      for (const k of ["foajen", "staden", "naturen", "berattelser", "manniskorna"]) {
         const S = SPECS[k], h3 = document.createElement("h3"); h3.textContent = S.num + "  " + S.name; b.append(h3);
         const grid = document.createElement("div"); grid.className = "grid"; b.append(grid);
         S.slots.filter((sl) => PHOTOS[sl.key].src).forEach((sl) => { const Ph = PHOTOS[sl.key], bt = document.createElement("button"); bt.type = "button";

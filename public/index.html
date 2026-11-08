@@ -1908,7 +1908,7 @@ function useRoom(key) {
     const L = (r1, r2, len, m, z0, seg) => { const c = new THREE.CylinderGeometry(r2, r1, len, seg || 40, 1); c.rotateX(Math.PI / 2); P(c, m, [0, -.004, z0 - len / 2]); };
     L(.03, .03, .008, metall, -.031); L(.036, .036, .03, plast, -.039); L(.039, .039, .036, { color: 0x151515, map: MATTEX.panel.diff }, -.069, 64);
     L(.037, .037, .014, plast, -.105); L(.04, .04, .022, { color: 0x171717, map: MATTEX.panel.diff }, -.119, 64); L(.04, .041, .01, plast, -.141);
-    { const hood = new THREE.CylinderGeometry(.055, .043, .04, 40, 1, true); hood.rotateX(Math.PI / 2); P(hood, { color: 0x121212, side: THREE.DoubleSide }, [0, -.004, -.171]); }
+    { const hood = new THREE.CylinderGeometry(.043, .056, .045, 40, 1, true); hood.rotateX(Math.PI / 2); P(hood, { color: 0x121212, side: THREE.DoubleSide }, [0, -.004, -.171]); }
     { const glass = new THREE.Mesh(new THREE.CircleGeometry(.036, 40), new THREE.MeshBasicMaterial({ color: new THREE.Color(.05, .08, .12) })); glass.position.set(0, -.004, -.1505); glass.rotation.y = Math.PI; g.add(glass);
       const gl2 = new THREE.Mesh(new THREE.RingGeometry(.012, .02, 32), new THREE.MeshBasicMaterial({ color: new THREE.Color(.35, .2, .55), transparent: true, opacity: .35 })); gl2.position.set(.006, .002, -.1508); gl2.rotation.y = Math.PI; g.add(gl2); }
     return g;

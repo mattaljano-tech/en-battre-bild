@@ -1882,6 +1882,49 @@ function useRoom(key) {
     opening({ C: [0, 0, 0], N: [0, 0, -1], U: [-1, 0, 0], w: 1.4, h: 2.5, to: "foajen", sign: ["00  FOAJÉN", "TILLBAKA"], glow: new THREE.Color(1.1, .82, .55) });
     return { noDust: true };
   }
+  /* ---------- systemkamera på stativ (modellerad efter en fullformats-DSLR, utan märke) ---------- */
+  function roundBox(w, h, d, r) { const sh = new THREE.Shape(), x = -w / 2 + r, y = -h / 2 + r, W = w - 2 * r, H = h - 2 * r;
+    sh.moveTo(x, y - r); sh.lineTo(x + W, y - r); sh.quadraticCurveTo(x + W + r, y - r, x + W + r, y); sh.lineTo(x + W + r, y + H); sh.quadraticCurveTo(x + W + r, y + H + r, x + W, y + H + r);
+    sh.lineTo(x, y + H + r); sh.quadraticCurveTo(x - r, y + H + r, x - r, y + H); sh.lineTo(x - r, y); sh.quadraticCurveTo(x - r, y - r, x, y - r);
+    const g = new THREE.ExtrudeGeometry(sh, { depth: d - 2 * r, bevelEnabled: true, bevelThickness: r, bevelSize: r * .6, bevelSegments: 3, curveSegments: 6 }); g.translate(0, 0, -(d - 2 * r) / 2); return g; }
+  function buildCamera(x, y, z, yaw) {
+    const g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = yaw; scene.add(g);
+    const id = "camera", grain = MATTEX.lader.diff, body = { color: 0x1e1e1e }, plast = { color: 0x1c1c1c }, gummi = { color: 0x101010 }, metall = { color: 0x8c8c88 };
+    const P = (geo, m, pos, rot) => prop(geo, m, new V3(...pos), rot || null, { parent: g, id, shadow: false });
+    P(roundBox(.144, .086, .062, .009), body, [0, 0, 0]);                                    // huset
+    P(roundBox(.036, .1, .078, .012), body, [.056, -.004, -.008]);                           // greppet
+    { const sh = new THREE.Shape(); sh.moveTo(-.036, 0); sh.lineTo(.036, 0); sh.lineTo(.022, .034); sh.lineTo(-.022, .034); sh.closePath();
+      const pg = new THREE.ExtrudeGeometry(sh, { depth: .05, bevelEnabled: true, bevelThickness: .004, bevelSize: .003, bevelSegments: 2 }); pg.translate(0, 0, -.025);
+      P(pg, body, [0, .041, -.004]); }                                                        // prismahuset
+    P(new THREE.BoxGeometry(.022, .004, .02), metall, [0, .08, -.004]);                      // blixtskon
+    P(new THREE.CylinderGeometry(.016, .016, .012, 24), plast, [-.048, .049, .004]);          // lägesratten
+    P(new THREE.CylinderGeometry(.012, .012, .006, 20), plast, [.05, .047, .012]);            // inställningsratt
+    P(new THREE.CylinderGeometry(.006, .007, .006, 16), metall, [.058, .051, -.014]);         // avtryckaren
+    P(new THREE.BoxGeometry(.03, .002, .018), { color: 0x0a0c0c }, [.04, .044, .012]);       // topp-displayen
+    { const lcd = new THREE.Mesh(new THREE.PlaneGeometry(.075, .05), new THREE.MeshBasicMaterial({ color: 0x030405 })); lcd.position.set(-.012, -.006, .0315); g.add(lcd); }
+    P(roundBox(.028, .022, .016, .005), gummi, [0, .046, .034]);                              // ögonmusslan
+    for (const sx of [-1, 1]) P(new THREE.BoxGeometry(.006, .012, .01), metall, [sx * .074, .028, .006]);
+    // objektivet framåt (−z): fattning, zoomring, fokusring och motljusskydd
+    const L = (r1, r2, len, m, z0, seg) => { const c = new THREE.CylinderGeometry(r2, r1, len, seg || 40, 1); c.rotateX(Math.PI / 2); P(c, m, [0, -.004, z0 - len / 2]); };
+    L(.03, .03, .008, metall, -.031); L(.036, .036, .03, plast, -.039); L(.039, .039, .036, { color: 0x151515, map: MATTEX.panel.diff }, -.069, 64);
+    L(.037, .037, .014, plast, -.105); L(.04, .04, .022, { color: 0x171717, map: MATTEX.panel.diff }, -.119, 64); L(.04, .041, .01, plast, -.141);
+    { const hood = new THREE.CylinderGeometry(.055, .043, .04, 40, 1, true); hood.rotateX(Math.PI / 2); P(hood, { color: 0x121212, side: THREE.DoubleSide }, [0, -.004, -.171]); }
+    { const glass = new THREE.Mesh(new THREE.CircleGeometry(.036, 40), new THREE.MeshBasicMaterial({ color: new THREE.Color(.05, .08, .12) })); glass.position.set(0, -.004, -.1505); glass.rotation.y = Math.PI; g.add(glass);
+      const gl2 = new THREE.Mesh(new THREE.RingGeometry(.012, .02, 32), new THREE.MeshBasicMaterial({ color: new THREE.Color(.35, .2, .55), transparent: true, opacity: .35 })); gl2.position.set(.006, .002, -.1508); gl2.rotation.y = Math.PI; g.add(gl2); }
+    return g;
+  }
+  function buildTripod(x, z, topY) {
+    const id = "tripod", kol = { color: 0x2a2a2a, map: MATTEX.panel.diff }, alu = { color: 0x55565a }, svart = { color: 0x151515 };
+    prop(new THREE.CylinderGeometry(.05, .045, .05, 24), svart, new V3(x, topY - .2, z), null, { id, shadow: false });       // spindeln
+    prop(new THREE.CylinderGeometry(.013, .013, .26, 12), alu, new V3(x, topY - .07, z), null, { id, shadow: false });       // mittpelaren
+    for (let k = 0; k < 3; k++) { const a = k * 2.094 + .5, ex = Math.cos(a), ez = Math.sin(a), top = [x + ex * .04, topY - .2, z + ez * .04], mid = [x + ex * .3, (topY - .2) * .5, z + ez * .3], foot = [x + ex * .55, .015, z + ez * .55];
+      rodProp(top, mid, .016, 0, id, kol); rodProp(mid, foot, .011, 0, id, kol);
+      prop(new THREE.CylinderGeometry(.02, .02, .03, 12), svart, new V3(...mid), null, { id, shadow: false });                 // låsringen
+      prop(new THREE.SphereGeometry(.016, 10, 8), { color: 0x0e0e0e }, new V3(...foot), null, { id, shadow: false }); }
+    prop(new THREE.SphereGeometry(.028, 20, 14), alu, new V3(x, topY + .03, z), null, { id, shadow: false });                // kulleden
+    prop(new THREE.CylinderGeometry(.03, .034, .03, 20), svart, new V3(x, topY, z), null, { id, shadow: false });
+    prop(new THREE.BoxGeometry(.06, .012, .05), svart, new V3(x, topY + .06, z), null, { id, shadow: false });               // snabbfästet
+  }
   /* ================= 04 MÄNNISKORNA: gammal fotoateljé ================= */
   function buildManniskorna() {
     const X = MAN.X, L = MAN.L, H = MAN.H, CW = MAN.CW, CL = MAN.CL, CH = MAN.CH;
@@ -1935,7 +1978,7 @@ function useRoom(key) {
     planar({ O: [-1.4, .004, -15.25], U: [1, 0, 0], V: [0, .7071, -.7071], lu: 2.8, lv: .495, map: tx.paper, tu: 2, tv: 2, res: RES });
     planar({ O: [-1.4, .004, -13.5], U: [1, 0, 0], V: [0, 0, -1], lu: 2.8, lv: 1.75, map: tx.paper, tu: 2, tv: 2, res: RES });
     colliders.push({ x0: -1.6, x1: 1.6, z0: -15.8, z1: -13.4 });
-    placeModel("pall", [MAN_STOOL[0], 0, MAN_STOOL[2]], .4, { h: .8, id: "stool", shadow: true });
+    placeModel("pall", [MAN_STOOL[0], 0, MAN_STOOL[2]], .4, { h: 1.0, id: "stool", shadow: true });
     MAN_SOFT.forEach(([px, py, pz]) => {
       for (let k = 0; k < 3; k++) { const a = k * 2.094 + .5; rodProp([px, .9, pz], [px + Math.cos(a) * .45, 0, pz + Math.sin(a) * .45], .014, 0, "stand", STEEL()); }
       rodProp([px, .9, pz], [px, py, pz], .02, 0, "stand", STEEL());
@@ -1945,12 +1988,7 @@ function useRoom(key) {
       const dif = new THREE.Mesh(new THREE.PlaneGeometry(.59, .59), new THREE.MeshBasicMaterial({ color: new THREE.Color(1.9, 1.85, 1.75) })); dif.position.z = .226; g.add(dif);
       colliders.push({ x0: px - .4, x1: px + .4, z0: pz - .4, z1: pz + .4 });
     });
-    { const cx = 0, cz = -10.6, id = "tripod";
-      for (let k = 0; k < 3; k++) { const a = k * 2.094 + 1.57; rodProp([cx, 1.25, cz], [cx + Math.cos(a) * .42, 0, cz + Math.sin(a) * .42], .015, 0, id, STEEL()); }
-      prop(new THREE.BoxGeometry(.16, .1, .16), { color: 0x1c1c1c }, new V3(cx, 1.3, cz), null, { id });
-      prop(new THREE.BoxGeometry(.2, .14, .11), { color: 0x151515 }, new V3(cx, 1.42, cz), null, { id });
-      prop(new THREE.CylinderGeometry(.045, .05, .14, 20), { color: 0x0e0e0e }, new V3(cx, 1.42, cz - .12), [Math.PI / 2, 0, 0], { id });
-      colliders.push({ x0: cx - .45, x1: cx + .45, z0: cz - .45, z1: cz + .45 }); }
+    { const cx = 0, cz = -10.6; buildTripod(cx, cz, 1.42); buildCamera(cx, 1.42 + .085, cz, 0); colliders.push({ x0: cx - .5, x1: cx + .5, z0: cz - .5, z1: cz + .5 }); }
     // ett gammalt arbetsbord och en växt vid fönstren
     for (const sx of [-1.6, 1.6]) placeModel("vagg", [sx, 2.2, -.13], Math.PI, { h: .34, glow: /bulb/, glowCol: [4.5, 3.2, 1.7] });
     buildLounge();

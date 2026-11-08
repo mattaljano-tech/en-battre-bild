@@ -870,7 +870,7 @@ function useRoom(key) {
   /* ---------- fotograferade material (Poly Haven, CC0): färg, ytstruktur (normal) och skugga i skrymslen (AO) ---------- */
   const MATDEF = { betong: ["concrete_wall_008", 3], betonggolv: ["concrete_floor_03", 2.6], garage: ["garage_floor", 3], puts: ["plastered_wall", 2.6],
     tegel: ["red_bricks_04", 2.2], tra: ["wood_floor_worn", 2.2], rost: ["rusty_metal_03", 2], element: ["precast_concrete_wall", 3], tegelputs: ["plaster_brick_pattern", 2.4],
-    lader: ["leather_red_03", 1], matta: ["dirty_carpet", 1.2], plat: ["rusty_corrugated_iron", 2], rost2: ["rusty_metal_05", 1.6], panel: ["rusty_metal_grid", 1.8] };
+    lader: ["fabric_leather_02", 1], matta: ["dirty_carpet", 1.2], plat: ["rusty_corrugated_iron", 2], rost2: ["rusty_metal_05", 1.6], panel: ["rusty_metal_grid", 1.8] };
   const MATTEX = {};
   function loadMats() {
     const tl = new THREE.TextureLoader(), jobs = [];
@@ -1928,8 +1928,6 @@ function useRoom(key) {
       prop(new THREE.CylinderGeometry(.045, .05, .14, 20), { color: 0x0e0e0e }, new V3(cx, 1.42, cz - .12), [Math.PI / 2, 0, 0], { id });
       colliders.push({ x0: cx - .45, x1: cx + .45, z0: cz - .45, z1: cz + .45 }); }
     // ett gammalt arbetsbord och en växt vid fönstren
-    prop(worldUV(new THREE.BoxGeometry(1.8, .06, .8, 4, 1, 2), 1.5), { color: 0xa88468, map: MATTEX.tra.diff }, new V3(4.9, .82, -15.0), null, { id: "table", collide: true });
-    for (const [dx, dz] of [[-.82, -.34], [.82, -.34], [-.82, .34], [.82, .34]]) prop(new THREE.BoxGeometry(.06, .8, .06), { color: 0x4a3420 }, new V3(4.9 + dx, .4, -15.0 + dz), null, { id: "table" });
     plant(-5.2, -15.2, 2.0, 21);
     for (const sx of [-1.2, 1.2]) placeModel("vagg", [sx, 2.2, -.13], Math.PI, { h: .34, glow: /bulb/, glowCol: [4.5, 3.2, 1.7] });
     buildLounge();
@@ -1983,7 +1981,7 @@ function useRoom(key) {
     return g;
   }
   function buildLounge() {
-    const { x: lx, z: lz, lampY } = MAN_LOUNGE, leather = { color: 0xd0a080, map: MATTEX.lader.diff };
+    const { x: lx, z: lz, lampY } = MAN_LOUNGE, leather = { color: 0xe8d8cc, map: MATTEX.lader.diff };
     // mattan
     planar({ name: "matta", floor: true, O: [lx - 2.1, .008, lz + 2.4], U: [1, 0, 0], V: [0, 0, -1], lu: 4.2, lv: 4.8, map: rugTex(7), tu: 4.2, tv: 4.8, res: RES, nor: MATTEX.matta.nor, arm: MATTEX.matta.arm, relK: .8, keepUV: true });
     // soffan vänd mot bordet, två fåtöljer på andra sidan

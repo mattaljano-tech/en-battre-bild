@@ -449,7 +449,7 @@ function standSlots(room, size, o) {
    x: tvärs (väggarna x=±6, glaset x=+6), z: längs (ingången z=0, bortre väggen z=-22), takhöjd 5,4 m. */
 const CV = { X: 6, L: 22, H: 5.4, PIL: [[-2.9, -7.3], [2.9, -7.3], [-2.9, -14.6], [2.9, -14.6]], PW: .56,
   WIN: { y0: 1.1, y1: 5.25, PZ: 1.1 }, ST: { x: 0, z0: -20.1, run: .3, rise: .18 }, DOOR: { x: 0, w: 1.05, h: 2.15 },
-  NEON: { x: 5.5, z: -10.6, w: 3.1, h: .95 }, LAMPS: [-4.2, -17.6] };
+  NEON: { x: 5.45, z: -10.6, w: 3.4, h: .95 }, LAMPS: [-4.2, -17.6] };
 CV.WIN.PY = (CV.WIN.y1 - CV.WIN.y0) / 5;
 const SUNC = (() => { const v = [.72, .56, .28], l = Math.hypot(...v); return v.map((c) => c / l); })(); // mot solen, utanför glasväggen
 function stadenSDF(x, y, z) {
@@ -471,7 +471,7 @@ function stadenLights() {
   for (let i = 0; i < 6; i++) for (let j = 0; j < 2; j++) addPanel([CV.X - .05, 2.1 + j * 2.1, -1.8 - i * 3.7], [-1, 0, 0], 1.05, COL.sky, 24, inRoom);
   for (let i = 0; i < 3; i++) { const z = -3.5 - i * 7.2, t = 3.2 / SUNC[1]; addFill([CV.X - SUNC[0] * t, .3, z - SUNC[2] * t], .5, COL.sun, inRoom); }
   for (const z of CV.LAMPS) addPoint([-1.6, 3.4, z], .5, [1, .74, .44], 7, .03);                 // två burlampor
-  addPoint([CV.NEON.x - .35, .55, CV.NEON.z], .9, [1, .22, .55], 5, .05);                       // neonen färgar golvet rosa
+  addPoint([CV.NEON.x - .25, .5, CV.NEON.z], .55, [1, .62, .32], 4.5, .04);                      // bakljuset bakom skylten
   addPoint([CV.DOOR.x, 1.9, -21.6], .45, [.8, .9, 1], 4, .02);                                  // ljus genom dörren på glänt
   addPoint([0, 1.4, 1.2], .3, [1, .8, .55], 4, .01);                                             // ljus från foajén
 }
@@ -689,7 +689,7 @@ const SPECS = {
     ceil: () => CV.H,
     start: { x: -1, z: -1.2, yaw: .12 },
     walk: [{ x0: -5.7, x1: 5.55, z0: -21.7, z1: -.45 }],
-    look: { fog: 0xc9d0d6, density: .02, bg: 0xc9d0d6, exposure: 1.15, bloom: .45, thr: 1.2 }, step: 560, wet: .45,
+    look: { mirror: { mat: "garage", k: .19 }, fog: 0xc9d0d6, density: .02, bg: 0xc9d0d6, exposure: 1.15, bloom: .45, thr: 1.2 }, step: 560, wet: .45,
     slots: stadenSlots() },
   naturen: { num: "02", name: "Naturen", sub: "Ut ur mörkret, in i ljuset", next: "berattelser",
     intro: "Du kliver ut ur mörkret. Dagsljus, luft och färg: havet, kusten, bergen och hösten.",
@@ -697,7 +697,7 @@ const SPECS = {
     amb: (x, y, z) => { if (z > 0) { const k = clamp(1 - z / 2.6, 0, 1) * .06; return [.005 + k * .9, .007 + k, .007 + k * 1.04]; } return [.18, .185, .192]; },
     ceil: (x, z) => z > 0 ? NAT.CH : NAT.H,
     start: { x: 0, z: 3.75, yaw: 0 }, walk: [{ x0: -5.6, x1: 5.6, z0: -19.6, z1: -.45 }, { x0: -.75, x1: .75, z0: -.6, z1: 4.15 }],
-    look: { fog: 0xb9b5ab, density: .011, bg: 0xdedad2, exposure: 1.0, bloom: .35, thr: 2.2 }, step: 640, wet: .3,
+    look: { mirror: { mat: "betonggolv", k: .286 }, fog: 0xb9b5ab, density: .011, bg: 0xdedad2, exposure: 1.0, bloom: .35, thr: 2.2 }, step: 640, wet: .3,
     slots: [
       { key: "klippan", C: [-6, 2.05, -5.5], U: [0, 0, -1], N: [1, 0, 0], h: 2.4, spots: [{ p: [-3.8, 6.55, -5.5], t: [-6, 2.05, -5.5], a: .3, T: 1.7 }] },
       { key: "ronda", C: [-6, 2.05, -14.5], U: [0, 0, -1], N: [1, 0, 0], h: 2.4, spots: [{ p: [-3.8, 6.55, -14.5], t: [-6, 2.05, -14.5], a: .3, T: 1.7 }] },
@@ -713,7 +713,7 @@ const SPECS = {
     amb: (x, y, z) => z > 0 ? [.02, .018, .016] : [.15, .15, .155],
     ceil: (x, z) => z > 0 ? HAL.CH : HAL.H,
     start: { x: 4, z: 4.2, yaw: 0 }, walk: [{ x0: -6.6, x1: 6.6, z0: -21.6, z1: -.4 }, { x0: 3.25, x1: 4.75, z0: -.6, z1: 4.6 }],
-    look: { fog: 0x9a968c, density: .012, bg: 0xc9c5bc, exposure: 1.15, bloom: .4, thr: 2.0 }, step: 560, wet: .5,
+    look: { mirror: { mat: "betonggolv", k: .282 }, fog: 0x9a968c, density: .012, bg: 0xc9c5bc, exposure: 1.15, bloom: .4, thr: 2.0 }, step: 560, wet: .5,
     slots: [
       { key: "pojken", C: [0, 2.3, -22], U: [1, 0, 0], N: [0, 0, 1], h: 3.0, spots: [{ p: [0, 7.7, -18.6], t: [0, 2.3, -22], a: .28, T: 1.5, o: { only: (x, y, z) => z < .05 } }] },
       { key: "lisboa", C: [7, 2.4, -11], U: [0, 0, 1], N: [-1, 0, 0], w: 4.4, spots: [{ p: [4.3, 7.7, -11], t: [7, 2.4, -11], a: .4, T: 1.5, o: { only: (x, y, z) => z < .05 } }] },
@@ -727,13 +727,13 @@ const SPECS = {
     amb: (x, y, z) => z > 0 ? [.02, .017, .014] : [.08, .072, .062],
     ceil: (x, z) => z > 0 ? MAN.CH : MAN.H - .3,
     start: { x: 0, z: 4.0, yaw: 0 }, walk: [{ x0: -5.6, x1: 5.6, z0: -15.6, z1: -.4 }, { x0: -.75, x1: .75, z0: -.6, z1: 4.1 }],
-    look: { fog: 0x1a1410, density: .012, bg: 0x0b0907, exposure: 1.25, bloom: .45, thr: 1.5 }, step: 540, wet: .2,
+    look: { mirror: { mat: "tra", k: .16 }, fog: 0x1a1410, density: .012, bg: 0x0b0907, exposure: 1.25, bloom: .45, thr: 1.5 }, step: 540, wet: .2,
     slots: manSlots() },
   foajen: { num: "00", name: "Foajén", eyebrow: "En bättre bild · Entré", sub: "Välj rum, se galleriet eller boka", next: "staden",
     intro: "Välkommen till En bättre bild. Gå in genom den stora öppningen längst in för att komma till vernissagen. På väggarna hittar du galleriet, priser och kontakt.",
     sdf: foySDF, solids: [], lights: foyLights, amb: () => [.075, .07, .064], ceil: () => FOY.H,
     start: { x: 0, z: -1.6, yaw: 0 }, walk: [{ x0: -5.6, x1: 5.6, z0: -11.6, z1: -.45 }],
-    look: { fog: 0x0a0a09, density: .01, bg: 0x050505, exposure: 1.25, bloom: .4, thr: 1.6 }, step: 520, wet: .35,
+    look: { mirror: { mat: "betonggolv", k: .28 }, fog: 0x0a0a09, density: .01, bg: 0x050505, exposure: 1.25, bloom: .4, thr: 1.6 }, step: 520, wet: .35,
     slots: foySlots() }
 };
 const ROOM_ORDER = ["foajen", "staden", "naturen", "berattelser", "manniskorna"];
@@ -1273,7 +1273,7 @@ function useRoom(key) {
   function buildStands(room, col, edge) {
     for (const s of STANDS[room]) {
       const along = s.ax === "z", id = "stand" + s.x + s.z, sx = along ? s.w : s.t, sz = along ? s.t : s.w;
-      prop(new THREE.BoxGeometry(sx, s.h, sz, along ? 8 : 1, 6, along ? 1 : 8), { color: col }, new V3(s.x, s.h / 2 + .08, s.z), null, { id, collide: true });
+      prop(room === "staden" ? worldUV(new THREE.BoxGeometry(sx, s.h, sz, along ? 8 : 1, 6, along ? 1 : 8), 2.5) : new THREE.BoxGeometry(sx, s.h, sz, along ? 8 : 1, 6, along ? 1 : 8), room === "staden" ? { color: 0xb8b8b2, map: MATTEX.betong.diff } : { color: col }, new V3(s.x, s.h / 2 + .08, s.z), null, { id, collide: true });
       prop(new THREE.BoxGeometry(sx * .96, .08, sz * .7), { color: 0x1a1b1b }, new V3(s.x, .04, s.z), null, { id, shadow: false });
       if (edge) prop(new THREE.BoxGeometry(along ? sx + .04 : sx + .03, .05, along ? sz + .03 : sz + .04), { color: edge }, new V3(s.x, s.h + .1, s.z), null, { id, shadow: false });
     }
@@ -1389,8 +1389,8 @@ function useRoom(key) {
     prop(new THREE.BoxGeometry(.12, .06, 1.1, 1, 1, 4), { color: 0x9a9d98 }, new V3(0, CH - .04, 3.6), null, { shadow: false });
     { const t = new THREE.Mesh(new THREE.CylinderGeometry(.02, .02, .96, 10), new THREE.MeshBasicMaterial({ color: new THREE.Color(.9, 2.6, 2.4) })); t.rotation.x = Math.PI / 2; t.position.set(0, CH - .09, 3.6); scene.add(t); }
     // bänk, växter, dörrar
-    prop(new THREE.BoxGeometry(.5, .06, 3.2, 2, 1, 8), { color: 0xb48a5a }, new V3(0, .45, -10), null, { id: "nbench", collide: true });
-    for (const dz of [-1.1, 1.1]) prop(new THREE.BoxGeometry(.44, .42, .44, 2, 2, 2), { color: 0x9a968d }, new V3(0, .21, -10 + dz), null, { id: "nbench" });
+    prop(worldUV(new THREE.BoxGeometry(.5, .06, 3.2, 2, 1, 8), 1.5), { color: 0xe8d0b0, map: MATTEX.tra.diff }, new V3(0, .45, -10), null, { id: "nbench", collide: true });
+    for (const dz of [-1.1, 1.1]) prop(worldUV(new THREE.BoxGeometry(.44, .42, .44, 2, 2, 2), 2), { color: 0xd8d8d2, map: MATTEX.betong.diff }, new V3(0, .21, -10 + dz), null, { id: "nbench" });
     plant(-4.9, -1.4, 2.0, 3); plant(4.9, -1.4, 1.7, 8); plant(5.3, -16.0, 2.1, 12);
     buildStands("naturen", 0xdedad2);
     opening({ C: [0, 0, CL], N: [0, 0, -1], U: [-1, 0, 0], w: 1.2, h: 2.2, to: "staden", sign: ["01  STADEN", "TILLBAKA"], glow: new THREE.Color(.35, .85, .8) });
@@ -1460,6 +1460,47 @@ function useRoom(key) {
     back.lookAt(back.position.clone().add(n));
   }
 
+  // blanka golv: scenen speglas i golvet, suddas av golvets egen struktur och syns mest i flack vinkel (Fresnel)
+  let floorMirror = null;
+  const MIRROR_SHADER = { uniforms: { color: { value: null }, tDiffuse: { value: null }, textureMatrix: { value: null }, tNor: { value: null }, tArm: { value: null }, norScale: { value: 2.5 }, strength: { value: .25 } },
+    vertexShader: "uniform mat4 textureMatrix; varying vec4 vUv; varying vec3 vW; void main(){ vUv = textureMatrix * vec4(position, 1.); vec4 w = modelMatrix * vec4(position, 1.); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }",
+    fragmentShader: ["uniform sampler2D tDiffuse; uniform sampler2D tNor; uniform sampler2D tArm; uniform float norScale; uniform float strength; varying vec4 vUv; varying vec3 vW;",
+      "void main(){ vec2 tuv = vW.xz / norScale; vec3 n = texture2D(tNor, tuv).xyz * 2. - 1.; float rough = texture2D(tArm, tuv).g;",
+      "vec4 p = vUv; p.xy += n.xy * .012 * vUv.w; float b = .007 * vUv.w * (.4 + rough * 1.6);",
+      "vec3 c = texture2DProj(tDiffuse, p).rgb * .4 + (texture2DProj(tDiffuse, p + vec4(b, 0., 0., 0.)).rgb + texture2DProj(tDiffuse, p - vec4(b, 0., 0., 0.)).rgb + texture2DProj(tDiffuse, p + vec4(0., b, 0., 0.)).rgb + texture2DProj(tDiffuse, p - vec4(0., b, 0., 0.)).rgb) * .15;",
+      "vec3 V = normalize(cameraPosition - vW); float fr = .45 + .55 * pow(1. - max(V.y, 0.), 3.);",
+      "float fog = exp(-length(cameraPosition - vW) * .05);",
+      "vec2 q = vUv.xy / vUv.w; float edge = vUv.w > 0. ? smoothstep(0., .1, q.x) * smoothstep(1., .9, q.x) * smoothstep(0., .1, q.y) * smoothstep(1., .9, q.y) : 0.;", "c = min(c, vec3(1.3)); gl_FragColor = vec4(c * strength * fr * (1. - rough * .5) * fog * edge, 1.); }"].join("\n") };
+  let mirrorRT = null, mirrorCam = null; const mirrorTM = new THREE.Matrix4(), mirrorBias = new THREE.Matrix4().set(.5, 0, 0, .5, 0, .5, 0, .5, 0, 0, .5, .5, 0, 0, 0, 1), mirrorClip = [new THREE.Plane(new V3(0, 1, 0), -.012)];
+  function addFloorMirror(S) {
+    const M = S.look.mirror; if (!M) return;
+    let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9; for (const r of S.walk) { x0 = Math.min(x0, r.x0); x1 = Math.max(x1, r.x1); z0 = Math.min(z0, r.z0); z1 = Math.max(z1, r.z1); }
+    x0 -= .45; x1 += .45; z0 -= .45; z1 = Math.min(z1 + .45, .05);
+    const pr = Math.min(devicePixelRatio || 1, 1.5), k = isTouch ? .35 : .5;
+    if (!mirrorRT) mirrorRT = new THREE.WebGLRenderTarget(Math.round(innerWidth * pr * k), Math.round(innerHeight * pr * k), { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, type: THREE.HalfFloatType });
+    if (!mirrorCam) mirrorCam = new THREE.PerspectiveCamera();
+    const t = MATTEX[M.mat], u = THREE.UniformsUtils.clone(MIRROR_SHADER.uniforms);
+    u.tDiffuse.value = mirrorRT.texture; u.textureMatrix.value = mirrorTM; u.tNor.value = t.nor; u.tArm.value = t.arm; u.norScale.value = MATDEF[M.mat][1]; u.strength.value = M.k;
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0, z1 - z0), new THREE.ShaderMaterial({ uniforms: u, vertexShader: MIRROR_SHADER.vertexShader, fragmentShader: MIRROR_SHADER.fragmentShader,
+      transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -3 }));
+    m.rotation.x = -Math.PI / 2; m.position.set((x0 + x1) / 2, .001, (z0 + z1) / 2); m.frustumCulled = false; scene.add(m); floorMirror = m;
+  }
+  // rita scenen sedd underifrån (kameran speglad i golvet) till en textur som golvet sedan visar
+  function renderMirror() {
+    if (!floorMirror) return;
+    mirrorCam.copy(camera); mirrorCam.position.y = -camera.position.y; mirrorCam.rotation.set(-camera.rotation.x, camera.rotation.y, 0, "YXZ"); mirrorCam.updateMatrixWorld();
+    floorMirror.visible = false; const old = renderer.getRenderTarget();
+    renderer.setRenderTarget(mirrorRT); renderer.clippingPlanes = mirrorClip; renderer.clear(); renderer.render(scene, mirrorCam);
+    renderer.clippingPlanes = []; renderer.setRenderTarget(old); floorMirror.visible = true;
+    mirrorTM.copy(mirrorBias).multiply(mirrorCam.projectionMatrix).multiply(mirrorCam.matrixWorldInverse);
+  }
+  // föremål med fotograferat material: UV i meter så att texturen inte töjs ut på långa balkar
+  function worldUV(geo, sc) {
+    const p = geo.attributes.position, n = geo.attributes.normal, uv = geo.attributes.uv;
+    for (let i = 0; i < p.count; i++) { const ax = Math.abs(n.getX(i)), ay = Math.abs(n.getY(i));
+      const [a, b] = ax > .5 ? [p.getZ(i), p.getY(i)] : ay > .5 ? [p.getX(i), p.getZ(i)] : [p.getX(i), p.getY(i)]; uv.setXY(i, a / sc, b / sc); }
+    return geo;
+  }
   /* ================= 03 BERÄTTELSER: nedgången industrihall ================= */
   function buildHall() {
     const X = HAL.X, L = HAL.L, H = HAL.H, CX0 = HAL.CX0, CX1 = HAL.CX1, CL = HAL.CL, CH = HAL.CH;
@@ -1522,18 +1563,18 @@ function useRoom(key) {
       for (const z of [fw.z0 + .07, fw.z1 - .07]) for (const sx of [-1, 1]) prop(new THREE.BoxGeometry(.5, .05, .3), { color: sh }, new V3(sx * .3, .025, z), null, { id: "fwall" }); }
     // två tunga bänkar i ek på stålben, under takljusen, och lampor som hänger lågt ner från takstolarna
     for (const bz of HAL.BENCH) {
-      prop(new THREE.BoxGeometry(2.8, .09, .5, 8, 1, 2), { color: 0x4e3520 }, new V3(0, .45, bz), null, { id: "hbench", collide: true });
+      prop(worldUV(new THREE.BoxGeometry(2.8, .09, .5, 8, 1, 2), 1.5), { color: 0x9c7454, map: MATTEX.tra.diff }, new V3(0, .45, bz), null, { id: "hbench", collide: true });
       for (const bx of [-1.15, 1.15]) { prop(new THREE.BoxGeometry(.06, .41, .46, 1, 2, 1), { color: 0x141615 }, new V3(bx, .205, bz), null, { id: "hbench" });
         prop(new THREE.BoxGeometry(.06, .06, .46), { color: 0x141615 }, new V3(bx, .03, bz), null, { id: "hbench" }); }
       for (const lx of [-1.4, 1.4]) industrialLamp(lx, HAL.LAMPY, bz, 7.63, 1.2);
     }
     // en traverskran som går på balkar längs väggarna, med krok och kätting
     { const ochre = 0x6a4c1c, sh = 0x2a2c2a, CZ = -12.6, KY = 3.9;
-      for (const sx of [-1, 1]) { prop(new THREE.BoxGeometry(.28, .42, L - .4, 1, 2, 24), { color: sh }, new V3(sx * (X - .3), 6.5, -L / 2), null, { shadow: false });
+      for (const sx of [-1, 1]) { prop(worldUV(new THREE.BoxGeometry(.28, .42, L - .4, 1, 2, 24), 2), { color: 0x6e6a64, map: MATTEX.rost.diff }, new V3(sx * (X - .3), 6.5, -L / 2), null, { shadow: false });
         for (let z = -1.5; z > -L; z -= 4.5) prop(new THREE.BoxGeometry(.3, .5, .3), { color: sh }, new V3(sx * (X - .15), 6.05, z), null, { shadow: false }); }
-      prop(new THREE.BoxGeometry(2 * X - .6, .55, .4, 16, 2, 1), { color: ochre }, new V3(0, 7.0, CZ), null, { shadow: false });
-      for (const sx of [-1, 1]) prop(new THREE.BoxGeometry(.4, .36, 1.6, 1, 1, 2), { color: ochre }, new V3(sx * (X - .3), 6.9, CZ), null, { shadow: false });
-      prop(new THREE.BoxGeometry(.8, .4, .7), { color: 0x54401e }, new V3(-1.8, 6.55, CZ), null, { shadow: false });
+      prop(worldUV(new THREE.BoxGeometry(2 * X - .6, .55, .4, 16, 2, 1), 2), { color: 0xc4a274, map: MATTEX.rost.diff }, new V3(0, 7.0, CZ), null, { shadow: false });
+      for (const sx of [-1, 1]) prop(worldUV(new THREE.BoxGeometry(.4, .36, 1.6, 1, 1, 2), 2), { color: 0xc4a274, map: MATTEX.rost.diff }, new V3(sx * (X - .3), 6.9, CZ), null, { shadow: false });
+      prop(worldUV(new THREE.BoxGeometry(.8, .4, .7), 2), { color: 0x9a8060, map: MATTEX.rost.diff }, new V3(-1.8, 6.55, CZ), null, { shadow: false });
       prop(new THREE.CylinderGeometry(.02, .02, 6.35 - KY - .3, 6), { color: 0x2b2a27 }, new V3(-1.8, (6.35 + KY + .3) / 2, CZ), null, { shadow: false });
       prop(new THREE.BoxGeometry(.24, .34, .16), { color: ochre }, new V3(-1.8, KY + .15, CZ), null, { shadow: false });
       prop(new THREE.TorusGeometry(.11, .028, 8, 18, Math.PI * 1.4), { color: 0x2b2a27 }, new V3(-1.8, KY - .12, CZ), [0, 0, Math.PI * .8], { shadow: false }); }
@@ -1608,8 +1649,8 @@ function useRoom(key) {
     menuBoard("kontakt", "KONTAKT", "Boka en fotografering", [-X, 1.7, -9], [1, 0, 0], 1.6, 1.0);
     menuBoard("galleri", "GALLERI", "Alla bilder på ett ställe", [X, 1.8, -6], [-1, 0, 0], 2.4, 1.5);
     for (const lx of FOY_LAMP.xs) industrialLamp(lx, FOY_LAMP.y, FOY_LAMP.z, H);
-    prop(new THREE.BoxGeometry(2.6, .44, .55, 6, 2, 2), { color: 0x6e6a62 }, new V3(0, .22, -6), null, { id: "fbench", collide: true });
-    prop(new THREE.BoxGeometry(2.5, .05, .5, 6, 1, 2), { color: 0x6a4428 }, new V3(0, .465, -6), null, { id: "fbench" });
+    prop(worldUV(new THREE.BoxGeometry(2.6, .44, .55, 6, 2, 2), 2), { color: 0xa8a8a2, map: MATTEX.betong.diff }, new V3(0, .22, -6), null, { id: "fbench", collide: true });
+    prop(worldUV(new THREE.BoxGeometry(2.5, .05, .5, 6, 1, 2), 1.5), { color: 0xb08460, map: MATTEX.tra.diff }, new V3(0, .465, -6), null, { id: "fbench" });
     plant(-5.2, -11.2, 2.1, 5); plant(5.2, -11.2, 1.9, 9); plant(5.2, -.9, 1.6, 14);
     return { dust: sunDust };
   }
@@ -1653,11 +1694,12 @@ function useRoom(key) {
   }
   // stadens fasader i dagsljus: fönsterrader i en kulör
   function cityFacade(seed, base) {
-    const c = cnv(256, 256), x = c.getContext("2d"), r = rng(seed);
-    x.fillStyle = base; x.fillRect(0, 0, 256, 256);
-    blotches(x, 256, 256, 30, seed, ["80,76,70", "250,248,240"], 10, 60, .05, .15);
-    for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) { const X = 22 + i * 60, Y = 26 + j * 60, g = x.createLinearGradient(0, Y, 0, Y + 34);
-      g.addColorStop(0, "#9fb2c4"); g.addColorStop(1, r() < .3 ? "#3d4a58" : "#5f7184"); x.fillStyle = "rgba(240,236,228,.9)"; x.fillRect(X - 3, Y - 3, 28, 40); x.fillStyle = g; x.fillRect(X, Y, 22, 34); }
+    const c = cnv(512, 512), x = c.getContext("2d"), r = rng(seed), src = [MATTEX.puts, MATTEX.tegel, MATTEX.tegelputs, MATTEX.puts, MATTEX.element][seed % 5];
+    x.drawImage(src.diff.image, 0, 0, 512, 512);
+    if (src !== MATTEX.tegel) { x.globalCompositeOperation = "multiply"; x.fillStyle = base; x.fillRect(0, 0, 512, 512); x.globalCompositeOperation = "source-over"; }
+    for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) { const X = 44 + i * 120, Y = 52 + j * 120, g = x.createLinearGradient(0, Y, 0, Y + 68);
+      g.addColorStop(0, "#a8bccf"); g.addColorStop(1, r() < .3 ? "#3d4a58" : "#5f7184"); x.fillStyle = "rgba(235,230,220,.95)"; x.fillRect(X - 6, Y - 6, 56, 80); x.fillStyle = g; x.fillRect(X, Y, 44, 68);
+      x.fillStyle = "rgba(60,58,54,.8)"; x.fillRect(X - 9, Y + 70, 62, 7); x.fillStyle = "rgba(235,230,220,.9)"; x.fillRect(X + 21, Y, 3, 68); }
     return c;
   }
   function buildCity() {
@@ -1728,10 +1770,10 @@ function useRoom(key) {
       g.position.set(X, (W.y0 + W.y1) / 2, -L / 2); g.rotation.y = -Math.PI / 2; scene.add(g); }
     buildCity();
     // ståltrappan: tre steg och ett vilplan (fyra steg upp) till en dörr på glänt
-    { const S = CV.ST, sx = S.x, hw = .68, st = 0x1e2120;
-      for (let k = 0; k < 3; k++) prop(new THREE.BoxGeometry(1.3, .045, S.run - .02, 4, 1, 2), { color: st }, new V3(sx, (k + 1) * S.rise - .022, S.z0 - S.run * k - S.run / 2), null, { id: "trappa" });
+    { const S = CV.ST, sx = S.x, hw = .68, st = 0x1e2120, rust = (geo) => [worldUV(geo, 1.5), { color: 0x8a7a6c, map: MATTEX.rost.diff }];
+      for (let k = 0; k < 3; k++) prop(...rust(new THREE.BoxGeometry(1.3, .045, S.run - .02, 4, 1, 2)), new V3(sx, (k + 1) * S.rise - .022, S.z0 - S.run * k - S.run / 2), null, { id: "trappa" });
       const top = 4 * S.rise, zl = S.z0 - 3 * S.run;
-      prop(new THREE.BoxGeometry(1.4, .06, -L - zl, 4, 1, 3), { color: st }, new V3(sx, top - .03, (zl - L) / 2), null, { id: "trappa" });
+      prop(...rust(new THREE.BoxGeometry(1.4, .06, -L - zl, 4, 1, 3)), new V3(sx, top - .03, (zl - L) / 2), null, { id: "trappa" });
       for (const s of [-1, 1]) {
         const len = Math.hypot(3 * S.run, 3 * S.rise), str = prop(new THREE.BoxGeometry(.04, .22, len + .12, 1, 1, 6), { color: st }, new V3(sx + s * hw, 1.5 * S.rise, S.z0 - 1.5 * S.run), [Math.atan2(S.rise, S.run), 0, 0], { id: "trappa" });
         prop(new THREE.BoxGeometry(.05, top, .05), { color: st }, new V3(sx + s * hw, top / 2, -L + .1), null, { id: "trappa" });
@@ -1746,7 +1788,7 @@ function useRoom(key) {
       for (const s of [-1, 1]) prop(new THREE.BoxGeometry(.08, d.h + .08, .14), { color: steel }, new V3(d.x + s * (d.w / 2 + .04), y0 + d.h / 2, dz + .03), null, { shadow: false });
       prop(new THREE.BoxGeometry(d.w + .16, .08, .14), { color: steel }, new V3(d.x, y0 + d.h + .04, dz + .03), null, { shadow: false });
       const hinge = new THREE.Group(); hinge.position.set(d.x + d.w / 2, y0, dz - .02); hinge.rotation.y = -.55; scene.add(hinge);
-      prop(new THREE.BoxGeometry(d.w, d.h, .05, 2, 4, 1).translate(-d.w / 2, d.h / 2, 0), { color: 0x3c4241 }, new V3(0, 0, 0), null, { parent: hinge, shadow: false });
+      prop(worldUV(new THREE.BoxGeometry(d.w, d.h, .05, 2, 4, 1).translate(-d.w / 2, d.h / 2, 0), 1.5), { color: 0x9a8c7c, map: MATTEX.rost.diff }, new V3(0, 0, 0), null, { parent: hinge, shadow: false });
       prop(new THREE.BoxGeometry(.14, .03, .04), { color: 0x9a9890 }, new V3(-d.w + .1, 1.05, .05), null, { parent: hinge, shadow: false });
       const back = new THREE.Mesh(new THREE.PlaneGeometry(d.w + .3, d.h + .3), new THREE.MeshBasicMaterial({ color: new THREE.Color(1.25, 1.3, 1.38) })); back.position.set(d.x, y0 + d.h / 2, dz - 1.4); scene.add(back);
       for (const s of [-1, 1]) { const j = new THREE.Mesh(new THREE.PlaneGeometry(1.4, d.h), new THREE.MeshBasicMaterial({ color: new THREE.Color(.42, .45, .48), side: THREE.DoubleSide })); j.position.set(d.x + s * d.w / 2, y0 + d.h / 2, dz - .7); j.rotation.y = Math.PI / 2; scene.add(j); }
@@ -1757,31 +1799,39 @@ function useRoom(key) {
         { text: "GÅ VIDARE", font: '500 40px "IBM Plex Mono", monospace', y: 196, track: 6, alpha: .75, fit: true }],
         { w: 1024, h: 256, bg: "#14302f", fg: "#ece9e0", border: "rgba(236,233,224,.6)", bw: 5, wear: true }), 1.1, .275, new V3(d.x, y0 + d.h + .38, dz + .02), new V3(0, 0, 1), { boost: 1.3, minL: .07 });
     }
-    // neonskylten står på golvet, lutad mot glaset
+    // skylten: en tung plåt i rostigt stål med bokstäverna utskurna, lutad mot glaset och bakbelyst
     const N = CV.NEON, ng = new THREE.Group(); ng.position.set(N.x, .02, N.z); ng.rotation.y = -Math.PI / 2; scene.add(ng);
-    const tilt = new THREE.Group(); tilt.rotation.x = -.26; ng.add(tilt);
-    prop(new THREE.BoxGeometry(N.w + .14, N.h + .1, .04, 6, 2, 1), { color: 0x121313 }, new V3(0, (N.h + .1) / 2, -.03), null, { parent: tilt, shadow: false });
-    const tube = new THREE.Mesh(new THREE.PlaneGeometry(N.w, N.w * 640 / 2048), new THREE.MeshBasicMaterial({ map: T(neonCanvas("CITYVIBE", 0), true, false), color: new THREE.Color(4.2, .95, 2.5), transparent: true, depthWrite: false }));
-    tube.position.set(0, N.h / 2 + .03, .01); tilt.add(tube);
-    const halo = new THREE.Mesh(new THREE.PlaneGeometry(N.w * 1.15, N.w * 1.15 * 640 / 2048), new THREE.MeshBasicMaterial({ map: T(neonCanvas("CITYVIBE", 30), true, false), color: new THREE.Color(1.5, .28, .8), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
-    halo.position.set(0, N.h / 2 + .03, .005); tilt.add(halo);
-    const fglow = new THREE.Mesh(new THREE.PlaneGeometry(N.w * 1.4, 1.6), new THREE.MeshBasicMaterial({ map: T(radial([[0, "rgba(255,255,255,.6)"], [1, "rgba(255,255,255,0)"]], 128), false, false), color: new THREE.Color(.7, .12, .35), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
-    fglow.rotation.x = -Math.PI / 2; fglow.position.set(N.x - .65, .008, N.z); fglow.rotation.z = Math.PI / 2; scene.add(fglow);
-    rodProp([N.x - .02, .02, N.z + N.w / 2 - .1], [N.x - .4, .012, N.z + N.w / 2 + .9], .008, 0x111111);
-    colliders.push({ x0: N.x - .3, x1: X, z0: N.z - N.w / 2 - .05, z1: N.z + N.w / 2 + .05 });
+    const tilt = new THREE.Group(); tilt.rotation.x = -.2; ng.add(tilt);
+    const sh = N.w * 640 / 2048 + .25, cy = sh / 2;
+    { const W = 2048, Hh = Math.round(W * sh / N.w), c = cnv(W, Hh), x = c.getContext("2d"), img = MATTEX.rost.diff.image, r = rng(4);
+      for (let tx = 0; tx < W; tx += Hh) x.drawImage(img, tx, 0, Hh, Hh);
+      x.globalCompositeOperation = "multiply"; x.fillStyle = "#b8a090"; x.fillRect(0, 0, W, Hh); x.globalCompositeOperation = "source-over";
+      const g = x.createLinearGradient(0, 0, 0, Hh); g.addColorStop(0, "rgba(20,12,8,.0)"); g.addColorStop(.8, "rgba(20,12,8,.15)"); g.addColorStop(1, "rgba(20,12,8,.55)"); x.fillStyle = g; x.fillRect(0, 0, W, Hh);
+      x.strokeStyle = "rgba(18,10,6,.8)"; x.lineWidth = 14; x.strokeRect(7, 7, W - 14, Hh - 14);
+      for (const [bx, by] of [[50, 50], [W - 50, 50], [50, Hh - 50], [W - 50, Hh - 50], [W / 2, 50], [W / 2, Hh - 50]]) { const bg = x.createRadialGradient(bx - 4, by - 4, 2, bx, by, 18); bg.addColorStop(0, "#8a7a68"); bg.addColorStop(1, "#2a1a10"); x.fillStyle = bg; x.beginPath(); x.arc(bx, by, 16, 0, 7); x.fill(); }
+      x.globalCompositeOperation = "destination-out"; x.fillStyle = "#000"; x.textAlign = "center"; x.textBaseline = "middle";
+      let fs = 470; x.font = `800 ${fs}px "Big Shoulders Display", "Arial Narrow", sans-serif`; if (x.letterSpacing !== undefined) x.letterSpacing = "40px";
+      while (x.measureText("CITYVIBE").width > W * .86) { fs -= 10; x.font = `800 ${fs}px "Big Shoulders Display", "Arial Narrow", sans-serif`; }
+      x.fillText("CITYVIBE", W / 2 + 20, Hh / 2 + 12); x.globalCompositeOperation = "source-over";
+      const plate = new THREE.Mesh(new THREE.PlaneGeometry(N.w, sh), new THREE.MeshBasicMaterial({ map: T(c, true, false), alphaTest: .5, side: THREE.DoubleSide }));
+      plate.position.set(0, cy, .012); tilt.add(plate);
+      plate.updateWorldMatrix(true, false); const wp = new V3().setFromMatrixPosition(plate.matrixWorld), wn = new V3(0, 0, 1).transformDirection(plate.matrixWorld);
+      decals.push({ mesh: plate, pos: wp, n: wn, boost: 1.35, minL: .05 }); }
+    // plåtens kant och baksida
+    prop(new THREE.BoxGeometry(N.w, sh, .012), { color: 0x2a1c14 }, new V3(0, cy, -.06), null, { parent: tilt, shadow: false });
+    // bakljuset: varmt sken som lyser genom bokstäverna och läcker ut runt plåten mot glaset
+    { const back = new THREE.Mesh(new THREE.PlaneGeometry(N.w - .1, sh - .1), new THREE.MeshBasicMaterial({ color: new THREE.Color(3.2, 2.1, 1.15) })); back.position.set(0, cy, -.045); tilt.add(back);
+      const halo = new THREE.Mesh(new THREE.PlaneGeometry(N.w * 1.5, sh * 2.6), new THREE.MeshBasicMaterial({ map: T(radial([[0, "rgba(255,255,255,.9)"], [.45, "rgba(255,255,255,.35)"], [1, "rgba(255,255,255,0)"]], 256), false, false), color: new THREE.Color(1.1, .7, .38), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+      halo.position.set(0, cy + .05, -.07); tilt.add(halo);
+      const fglow = new THREE.Mesh(new THREE.PlaneGeometry(N.w * 1.3, 1.3), new THREE.MeshBasicMaterial({ map: T(radial([[0, "rgba(255,255,255,.6)"], [1, "rgba(255,255,255,0)"]], 128), false, false), color: new THREE.Color(.45, .28, .14), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+      fglow.rotation.x = -Math.PI / 2; fglow.rotation.z = Math.PI / 2; fglow.position.set(N.x - .1, .008, N.z); scene.add(fglow); }
+    colliders.push({ x0: N.x - .45, x1: X, z0: N.z - N.w / 2 - .05, z1: N.z + N.w / 2 + .05 });
     // burlampor, en bänk i betong och lite skräp som blivit kvar
     for (const z of CV.LAMPS) cageLamp(-1.6, 3.4, z, H);
     buildStands("staden", 0x52504c, 0x1b1d1d);
-    prop(new THREE.BoxGeometry(2.2, .44, .62, 8, 2, 2), { color: 0x8c8981 }, new V3(-3.3, .22, -11), null, { id: "cbench", collide: true });
+    prop(worldUV(new THREE.BoxGeometry(2.2, .44, .62, 8, 2, 2), 2), { color: 0xc0c0ba, map: MATTEX.betong.diff }, new V3(-3.3, .22, -11), null, { id: "cbench", collide: true });
     opening({ C: [0, 0, 0], N: [0, 0, -1], U: [-1, 0, 0], w: 1.4, h: 2.5, to: "foajen", sign: ["00  FOAJÉN", "TILLBAKA"], glow: new THREE.Color(1.1, .82, .55) });
-    // neonen surrar och blinkar till ibland
-    const fl = { until: 0, next: 5000, burst: 0, on: 1 }, mats = [tube.material, halo.material], base = mats.map((m) => m.color.clone());
-    return { noDust: true, update(now) {
-      if (reduceMotion) return;
-      if (now > fl.next && now > fl.burst) { fl.burst = now + 300 + Math.random() * 900; fl.next = fl.burst + 6000 + Math.random() * 12000; }
-      let on = 1; if (now < fl.burst) { if (now > fl.until) { fl.on = Math.random() < .5 ? .12 : 1; fl.until = now + 50 + Math.random() * 140; if (fl.on < 1) Sound.flick(); } on = fl.on; }
-      mats.forEach((m, i) => m.color.copy(base[i]).multiplyScalar(on));
-    } };
+    return { noDust: true };
   }
   /* ================= 04 MÄNNISKORNA: gammal fotoateljé ================= */
   function buildManniskorna() {
@@ -1852,7 +1902,7 @@ function useRoom(key) {
       prop(new THREE.CylinderGeometry(.045, .05, .14, 20), { color: 0x0e0e0e }, new V3(cx, 1.42, cz - .12), [Math.PI / 2, 0, 0], { id });
       colliders.push({ x0: cx - .45, x1: cx + .45, z0: cz - .45, z1: cz + .45 }); }
     // ett gammalt arbetsbord och en växt vid fönstren
-    prop(new THREE.BoxGeometry(1.8, .06, .8, 4, 1, 2), { color: 0x6a4a30 }, new V3(4.9, .82, -15.0), null, { id: "table", collide: true });
+    prop(worldUV(new THREE.BoxGeometry(1.8, .06, .8, 4, 1, 2), 1.5), { color: 0xa88468, map: MATTEX.tra.diff }, new V3(4.9, .82, -15.0), null, { id: "table", collide: true });
     for (const [dx, dz] of [[-.82, -.34], [.82, -.34], [-.82, .34], [.82, .34]]) prop(new THREE.BoxGeometry(.06, .8, .06), { color: 0x4a3420 }, new V3(4.9 + dx, .4, -15.0 + dz), null, { id: "table" });
     plant(-5.2, -15.2, 2.0, 21);
     buildLounge();
@@ -1912,8 +1962,8 @@ function useRoom(key) {
     for (const [dx, yaw] of [[-.85, .22], [.85, -.22]]) { leatherSeat(lx + dx, lz - 1.85, yaw, .98, 1, leather, "chair" + dx); colliders.push({ x0: lx + dx - .55, x1: lx + dx + .55, z0: lz - 2.35, z1: lz - 1.35 }); }
     // soffbordet i mörkt trä, med böcker
     const wood = 0x4a3020;
-    prop(new THREE.BoxGeometry(1.25, .06, .7, 4, 1, 2), { color: wood }, new V3(lx, .45, lz), null, { id: "ctable" });
-    prop(new THREE.BoxGeometry(1.15, .03, .6, 4, 1, 2), { color: 0x3a2618 }, new V3(lx, .16, lz), null, { id: "ctable" });
+    prop(worldUV(new THREE.BoxGeometry(1.25, .06, .7, 4, 1, 2), 1.5), { color: 0x8a6448, map: MATTEX.tra.diff }, new V3(lx, .45, lz), null, { id: "ctable" });
+    prop(worldUV(new THREE.BoxGeometry(1.15, .03, .6, 4, 1, 2), 1.5), { color: 0x6a4a34, map: MATTEX.tra.diff }, new V3(lx, .16, lz), null, { id: "ctable" });
     for (const [dx, dz] of [[-.56, -.29], [.56, -.29], [-.56, .29], [.56, .29]]) prop(new THREE.BoxGeometry(.05, .42, .05), { color: wood }, new V3(lx + dx, .21, lz + dz), null, { id: "ctable" });
     colliders.push({ x0: lx - .68, x1: lx + .68, z0: lz - .4, z1: lz + .4 });
     [[.24, .05, .32, 0x26343a, .1], [.22, .04, .3, 0x8a6a3a, -.15], [.2, .035, .27, 0x5a1e1a, .3]].reduce((y, [w, h, d, col, rot]) => {
@@ -1987,6 +2037,7 @@ function useRoom(key) {
       if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => { ["map", "lightMap", "alphaMap"].forEach((k) => { if (m[k]) m[k].dispose(); }); m.dispose(); });
     });
     while (scene.children.length) scene.remove(scene.children[0]);
+    floorMirror = null;
     [surfaces, props, occluders, photoMeshes, colliders, decals, exits, arts, tubeMats].forEach((a) => { a.length = 0; });
     dust = null; dustBase = null; dustPh = null; dustMat = null; floorGlowTex = null; flickerDark = null; marker = null; glowTexC = null; leafTexC = null; RT = null;
   }
@@ -2028,7 +2079,7 @@ function useRoom(key) {
     }
     for (const p of props) { bakeProp(p); await tick(40); }
     if (RT.afterBake) RT.afterBake();
-    mergeProps(); lightDecals(); // dammet är borttaget i alla rum
+    mergeProps(); lightDecals(); addFloorMirror(S); // dammet är borttaget i alla rum
     progress(1, "Klart.");
     return S;
   }
@@ -2156,8 +2207,6 @@ function useRoom(key) {
       staden(ctx) { // staden utanför glaset: trafik, ett sus av folk, neonen som surrar och en kyrkklocka ibland
         this.loop(this.brown, "lowpass", 260, .3);
         this.loop(this.brown, "bandpass", 520, .07, .5);
-        const buzz = ctx.createGain(); buzz.gain.value = .0045; const bl = ctx.createBiquadFilter(); bl.type = "lowpass"; bl.frequency.value = 900; buzz.connect(bl); bl.connect(this.amb);
-        this.osc("sawtooth", 100, 1, buzz); this.osc("sine", 200, .6, buzz);
         this.every(this.bell, 30000, 60000);
       },
       naturen(ctx) {
@@ -2517,6 +2566,7 @@ function useRoom(key) {
       if (dustMat) dustMat.uniforms.time.value = now / 1000;
       if (marker && markerT > 0) { markerT = Math.max(0, markerT - dt * .9); marker.material.opacity = markerT; marker.scale.setScalar(1 + (1 - markerT) * .6); }
       if (!lb.hidden) { requestAnimationFrame(frame); return; } // fotot täcker allt: rita inte rummet bakom
+      renderMirror();
       if (composer) { finalPass.uniforms.time.value = now / 1000; composer.render(); } else renderer.render(scene, camera);
       if (entered && locked && !loading) {
         if (now - lastAim > 120) { lastAim = now;

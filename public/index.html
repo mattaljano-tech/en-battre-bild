@@ -865,6 +865,57 @@ function useRoom(key) {
     x.filter = "none"; return c;
   }
   function T(c, srgb, repeat) { const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = repeat === false ? THREE.ClampToEdgeWrapping : THREE.RepeatWrapping; if (srgb !== false) t.encoding = THREE.sRGBEncoding; t.anisotropy = maxAniso; return t; }
+  /* ---------- fotograferade material (Poly Haven, CC0): färg, ytstruktur (normal) och skugga i skrymslen (AO) ---------- */
+  const MATDEF = { betong: ["concrete_wall_008", 3], betonggolv: ["concrete_floor_03", 2.6], garage: ["garage_floor", 3], puts: ["plastered_wall", 2.6],
+    tegel: ["red_bricks_04", 2.2], tra: ["wood_floor_worn", 2.2], rost: ["rusty_metal_03", 2], element: ["precast_concrete_wall", 3], tegelputs: ["plaster_brick_pattern", 2.4] };
+  const MATTEX = {};
+  function loadMats() {
+    const tl = new THREE.TextureLoader(), jobs = [];
+    for (const k in MATDEF) { if (MATTEX[k]) continue; const f = MATDEF[k][0], t = {};
+      for (const [kind, srgb] of [["diff", true], ["nor", false], ["arm", false]]) jobs.push(new Promise((res) => {
+        t[kind] = tl.load("tex/" + f + "_" + kind + ".jpg", res, undefined, res); t[kind].wrapS = t[kind].wrapT = THREE.RepeatWrapping; t[kind].anisotropy = maxAniso;
+        if (srgb) t[kind].encoding = THREE.sRGBEncoding; }));
+      MATTEX[k] = t; }
+    return Promise.all(jobs);
+  }
+  // mat("betong", { color, s (meter per upprepning), relief, layer: { m: mat(...), mask } })
+  function mat(name, o) { o = o || {}; const t = MATTEX[name]; return { pbr: true, map: t.diff, nor: t.nor, arm: t.arm, s: o.s || MATDEF[name][1], color: o.color === undefined ? 0xffffff : o.color, relK: o.relief === undefined ? 1 : o.relief, layer: o.layer }; }
+  // ytan ljussätts av den bakade ljuskartan; normalkartan ger reliefen och AO-kartan mörkar fogar och sprickor
+  function pbrPatch(m, s) {
+    const wall = Math.abs(s.N[1]) < .5, L = wall ? new V3(.12, .62, .78) : new V3(.28, .22, .93); L.normalize();
+    const u = { norMap: { value: s.nor }, armMap: { value: s.arm }, relL: { value: L }, relK: { value: s.relK } };
+    if (s.layer) Object.assign(u, { map2: { value: s.layer.m.map }, nor2: { value: s.layer.m.nor }, arm2: { value: s.layer.m.arm }, maskMap: { value: s.layer.mask },
+      sc2: { value: s.layer.m.s ? s.tu / s.layer.m.s : 1 }, color2: { value: new THREE.Color(s.layer.m.color) } });
+    m.defines = s.layer ? { PBR_MASK: "" } : {};
+    m.onBeforeCompile = (sh) => {
+      Object.assign(sh.uniforms, u);
+      sh.fragmentShader = sh.fragmentShader.replace("#include <map_pars_fragment>", ["#include <map_pars_fragment>", "uniform sampler2D norMap; uniform sampler2D armMap; uniform vec3 relL; uniform float relK;",
+        "#ifdef PBR_MASK", "uniform sampler2D map2; uniform sampler2D nor2; uniform sampler2D arm2; uniform sampler2D maskMap; uniform float sc2; uniform vec3 color2;", "#endif"].join("\n"))
+        .replace("#include <map_fragment>", ["#include <map_fragment>",
+          "vec3 nT = texture2D(norMap, vUv).xyz * 2. - 1.; vec3 armT = texture2D(armMap, vUv).rgb;",
+          "#ifdef PBR_MASK", "vec4 mk = texture2D(maskMap, vUv2); vec2 uv2b = vUv * sc2;",
+          "diffuseColor.rgb = mix(diffuseColor.rgb, mapTexelToLinear(texture2D(map2, uv2b)).rgb * color2, mk.r);",
+          "nT = mix(nT, texture2D(nor2, uv2b).xyz * 2. - 1., mk.r); armT = mix(armT, texture2D(arm2, uv2b).rgb, mk.r); diffuseColor.rgb *= 1. - mk.g * .7;", "#endif",
+          "float rel = clamp(dot(normalize(nT), relL) / relL.z, .3, 1.7);",
+          "diffuseColor.rgb *= mix(1., rel, relK) * mix(1., armT.r, .85);"].join("\n"));
+    };
+    m.customProgramCacheKey = () => "pbr" + (s.layer ? "m" : "");
+  }
+  // mask där putsen har släppt: röd = tegel syns, grön = skugga i kanten av putsen
+  function peelMask(seed, wM, hM, n) {
+    const ppm = 48, W = Math.round(wM * ppm), Hh = Math.round(hM * ppm), c = cnv(W, Hh), x = c.getContext("2d"), r = rng(seed);
+    x.fillStyle = "#000"; x.fillRect(0, 0, W, Hh);
+    const blobs = [];
+    for (let i = 0; i < (n || Math.round(wM * hM / 8)); i++) { const cx = r() * W, cy = Hh * (.1 + r() * .78), rad = (.35 + r() * r() * 1.1) * ppm, sq = .55 + r() * .3, f1 = r() * 6, f2 = r() * 6, pts = [];
+      for (let k = 0; k < 40; k++) { const a = k / 40 * 6.283, q = .82 + .2 * Math.sin(3 * a + f1) + .1 * Math.sin(7 * a + f2) + (r() - .5) * .14; pts.push([cx + Math.cos(a) * rad * q, cy + Math.sin(a) * rad * q * sq]); }
+      blobs.push(pts); }
+    const path = (pts, dx, dy) => { x.beginPath(); pts.forEach(([px, py], i) => i ? x.lineTo(px + dx, py + dy) : x.moveTo(px + dx, py + dy)); x.closePath(); };
+    x.filter = "blur(2px)"; x.strokeStyle = "rgb(0,255,0)"; x.lineWidth = 5; blobs.forEach((b) => { path(b, 1, 2); x.stroke(); });
+    x.filter = "none"; x.fillStyle = "rgb(255,0,0)"; blobs.forEach((b) => { path(b, 0, 0); x.fill(); });
+    x.globalCompositeOperation = "lighter"; x.filter = "blur(1.5px)"; x.strokeStyle = "rgb(0,150,0)"; x.lineWidth = 3; blobs.forEach((b) => { path(b, 0, 0); x.stroke(); });
+    x.filter = "none"; x.globalCompositeOperation = "source-over";
+    const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; return t;
+  }
   // kalkad vit puts (Naturen)
   function plasterTex(seed, base) {
     const S = 1024, c = cnv(S, S), x = c.getContext("2d"), r = rng(seed);
@@ -1018,11 +1069,12 @@ function useRoom(key) {
   const camera = new THREE.PerspectiveCamera(64, 1, .05, 70); camera.rotation.order = "YXZ";
 
   const LMAX = 6; // ljuskartor lagrar 0…LMAX
-  const RES = isTouch ? 8 : 13;  // texlar per meter i ljuskartorna
+  const RES = isTouch ? 9 : 16;  // texlar per meter i ljuskartorna
 
   /* ================= ytor med bakad ljuskarta ================= */
   const surfaces = [], props = [], occluders = [], photoMeshes = [];
   function planar(o) {
+    if (o.map && o.map.pbr) { const m = o.map; o = Object.assign({}, o, { map: m.map, nor: m.nor, arm: m.arm, relK: m.relK, layer: m.layer, color: m.color, tu: o.keepUV ? o.tu : m.s, tv: o.keepUV ? o.tv : m.s }); }
     const U = o.U, V = o.V, N = [U[1] * V[2] - U[2] * V[1], U[2] * V[0] - U[0] * V[2], U[0] * V[1] - U[1] * V[0]];
     const s = Object.assign({ kind: "plane", N, g: planarGeo(o), res: o.res || RES, ex: o.ex || null }, o); surfaces.push(s); return s;
   }
@@ -1081,6 +1133,7 @@ function useRoom(key) {
   }
   function surfaceMesh(s, lm) {
     const m = new THREE.MeshBasicMaterial({ map: s.map || null, color: s.color || 0xffffff, lightMap: lm, lightMapIntensity: LMAX, side: THREE.DoubleSide });
+    if (s.nor) pbrPatch(m, s);
     const mesh = new THREE.Mesh(s.g, m); scene.add(mesh); s.mesh = mesh; mesh.userData.floor = !!s.floor; if (s.occlude !== false) occluders.push(mesh); return mesh;
   }
 
@@ -1298,7 +1351,7 @@ function useRoom(key) {
   /* ================= 02 NATUREN ================= */
   function buildNaturen() {
     const X = NAT.X, L = NAT.L, H = NAT.H, CW = NAT.CW, CL = NAT.CL, CH = NAT.CH;
-    const tx = { wall: T(plasterTex(3)), ceil: T(plasterTex(9, "#cfccc4")), floor: T(paleFloorTex(5)), dwall: T(concreteWall(11, 4, 3.2, "#4a4b47", { dirtM: .5 })), dfloor: T(paleFloorTex(8)) };
+    const tx = { wall: mat("puts", { color: 0xf2efe9 }), ceil: mat("puts", { color: 0xe4e1da, relief: .6 }), floor: mat("betonggolv", { color: 0xb4cff2 }), dwall: mat("betong", { color: 0x8a8a84 }), dfloor: mat("betonggolv", { color: 0x6c7d96 }) };
     planar({ name: "golv", floor: true, O: [-X, 0, 0], U: [1, 0, 0], V: [0, 0, -1], lu: 2 * X, lv: L, map: tx.floor, tu: 3, tv: 3 });
     planar({ name: "tak", O: [-X, H, -L], U: [1, 0, 0], V: [0, 0, 1], lu: 2 * X, lv: L, map: tx.ceil, tu: 3, tv: 3, holes: NAT.SK.map((s) => [[s.x0 + X, s.z0 + L], [s.x1 + X, s.z0 + L], [s.x1 + X, s.z1 + L], [s.x0 + X, s.z1 + L]]) });
     planar({ name: "västra väggen", O: [-X, 0, 0], U: [0, 0, -1], V: [0, 1, 0], lu: L, lv: H, map: tx.wall, tu: 3, tv: 3 });
@@ -1410,8 +1463,8 @@ function useRoom(key) {
   /* ================= 03 BERÄTTELSER: nedgången industrihall ================= */
   function buildHall() {
     const X = HAL.X, L = HAL.L, H = HAL.H, CX0 = HAL.CX0, CX1 = HAL.CX1, CL = HAL.CL, CH = HAL.CH;
-    const tx = { wall: T(derelictWall(5, 6, H, "#858a82", "rgba(52,66,62,.85)")), wall2: T(derelictWall(9, 6, H, "#928c80", "rgba(70,60,50,.8)")),
-      floor: T(paleFloorTex(29)), ceil: T(concreteWall(41, 4, 4, "#5a5a54", {})), corr: T(derelictWall(12, 4, CH, "#6f716b", "rgba(46,52,50,.85)")) };
+    const tx = { wall: mat("betong", { color: 0xb8c4d8 }), wall2: mat("betong", { color: 0xc4c8d6 }),
+      floor: mat("betonggolv", { color: 0x8ea8cc }), ceil: mat("betong", { color: 0x8c8c86, relief: .6 }), corr: mat("tegelputs", { color: 0x9c9890 }) };
     planar({ name: "golv", floor: true, O: [-X, 0, 0], U: [1, 0, 0], V: [0, 0, -1], lu: 2 * X, lv: L, map: tx.floor, tu: 4, tv: 4, color: 0x7c7972 });
     planar({ name: "tak", O: [-X, H, -L], U: [1, 0, 0], V: [0, 0, 1], lu: 2 * X, lv: L, map: tx.ceil, tu: 4, tv: 4, holes: HAL.SKY.map((k) => [[k.x0 + X, k.z0 + L], [k.x1 + X, k.z0 + L], [k.x1 + X, k.z1 + L], [k.x0 + X, k.z1 + L]]) });
     planar({ name: "fönsterväggen", O: [-X, 0, 0], U: [0, 0, -1], V: [0, 1, 0], lu: L, lv: H, map: tx.wall, tu: 6, tv: H, holes: HAL.WIN.map((w) => [[-w.z1, w.y0], [-w.z0, w.y0], [-w.z0, w.y1], [-w.z1, w.y1]]) });
@@ -1539,7 +1592,7 @@ function useRoom(key) {
   }
   function buildFoajen() {
     const X = FOY.X, L = FOY.L, H = FOY.H;
-    const tx = { wall: T(concreteWall(53, 4, 3.2, "#4a4741", { dirtM: .35 })), floor: T(paleFloorTex(11)), ceil: T(concreteWall(57, 4, 4, "#2c2b28", {})) };
+    const tx = { wall: mat("element", { color: 0x8a867e }), floor: mat("betonggolv", { color: 0x8aa0bc }), ceil: mat("betong", { color: 0x4a4944, relief: .5 }) };
     planar({ name: "golv", floor: true, O: [-X, 0, 0], U: [1, 0, 0], V: [0, 0, -1], lu: 2 * X, lv: L, map: tx.floor, tu: 3, tv: 3, color: 0x8e8a82 });
     planar({ O: [-X, 0, 0], U: [0, 0, -1], V: [0, 1, 0], lu: L, lv: H, map: tx.wall, tu: 4, tv: 3.2 });
     planar({ O: [X, 0, -L], U: [0, 0, 1], V: [0, 1, 0], lu: L, lv: H, map: tx.wall, tu: 4, tv: 3.2 });
@@ -1647,13 +1700,13 @@ function useRoom(key) {
   const CVC = 0x9a978f; // betongens grundton
   function buildStaden() {
     const X = CV.X, L = CV.L, H = CV.H, W = CV.WIN;
-    const tx = { floor: T(dirtyFloorTex(21)), ceil: T(concreteWall(31, 4, 4, "#77746d", { dirtM: .1 })), conc: T(concreteWall(11, 4, 3.2, "#7a7870", { dirtM: .5 })),
-      west: T(peeledWall(5, L, H)), far: T(peeledWall(9, 2 * X, H, { n: 9 })) };
+    const tx = { floor: mat("garage", { color: 0x98abc8 }), ceil: mat("betong", { color: 0x9a9890, relief: .6 }), conc: mat("betong", { color: 0xa8b2c4 }),
+      west: mat("puts", { color: 0xa8a49b, layer: { m: mat("tegel", { color: 0xd8c8c0 }), mask: peelMask(5, L, H) } }), far: mat("puts", { color: 0xa8a49b, layer: { m: mat("tegel", { color: 0xd8c8c0 }), mask: peelMask(9, 2 * X, H, 9) } }) };
     planar({ name: "golv", floor: true, O: [-X, 0, 0], U: [1, 0, 0], V: [0, 0, -1], lu: 2 * X, lv: L, map: tx.floor, tu: 3.5, tv: 3.5, color: 0xa29e96 });
     planar({ name: "tak", O: [-X, H, -L], U: [1, 0, 0], V: [0, 0, 1], lu: 2 * X, lv: L, map: tx.ceil, tu: 4, tv: 4 });
-    planar({ name: "tegelväggen", O: [-X, 0, 0], U: [0, 0, -1], V: [0, 1, 0], lu: L, lv: H, map: tx.west, tu: L, tv: H });
+    planar({ name: "tegelväggen", O: [-X, 0, 0], U: [0, 0, -1], V: [0, 1, 0], lu: L, lv: H, map: tx.west });
     const d = CV.DOOR, du = d.x + X, dv = 4 * CV.ST.rise;
-    planar({ name: "bortre väggen", O: [-X, 0, -L], U: [1, 0, 0], V: [0, 1, 0], lu: 2 * X, lv: H, map: tx.far, tu: 2 * X, tv: H, holes: [[[du - d.w / 2, dv], [du + d.w / 2, dv], [du + d.w / 2, dv + d.h], [du - d.w / 2, dv + d.h]]] });
+    planar({ name: "bortre väggen", O: [-X, 0, -L], U: [1, 0, 0], V: [0, 1, 0], lu: 2 * X, lv: H, map: tx.far, holes: [[[du - d.w / 2, dv], [du + d.w / 2, dv], [du + d.w / 2, dv + d.h], [du - d.w / 2, dv + d.h]]] });
     planar({ name: "ingångsväggen", O: [X, 0, 0], U: [-1, 0, 0], V: [0, 1, 0], lu: 2 * X, lv: H, map: tx.conc, tu: 4, tv: 3.2 });
     planar({ name: "bröstning", O: [X, 0, -L], U: [0, 0, 1], V: [0, 1, 0], lu: L, lv: W.y0, map: tx.conc, tu: 4, tv: 3.2 });
     planar({ name: "överliggare", O: [X, W.y1, -L], U: [0, 0, 1], V: [0, 1, 0], lu: L, lv: H - W.y1, map: tx.conc, tu: 4, tv: 3.2 });
@@ -1733,7 +1786,7 @@ function useRoom(key) {
   /* ================= 04 MÄNNISKORNA: gammal fotoateljé ================= */
   function buildManniskorna() {
     const X = MAN.X, L = MAN.L, H = MAN.H, CW = MAN.CW, CL = MAN.CL, CH = MAN.CH;
-    const tx = { brick: T(brickTex(7, 4, 3)), floor: T(plankTex(5)), ceil: T(plankTex(9, [70, 52, 38])), paper: T((() => { const c = cnv(256, 256), x = c.getContext("2d"); x.fillStyle = "#dedad2"; x.fillRect(0, 0, 256, 256); grain(x, 256, 256, 6, 3); return c; })()) };
+    const tx = { brick: mat("tegel", { color: 0xe6dcd4 }), floor: mat("tra", { color: 0xd8ccbc }), ceil: mat("tra", { color: 0x6e5c4c, relief: .5 }), paper: T((() => { const c = cnv(256, 256), x = c.getContext("2d"); x.fillStyle = "#dedad2"; x.fillRect(0, 0, 256, 256); grain(x, 256, 256, 6, 3); return c; })()) };
     planar({ name: "golv", floor: true, O: [-X, 0, 0], U: [1, 0, 0], V: [0, 0, -1], lu: 2 * X, lv: L, map: tx.floor, tu: 4, tv: 4 });
     planar({ name: "tak", O: [-X, H, -L], U: [1, 0, 0], V: [0, 0, 1], lu: 2 * X, lv: L, map: tx.ceil, tu: 4, tv: 4 });
     planar({ name: "fönsterväggen", O: [-X, 0, 0], U: [0, 0, -1], V: [0, 1, 0], lu: L, lv: H, map: tx.brick, tu: 4, tv: 3, holes: MAN.WIN.map((w) => [[-w.z1, w.y0], [-w.z0, w.y0], [-w.z0, w.y1], [-w.z1, w.y1]]) });
@@ -1951,6 +2004,7 @@ function useRoom(key) {
       tl.load(P.src, (t) => { t.encoding = THREE.sRGBEncoding; t.anisotropy = maxAniso; photoTex[sl.key] = t; res(); }, undefined, () => { photoTex[sl.key] = null; res(); });
     })));
     progress(.12, "Bygger rummet…"); await nextFrame();
+    await loadMats();
     RT = BUILD[key]() || {};
     (FLOOR_MARKS[key] || []).forEach(floorMark);
     // tom plats: ett passepartout som visar att här kommer ett foto

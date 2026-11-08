@@ -642,7 +642,7 @@ function manSDF(x, y, z) {
   return d;
 }
 const MAN_SOFT = [[-1.9, 2.05, -13.2], [1.9, 2.05, -13.2]], MAN_STOOL = [0, 1.2, -14.3];
-const MAN_LOUNGE = { x: 0, z: -6.6, lampY: 2.75 }, MAN_PENDANTS = [[-.42, 3.05], [.42, 3.45]]; // soffgruppen mitt i rummet
+const MAN_LOUNGE = { x: 0, z: -6.6, lampY: 2.75 }, MAN_PENDANTS = [[-.42, 1.5], [.42, 1.88]]; // [x, underkant på glaskupan] // soffgruppen mitt i rummet
 const SUNM = (() => { const v = [-.82, .62, .22], l = Math.hypot(...v); return v.map((c) => c / l); })(); // mot solen, utanför västra fönstren
 function manSunGate(px, py, pz) {
   if (pz > 0 || px <= -MAN.X + .01) return 0;
@@ -664,7 +664,7 @@ function manLights() {
   // softboxarna i fotohörnan
   // softboxarna: mjukt, starkt ljus som faller på pallen och bakgrundspappret, med pallens skugga
   for (const p of MAN_SOFT) addSpot(p, [MAN_STOOL[0], .66, MAN_STOOL[2]], .62, 1.8, [1, .97, .92], { hard: false, k: 8, bounce: .12, fx: "none", only: inMR });
-  for (const [dx, top] of MAN_PENDANTS) addPoint([MAN_LOUNGE.x + dx, top - .78, MAN_LOUNGE.z], .5, COL.tung, 5, .02, { only: inMR }); // pendlarna över soffbordet
+  for (const [dx, y] of MAN_PENDANTS) addPoint([MAN_LOUNGE.x + dx, y + .14, MAN_LOUNGE.z], .42, COL.tung, 5, .02, { only: inMR }); // pendlarna över soffbordet
   for (const sx of [-1.2, 1.2]) addPoint([sx, 2.45, -.28], .3, COL.tung, 3.5, .015, { only: inMR }); // vägglamporna vid dörren
   addTube([0, 2.74, 2.4], 3.0, .8, [1, .8, .58], { only: inMC });
   addPoint([0, 2.0, 4.25], .45, [1, .76, .5], 4, .02, { only: inMC });
@@ -893,8 +893,8 @@ function useRoom(key) {
     const tex = T(c); t.diff = tex;
   }
   /* ---------- 3D-modeller (Poly Haven, CC0): laddas en gång, ljuset bakas in som för övriga föremål ---------- */
-  const MODELS = {}, MODEL_FILES = { bord: "industrial_coffee_table", krona: "Chandelier_01", bur: "caged_hanging_light", vagg: "industrial_wall_sconce", pall: "metal_stool_01", hylla: "worn_metal_rack", soffa: "sofa_02", soffa3: "sofa_03", fatolj: "mid_century_lounge_chair", pendel: "modern_ceiling_lamp_01" };
-  const ROOM_MODELS = { staden: ["bur"], berattelser: ["hylla"], manniskorna: ["bord", "vagg", "pall", "soffa", "soffa3", "fatolj", "pendel"] };
+  const MODELS = {}, MODEL_FILES = { bord: "industrial_coffee_table", bur: "caged_hanging_light", vagg: "industrial_wall_sconce", pall: "metal_stool_01", hylla: "worn_metal_rack", fatolj: "mid_century_lounge_chair", pendel: "modern_ceiling_lamp_01" };
+  const ROOM_MODELS = { staden: ["bur"], berattelser: ["hylla"], manniskorna: ["bord", "vagg", "pall", "fatolj", "pendel"] };
   function loadModels(keys) {
     if (!THREE.GLTFLoader) return Promise.resolve(); const L = new THREE.GLTFLoader();
     return Promise.all(keys.filter((k) => !MODELS[k]).map((k) => new Promise((res) => { const f = MODEL_FILES[k];
@@ -906,17 +906,24 @@ function useRoom(key) {
     root.updateMatrixWorld(true); const box = new THREE.Box3().setFromObject(root), sz = box.getSize(new V3());
     const sc = o.w ? o.w / Math.max(sz.x, sz.z) : (o.h ? o.h / sz.y : o.sc || 1), cx = (box.min.x + box.max.x) / 2, cz = (box.min.z + box.max.z) / 2;
     const y0 = o.hang ? pos[1] - box.max.y * sc : pos[1] - box.min.y * sc;
-    const T = new THREE.Matrix4().compose(new V3(pos[0], y0, pos[2]), new THREE.Quaternion().setFromAxisAngle(new V3(0, 1, 0), yaw || 0), new V3(sc, sc, sc)).multiply(new THREE.Matrix4().makeTranslation(-cx, 0, -cz));
+    const T = new THREE.Matrix4().compose(new V3(pos[0], y0, pos[2]), new THREE.Quaternion().setFromAxisAngle(new V3(0, 1, 0), yaw || 0), new V3(sc * (o.stretch || 1), sc, sc)).multiply(new THREE.Matrix4().makeTranslation(-cx, 0, -cz));
     const id = o.id || "m-" + k + pos.join(",");
     root.traverse((m) => { if (!m.isMesh) return;
-      const geo = m.geometry.clone(); geo.applyMatrix4(new THREE.Matrix4().multiplyMatrices(T, m.matrixWorld)); if (!geo.attributes.normal) geo.computeVertexNormals();
+      let geo = m.geometry.clone(); geo.applyMatrix4(new THREE.Matrix4().multiplyMatrices(T, m.matrixWorld)); if (!geo.attributes.normal) geo.computeVertexNormals();
+      if (o.cutAbove !== undefined) { // ta bort allt ovanför en höjd (t.ex. takfäste och stång på en pendel)
+        if (geo.index) geo = geo.toNonIndexed(); const lim = y0 + o.cutAbove * sc, pa = geo.attributes.position, keep = [];
+        for (let t = 0; t < pa.count; t += 3) if (Math.min(pa.getY(t), pa.getY(t + 1), pa.getY(t + 2)) < lim) keep.push(t);
+        if (!keep.length) return;
+        const ng = new THREE.BufferGeometry(); for (const name in geo.attributes) { const A = geo.attributes[name], n = A.itemSize, arr = new A.array.constructor(keep.length * 3 * n);
+          keep.forEach((t, k) => { for (let v = 0; v < 3; v++) for (let c = 0; c < n; c++) arr[(k * 3 + v) * n + c] = A.array[(t + v) * n + c]; }); ng.setAttribute(name, new THREE.BufferAttribute(arr, n)); }
+        geo = ng; }
       const src = m.material;
       if (o.glass && o.glass.test(src.name)) { scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: new THREE.Color(...(o.glassCol || [1, .95, .85])), transparent: true, opacity: .32, depthWrite: false, side: THREE.DoubleSide }))); return; }
       if (o.glow && o.glow.test(src.name)) { scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: new THREE.Color(...o.glowCol), map: src.map || null }))); return; }
       prop(geo, { map: src.map || null, color: o.tint === undefined ? 0xffffff : o.tint, side: THREE.DoubleSide }, new V3(0, 0, 0), null, { id, shadow: !!o.shadow, collide: !!o.collide, cache: true });
       if (src.emissiveMap) scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: src.emissiveMap, color: new THREE.Color(...(o.emisCol || [3, 2, 1.1])), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })));
     });
-    return { top: y0 + box.max.y * sc, bottom: y0 + box.min.y * sc };
+    return { top: y0 + (o.cutAbove !== undefined ? o.cutAbove : box.max.y) * sc, bottom: y0 + box.min.y * sc };
   }
   // mat("betong", { color, s (meter per upprepning), relief, layer: { m: mat(...), mask } })
   function mat(name, o) { o = o || {}; const t = MATTEX[name]; return { pbr: true, map: t.diff, nor: t.nor, arm: t.arm, s: o.s || MATDEF[name][1], color: o.color === undefined ? 0xffffff : o.color, relK: o.relief === undefined ? 1 : o.relief, layer: o.layer }; }
@@ -2001,18 +2008,18 @@ function useRoom(key) {
     // soffan vänd mot bordet, två fåtöljer på andra sidan
     // riktiga möbler: en soffa mot bordet och två fåtöljer på andra sidan (faller tillbaka på de enkla om modellerna saknas)
     // fyra fåtöljer två och två mot varandra, lätt vinklade in mot bordet
-    for (const [dx, dz, yaw] of [[-.75, -1.45, Math.PI + .45], [.75, -1.45, Math.PI - .45], [-.75, 1.45, -.45], [.75, 1.45, .45]]) {
+    for (const [dx, dz, yaw] of [[-.75, -1.45, .48], [.75, -1.45, -.48], [-.75, 1.45, Math.PI - .48], [.75, 1.45, Math.PI + .48]]) {
       if (!placeModel("fatolj", [lx + dx, 0, lz + dz], yaw, { w: .85, id: "chair" + dx + dz, shadow: true })) leatherSeat(lx + dx, lz + dz, yaw, .98, 1, leather, "chair" + dx + dz);
       colliders.push({ x0: lx + dx - .45, x1: lx + dx + .45, z0: lz + dz - .45, z1: lz + dz + .45 }); }
     // soffbordet i industristil, med böcker
-    const tb = placeModel("bord", [lx, 0, lz], 0, { h: .46, id: "ctable", shadow: true });
-    colliders.push({ x0: lx - .66, x1: lx + .66, z0: lz - .42, z1: lz + .42 });
+    const tb = placeModel("bord", [lx, 0, lz], 0, { h: .46, stretch: 1.9, id: "ctable", shadow: true });
+    colliders.push({ x0: lx - .8, x1: lx + .8, z0: lz - .35, z1: lz + .35 });
     if (tb) [[.24, .05, .32, 0x26343a, .1], [.22, .04, .3, 0x8a6a3a, -.15], [.2, .035, .27, 0x5a1e1a, .3]].reduce((y, [w, h, d, col, rot]) => {
       prop(new THREE.BoxGeometry(w, h, d), { color: col }, new V3(lx - .3, y + h / 2, lz + .05), [0, rot, 0], { id: "books" }); return y + h; }, tb.top);
     // en gammal ljuskrona i kätting från taket ovanför soffbordet
     // två moderna pendlar i glas, lågt och i olika höjd över soffbordet
-    for (const [dx, top] of MAN_PENDANTS) { const pl = placeModel("pendel", [lx + dx, top, lz], 0, { h: .95, hang: true, glass: /glass/, glassCol: [1.4, 1.25, 1.05], glow: /globe/, glowCol: [5, 3.6, 2] });
-      if (pl) rodProp([lx + dx, pl.top, lz], [lx + dx, MAN.H, lz], .006, 0x111111); }
+    for (const [dx, y] of MAN_PENDANTS) { const pl = placeModel("pendel", [lx + dx, y, lz], 0, { h: .95, cutAbove: .545, glass: /glass/, glassCol: [1.4, 1.25, 1.05], glow: /globe/, glowCol: [5, 3.6, 2] });
+      if (pl) rodProp([lx + dx, pl.top - .01, lz], [lx + dx, MAN.H, lz], .004, 0x111111); }
   }
   const BUILD = { foajen: buildFoajen, staden: buildStaden, naturen: buildNaturen, berattelser: buildHall, manniskorna: buildManniskorna };
 

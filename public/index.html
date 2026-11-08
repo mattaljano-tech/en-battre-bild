@@ -552,10 +552,10 @@ function halSlots() {
   out.push(wslot("nummer79", [-4.4, 1.9, -L], [0, 0, 1], 1.9, Object.assign({ ly: 5.5, d: 2.6 }, ho)), wslot("trapporna", [4.4, 1.9, -L], [0, 0, 1], 1.9, Object.assign({ ly: 5.5, d: 2.6 }, ho)));
   // västra väggen mellan fönstren, ingångsväggen och östra väggen
   [["katten", -1.1], ["tvatten", -7.0], ["gangtunneln", -13.0], ["uppgangen", -19.9]].forEach(([k, z]) => out.push(wslot(k, [-X, 1.65, z], [1, 0, 0], 1.5, ho)));
-  out.push(wslot("vakten", [-4.5, 1.65, 0], [0, 0, -1], 1.5, ho), wslot("grodden", [-1.5, 1.65, 0], [0, 0, -1], 1.4, ho));
+  out.push(wslot("vakten", [-5.0, 1.65, 0], [0, 0, -1], 1.5, ho), wslot("grodden", [-2.4, 1.65, 0], [0, 0, -1], 1.4, ho));
   out.push(wslot("balkongerna", [X, 1.65, -7.3], [-1, 0, 0], 1.5, ho));
   // hörnen och ingångsväggen
-  out.push(wslot("porten", [X, 1.65, -1.6], [-1, 0, 0], 1.5, ho), wslot("pickupen", [6.1, 1.65, 0], [0, 0, -1], 1.3, ho));
+  out.push(wslot("pickupen", [X, 1.65, -1.6], [-1, 0, 0], 1.5, ho), wslot("porten", [.3, 1.65, 0], [0, 0, -1], 1.5, ho));
   out.push(wslot("uppfor", [-6.1, 1.75, -L], [0, 0, 1], 1.5, Object.assign({ ly: 5.5, d: 2.6 }, ho)), wslot("pinnen", [6.1, 1.75, -L], [0, 0, 1], 1.2, Object.assign({ ly: 5.5, d: 2.6 }, ho)));
   return out;
 }

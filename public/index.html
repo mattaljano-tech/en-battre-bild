@@ -92,7 +92,9 @@ button { font: inherit; }
 .tourbar .tbtns .chip { white-space: nowrap; }
 .tourbar .chip { justify-content: center; }
 .tourbar .chip:disabled { opacity: .35; cursor: default; }
-.roomcard { width: min(680px, calc(100vw - 32px)); padding-top: 14px; border-top: 1px solid var(--line); background: linear-gradient(to top, rgba(6,8,8,.72), rgba(6,8,8,0)); }
+.roomcard { width: min(680px, calc(100vw - 32px)); padding-top: 14px; }
+/* toningen bakom kortet går över hela skärmens bredd, så att inga kanter syns */
+.roomcard::before { content: ""; position: absolute; z-index: -1; left: 50%; width: 100vw; transform: translateX(-50%); top: -60px; bottom: calc(-20px - env(safe-area-inset-bottom, 0px)); background: linear-gradient(to top, rgba(6,8,8,.82), rgba(6,8,8,.55) 55%, rgba(6,8,8,0)); pointer-events: none; }
 .roomcard .tbtns .chip { flex: 0 0 auto; }
 .roomcard kbd { font-family: var(--font-mono); font-size: 10px; opacity: .6; margin-left: 6px; }
 .where .rcopen { margin-top: 10px; }
@@ -2986,7 +2988,7 @@ function useRoom(key) {
   function syncRcOpen() { $("rcOpen").hidden = !entered || tour.on || !rcEl.hidden || !roomCount(); }
   function showRoomCard() {
     const n = roomCount(); if (!n || tour.on) { syncRcOpen(); return; }
-    const S = SPECS[currentKey]; $("rcRoom").textContent = S.num + "  " + S.name; $("rcName").textContent = S.sub; $("rcCount").textContent = n + (n === 1 ? " bild" : " bilder");
+    const S = SPECS[currentKey]; $("rcRoom").textContent = S.num; $("rcName").textContent = S.name; $("rcCount").textContent = n + (n === 1 ? " bild" : " bilder");
     rcEl.hidden = false; document.body.classList.add("rc"); $("rooms").hidden = true; rcStart = { x: player.x, z: player.z }; syncRcOpen();
   }
   function hideRoomCard(quiet) { if (rcEl.hidden) return; rcEl.hidden = true; document.body.classList.remove("rc"); rcStart = null; if (entered && !tour.on) $("rooms").hidden = false; if (!quiet) syncRcOpen(); }

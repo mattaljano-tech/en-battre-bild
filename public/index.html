@@ -911,8 +911,8 @@ function useRoom(key) {
     const tex = T(c); t.diff = tex;
   }
   /* ---------- 3D-modeller (Poly Haven, CC0): laddas en gång, ljuset bakas in som för övriga föremål ---------- */
-  const MODELS = {}, MODEL_FILES = { bord: "industrial_coffee_table", bur: "caged_hanging_light", vagg: "industrial_wall_sconce", pall: "metal_stool_01", hylla: "worn_metal_rack", fatolj: "mid_century_lounge_chair", pendel: "modern_ceiling_lamp_01" };
-  const ROOM_MODELS = { staden: ["bur"], berattelser: ["hylla"], manniskorna: ["bord", "vagg", "pall", "fatolj", "pendel"] };
+  const MODELS = {}, MODEL_FILES = { bord: "industrial_coffee_table", bur: "caged_hanging_light", vagg: "industrial_wall_sconce", pall: "metal_stool_03", vaxt1: "potted_plant_01", vaxt2: "potted_plant_02", fasad: "modular_urban_apartments_facade", ac: "exterior_aircon_unit", brandtrappa: "modular_fire_escape", ror: "modular_industrial_pipes_01", hylla: "worn_metal_rack", fatolj: "mid_century_lounge_chair", pendel: "modern_ceiling_lamp_01" };
+  const ROOM_MODELS = { staden: ["bur", "fasad", "ac", "brandtrappa"], berattelser: ["hylla", "ror"], naturen: ["vaxt1", "vaxt2"], foajen: ["vaxt1", "vaxt2"], manniskorna: ["bord", "vagg", "pall", "fatolj", "pendel"] };
   function loadModels(keys) {
     if (!THREE.GLTFLoader) return Promise.resolve(); const L = new THREE.GLTFLoader();
     return Promise.all(keys.filter((k) => !MODELS[k]).map((k) => new Promise((res) => { const f = MODEL_FILES[k];
@@ -938,7 +938,14 @@ function useRoom(key) {
       const src = m.material;
       if (o.glass && o.glass.test(src.name)) { scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: new THREE.Color(...(o.glassCol || [1, .95, .85])), transparent: true, opacity: .32, depthWrite: false, side: THREE.DoubleSide }))); return; }
       if (o.glow && o.glow.test(src.name)) { scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: new THREE.Color(...o.glowCol), map: src.map || null }))); return; }
-      prop(geo, { map: src.map || null, color: o.tint === undefined ? 0xffffff : o.tint, side: THREE.DoubleSide }, new V3(0, 0, 0), null, { id, shadow: !!o.shadow, collide: !!o.collide, cache: true });
+      if (o.flat) { // tunga modeller (växtblad): ljuset mäts på några punkter i stället för i varje hörn
+        const L = o.flat, pa = geo.attributes.position, na = geo.attributes.normal, c = new Float32Array(pa.count * 3);
+        for (let i = 0; i < pa.count; i++) { const t = clamp((pa.getY(i) - L.y0) / (L.y1 - L.y0), 0, 1), k = .62 + .38 * Math.max(0, na.getY(i)) + .08 * Math.abs(na.getX(i));
+          for (let j = 0; j < 3; j++) c[i * 3 + j] = (L.lo[j] + (L.hi[j] - L.lo[j]) * t) * k; }
+        geo.setAttribute("color", new THREE.BufferAttribute(c, 3));
+        scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: src.map || null, vertexColors: true, color: o.tint === undefined ? 0xffffff : o.tint, side: THREE.DoubleSide, alphaTest: src.alphaTest || 0 })));
+        return; }
+      prop(geo, { map: src.map || null, color: o.tint === undefined ? 0xffffff : o.tint, side: THREE.DoubleSide, alphaTest: src.alphaTest || 0 }, new V3(0, 0, 0), null, { id, shadow: !!o.shadow, collide: !!o.collide, cache: true });
       if (src.emissiveMap) scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: src.emissiveMap, color: new THREE.Color(...(o.emisCol || [3, 2, 1.1])), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })));
     });
     return { top: y0 + (o.cutAbove !== undefined ? o.cutAbove : box.max.y) * sc, bottom: y0 + box.min.y * sc };
@@ -1384,6 +1391,11 @@ function useRoom(key) {
     const b = new THREE.Mesh(new THREE.SphereGeometry(.075 * sc, 18, 12), new THREE.MeshBasicMaterial({ color: new THREE.Color(5, 3.3, 1.5) })); b.scale.set(.85, 1, .85); b.position.set(lx, ly + .15 * sc, lz); scene.add(b);
   }
   function plant(x, z, h, seed) {
+    const k = h >= 1.95 ? "vaxt1" : "vaxt2";
+    if (MODELS[k]) { // krukväxt från Poly Haven: ljuset mäts nere vid krukan och uppe i bladen
+      const hh = k === "vaxt1" ? 1.55 : 1.05, sh = (y) => shade(x, y, z, 0, 1, 0, null), lo = sh(.3), hi = sh(hh);
+      placeModel(k, [x, 0, z], seed * 1.7, { h: hh, flat: { y0: .1, y1: hh, lo, hi } });
+      colliders.push({ x0: x - .3, x1: x + .3, z0: z - .3, z1: z + .3 }); return; }
     if (!leafTexC) leafTexC = T(leafCanvas(), true, false);
     prop(new THREE.CylinderGeometry(.3, .24, .55, 28, 2), { color: 0x8f8b84 }, new V3(x, .275, z), null, { collide: true });
     const pr = rng(seed);

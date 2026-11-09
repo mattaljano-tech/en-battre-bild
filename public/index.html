@@ -2496,7 +2496,7 @@ function useRoom(key) {
     playMusic() {
       if (this.music) { this.music.play().catch(() => {}); return; }
       if (this.musicTried) return; this.musicTried = true;
-      fetch(MUSIC_SRC, { method: "HEAD" }).then((r) => { if (!r.ok || !this.ctx) return;
+      fetch(MUSIC_SRC, { method: "HEAD" }).then((r) => { if (!r.ok || !this.ctx || !/audio|mpeg/.test(r.headers.get("content-type") || "")) return; // Pages svarar med startsidan om filen saknas
         const a = new Audio(MUSIC_SRC); a.loop = true; a.preload = "auto"; a.crossOrigin = "anonymous";
         const g = this.musicGain = this.ctx.createGain(); g.gain.value = 0; this.ctx.createMediaElementSource(a).connect(g); g.connect(this.master);
         this.music = a; if (this.on) a.play().then(() => g.gain.setTargetAtTime(MUSIC_VOL, this.ctx.currentTime, 2.5)).catch(() => {});

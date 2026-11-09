@@ -933,8 +933,8 @@ function useRoom(key) {
     const tex = T(c); t.diff = tex;
   }
   /* ---------- 3D-modeller (Poly Haven, CC0): laddas en gång, ljuset bakas in som för övriga föremål ---------- */
-  const MODELS = {}, MODEL_FILES = { bord: "industrial_coffee_table", bur: "caged_hanging_light", vagg: "industrial_wall_sconce", pall: "metal_stool_03", vaxt1: "potted_plant_01", vaxt2: "potted_plant_02", fasad: "modular_urban_apartments_facade", ac: "exterior_aircon_unit", brandtrappa: "modular_fire_escape", ror: "modular_industrial_pipes_01", hylla: "worn_metal_rack", fatolj: "mid_century_lounge_chair", pendel: "modern_ceiling_lamp_01", bilar: "bilar", tegelhus: "tegelhus", betonghus: "betonghus" };
-  const ROOM_MODELS = { staden: ["bur", "fasad", "ac", "brandtrappa"], berattelser: ["hylla", "ror"], naturen: ["vaxt1", "vaxt2"], foajen: GATA ? ["vaxt1", "vaxt2", "fasad", "ac", "brandtrappa", "bilar", "tegelhus", "betonghus"] : ["vaxt1", "vaxt2"], manniskorna: ["bord", "vagg", "pall", "fatolj", "pendel"] };
+  const MODELS = {}, MODEL_FILES = { bord: "industrial_coffee_table", bur: "caged_hanging_light", vagg: "industrial_wall_sconce", pall: "metal_stool_03", vaxt1: "potted_plant_01", vaxt2: "potted_plant_02", fasad: "modular_urban_apartments_facade", ac: "exterior_aircon_unit", brandtrappa: "modular_fire_escape", ror: "modular_industrial_pipes_01", hylla: "worn_metal_rack", fatolj: "mid_century_lounge_chair", pendel: "modern_ceiling_lamp_01", bilar: "bilar", tegelhus: "tegelhus", betonghus: "betonghus", butikshus: "butikshus" };
+  const ROOM_MODELS = { staden: ["bur", "fasad", "ac", "brandtrappa"], berattelser: ["hylla", "ror"], naturen: ["vaxt1", "vaxt2"], foajen: GATA ? ["vaxt1", "vaxt2", "fasad", "ac", "brandtrappa", "bilar", "tegelhus", "betonghus", "butikshus"] : ["vaxt1", "vaxt2"], manniskorna: ["bord", "vagg", "pall", "fatolj", "pendel"] };
   function loadModels(keys) {
     if (!THREE.GLTFLoader) return Promise.resolve(); const L = new THREE.GLTFLoader();
     return Promise.all(keys.filter((k) => !MODELS[k]).map((k) => new Promise((res) => { const f = MODEL_FILES[k];
@@ -1881,7 +1881,7 @@ function useRoom(key) {
     ground(-XR, XR, R1 - .45, R1, RY + .004, null, 1, col(0x15181b));
     // ---------- vår sida: bottenvåningen ----------
     const BAND = 5.7, x0 = FOY.EX0, x1 = FOY.EX1, EH = FOY.EH;
-    const OURS = [-4.8, 4.8];
+    const OURS = [-6.45, 6.45]; // butikens hus är minst lika brett som foajén, så grannhusen aldrig når in i rummet
     { const m = tex("betong6"), c = col(0x3a3b3d);                         // butikens fasad: mörk, slät betong
       wall(OURS[0], x0, 0, BAND, FZ, m, 3, c, 1); wall(x1, OURS[1], 0, BAND, FZ, m, 3, c, 1); wall(x0, x1, EH, BAND, FZ, m, 3, c, 1); }
     // grannarnas bottenvåningar: puts i olika kulörer med skyltfönster
@@ -1918,9 +1918,9 @@ function useRoom(key) {
       quadUV(P, uv, s.t, col(0xffffff, 1.05), { transparent: true, alphaTest: .02 });
       for (const [u, k] of s.lit) { const px = xa + u, pz = z + face * 1.6; pool(3.2, 3.4, 0x7a5330, px, face > 0 ? 0 : 0, pz, .55 * k); pool(1.6, 6.5, 0x5a3c22, px, RY, z + face * (Math.abs((face > 0 ? CURB : R1) - z) + 2.6), .45 * k); } };
     const SIDE = []; for (const s of [-1, 1]) { let x = s * OURS[1]; while (Math.abs(x) < XR) { const w = 9 + 3 * ((r() * 3) | 0), xa = s > 0 ? x : x - w, xb = s > 0 ? x + w : x; SIDE.push([Math.max(-XR, xa), Math.min(XR, xb)]); x += s * w; } }
-    SIDE.forEach(([xa, xb], i) => { const c = col(putsTone[i % putsTone.length], .55);
+    if (!MODELS.butikshus) SIDE.forEach(([xa, xb], i) => { const c = col(putsTone[i % putsTone.length], .55);
       wall(xa, xb, 0, BAND, FZ, tex("puts"), 2.6, c, 1); shopRow(xa + .3, xb - .3, FZ, 1, 30 + i); });
-    box(-XR, XR, BAND - .12, BAND + .12, FZ, FZ + .22, sm({ color: col(0x4a4846) }));             // gesims över bottenvåningen
+    box(MODELS.butikshus ? OURS[0] : -XR, MODELS.butikshus ? OURS[1] : XR, BAND - .12, BAND + .12, FZ, FZ + .22, sm({ color: col(0x4a4846) }));             // gesims över bottenvåningen
     // ---------- skylten: EN BÄTTRE BILD i varmt vitt ljus över entrén ----------
     const SY = 4.5, SW = 5.4, SH = .62;
     box(-SW / 2, SW / 2, SY - SH / 2 - .04, SY + SH / 2 + .04, FZ, FZ + .14, sm({ color: col(0x121314) }));
@@ -1986,7 +1986,6 @@ function useRoom(key) {
       return top; };
     // vår sida: butikens hus över foajén och grannhusen
     kitHouse(OURS[0], OURS[1], 1, FZ, BAND + .12, isTouch ? 3 : 4, 0);
-    SIDE.forEach(([xa, xb], i) => kitHouse(xa, xb, 1, FZ, BAND + .12, (isTouch ? 2 : 3) + ((r() * 2) | 0), i + 1));
     // ---------- husen från Sketchfab (Fridqeir, CC BY 4.0): tegelfasader i gatuplan och låga betonghus ----------
     const groups = (root) => { const out = {}; if (!root) return out; root.updateMatrixWorld(true);
       root.traverse((o) => { if (!o.isMesh) return; const k = o.parent ? o.parent.name : o.name, g = (o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone()).applyMatrix4(o.matrixWorld);
@@ -2029,6 +2028,14 @@ function useRoom(key) {
           box(xa, xb, 4.2, 4.42, OPP - .22, OPP, sm({ color: col(0x4a4846) }));
           kitHouse(xa, xb, -1, OPP, 4.42, 3 + ((r() * 3) | 0), i + 2); }
         x = xb; i++; } }
+    // vår sida: grannhusen är tegelhus med butik i gatuplan (Brick Shop Building, Fridqeir), ibland med fler våningar ovanpå
+    { const SG = groups(MODELS.butikshus), SV = Object.keys(SG).filter((k) => /storefront/i.test(k)).map((k) => normalize(SG[k], [0, 1]))[0];
+      SIDE.forEach(([xa, xb], i) => {
+        if (!SV) { kitHouse(xa, xb, 1, FZ, BAND + .12, (isTouch ? 2 : 3) + ((r() * 2) | 0), i + 1); return; }
+        const w = xb - xa, n = Math.max(1, Math.round(w / 9.4)), s = w / (n * SV.w), H = SV.h * s;
+        for (let j = 0; j < n; j++) placeV(SV, xa + j * SV.w * s, FZ - SV.d * s, 1, s, .6);
+        pool(w * .7, 3, 0x7a5330, (xa + xb) / 2, 0, FZ + 1.5, .35);
+        if (i % 3 !== 1) kitHouse(xa, xb, 1, FZ - .02, H, (isTouch ? 1 : 2) + ((r() * 2) | 0), i + 1); }); }
     // satsens hinkar: en geometri per material
     for (const mn in KB) { const B = KB[mn], g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(B.p, 3));
       g.setAttribute("uv", new THREE.Float32BufferAttribute(B.u, 2)); g.setAttribute("color", new THREE.Float32BufferAttribute(B.c, 3)); g.computeVertexNormals(); g.computeBoundingSphere();
@@ -3246,7 +3253,8 @@ function useRoom(key) {
         const h1 = document.createElement("a"); h1.href = "https://sketchfab.com/3d-models/old-building-pack-lowpoly-081eccb97be8429c83b2e9fb407727e7"; h1.target = "_blank"; h1.rel = "noopener"; h1.textContent = "Old Building Pack | Lowpoly";
         const h2 = document.createElement("a"); h2.href = "https://sketchfab.com/3d-models/old-concrete-building-pack-lowpoly-4387dbb08a37418e8c07c992a5a9500a"; h2.target = "_blank"; h2.rel = "noopener"; h2.textContent = "Old Concrete Building Pack | Lowpoly";
         const fu = document.createElement("a"); fu.href = "https://sketchfab.com/Fridqeir"; fu.target = "_blank"; fu.rel = "noopener"; fu.textContent = "Fridqeir";
-        const l2 = l.cloneNode(true); e.append(h1, " och ", h2, " av ", fu, ", licensierade under ", l2, "."); b.append(e); }
+        const l2 = l.cloneNode(true), h3 = document.createElement("a"); h3.href = "https://sketchfab.com/3d-models/brick-shop-building-lowpoly-548d4a0e62b54efcab4483fb6d0c3611"; h3.target = "_blank"; h3.rel = "noopener"; h3.textContent = "Brick Shop Building | Lowpoly";
+        e.append(h1, ", ", h2, " och ", h3, " av ", fu, ", licensierade under ", l2, "."); b.append(e); }
     } else if (kind === "priser") {
       head("Foajén · Priser", "Priser"); para("Priser och paket kommer snart.");
       para("Skicka dina paket och priser, så blir det här en tydlig prislista.", "placeholder");

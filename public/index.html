@@ -2040,7 +2040,7 @@ function useRoom(key) {
       while (x < XR) { let w = Math.min(XR - x, 9 + 3 * ((r() * 3) | 0)); if (w < 3) break;
         if (BV.length && i % 4 === 2 && XR - x > 9) { // lågt betonghus med graffiti
           const V = BV[(i >> 2) % BV.length], s = 1; w = V.w * s; placeV(V, x, OPP + V.d * s, -1, s, .62);
-          brickBox(x + .1, x + w - .1, 0, V.h * s - .2, OPP + .8, OPP + V.d * s - .3); // inne i huset: fasaden sitter en bit in från framkanten x += w; i++; continue; }
+          brickBox(x + .1, x + w - .1, 0, V.h * s - .2, OPP + .8, OPP + V.d * s - .3); x += w; i++; continue; } // kroppen ligger innanför: fasaden sitter en bit in från framkanten
         const xa = x, xb = x + w;
         if (TV.length) { const V = TV[i % TV.length], n = Math.max(1, Math.round(w / V.w)), s = w / (n * V.w), H = V.h * s; let anyLit = false;
           for (let j = 0; j < n; j++) anyLit = placeV(V, xa + j * V.w * s, OPP, -1, s, .58) || anyLit;

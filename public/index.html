@@ -733,7 +733,7 @@ const SPECS = {
     amb: (x, y, z) => z > 0 ? [.02, .018, .016] : [.15, .15, .155],
     ceil: (x, z) => z > 0 ? HAL.CH : HAL.H,
     start: { x: 4, z: 4.2, yaw: 0 }, walk: [{ x0: -6.6, x1: 6.6, z0: -21.6, z1: -.4 }, { x0: 3.25, x1: 4.75, z0: -.6, z1: 4.6 }],
-    look: { mirror: { mat: "betonggolv", k: .282 }, fog: 0x9a968c, density: .006, bg: 0xc9c5bc, exposure: 1.15, bloom: .4, thr: 2.0 }, step: 560, wet: .5,
+    look: { mirror: { mat: "betonggolv", k: .282 }, fog: 0x9a968c, density: .006, bg: 0xc9c5bc, exposure: 1.15, bloom: .4, thr: 2.0 }, step: 560, wet: .28,
     slots: [
       { key: "pojken", C: [0, 2.3, -22], U: [1, 0, 0], N: [0, 0, 1], h: 3.0, spots: [{ p: [0, 7.7, -18.6], t: [0, 2.3, -22], a: .28, T: 1.5, o: { only: (x, y, z) => z < .05 } }] },
       { key: "lisboa", C: [7, 2.4, -11], U: [0, 0, 1], N: [-1, 0, 0], w: 4.4, spots: [{ p: [4.3, 7.7, -11], t: [7, 2.4, -11], a: .4, T: 1.5, o: { only: (x, y, z) => z < .05 } }] },
@@ -2535,10 +2535,10 @@ function useRoom(key) {
         this.every(this.bird, 1800, 6500);
       },
       berattelser(ctx) {
-        const wind = this.loop(this.brown, "bandpass", 520, .12, .6); // vinden genom hallen: svag, duvor, dropp och knarr har kvar sin volym
-        const lfo = ctx.createOscillator(), lg = ctx.createGain(); lfo.frequency.value = .05; lg.gain.value = .065; lfo.connect(lg); lg.connect(wind.gain); lfo.start(); this.amb._src.push(lfo);
-        this.loop(this.brown, "lowpass", 90, .085);
-        this.every(this.pigeon, 7000, 16000); this.every(this.drip, 3500, 9000); this.every(this.creak, 12000, 25000);
+        const wind = this.loop(this.brown, "bandpass", 520, .035, .6); // vinden genom hallen: svag, duvor, dropp och knarr har kvar sin volym
+        const lfo = ctx.createOscillator(), lg = ctx.createGain(); lfo.frequency.value = .05; lg.gain.value = .02; lfo.connect(lg); lg.connect(wind.gain); lfo.start(); this.amb._src.push(lfo);
+        this.loop(this.brown, "lowpass", 90, .03);
+        this.every(this.pigeon, 9000, 20000); this.every(this.drip, 6000, 14000); this.every(this.creak, 18000, 35000);
       },
       manniskorna(ctx) { // stilla ateljé: stad långt borta, något som knarrar ibland
         this.loop(this.brown, "lowpass", 140, .2);

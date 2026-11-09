@@ -1714,7 +1714,7 @@ function useRoom(key) {
     placeModel("hylla", [-6.65, 0, -16.4], Math.PI / 2, { h: 1.9, shadow: true, collide: true });
     // industrirör: två ledningar högt längs högra väggen ovanför tavlorna, som går ner till golvet längst in med en ventil
     if (MODELS.ror) { const R = "modular_industrial_pipes_01_", seg = 1.95;
-      for (const [y, zEnd, off] of [[5.5, -21.78, .16], [5.05, -21.78, .45]]) { // båda går ner i hörnet, en bit från dörren till Människorna
+      for (const [y, zEnd, off] of [[5.62, -21.78, .2], [5.02, -21.3, .2]]) { // två ledningar rakt över varandra; de går ner var för sig i hörnet, en bit från dörren
         const x = X - off; let z = zEnd + .16;
         while (z < -.5) { const len = Math.min(seg, -.5 - z); placePart("ror", R + "pipe02", M4(x, y, z, Math.PI / 2, 0, 0), { sy: len / seg, id: "ror" }); z += len; }
         placePart("ror", R + "pipe06", M4(x, y - .18, zEnd, 0, -Math.PI / 2, 0), { id: "ror" });          // T-rör där ledningen vänder nedåt
@@ -1722,7 +1722,11 @@ function useRoom(key) {
         for (let i = 0; i < n; i++) placePart("ror", R + "pipe02", M4(x, yb + i * l, zEnd), { sy: l / seg, id: "ror" });
         placePart("ror", R + "pipe08", M4(x, .74, zEnd, 0, -.55, 0), { id: "ror" }); // ratten vänd ut mot rummet               // ventilen med rött ratt
         placePart("ror", R + "pipe01", M4(x, 0, zEnd), { sy: .74 / .86, id: "ror" });
-        for (let zz = zEnd + 2; zz < -1; zz += 2.6) prop(new THREE.BoxGeometry(.14, .05, .06), { color: 0x2a2b2b }, new V3(X - .07, y - .13, zz), null, { shadow: false }); // fästen i väggen
+        // rörklammor: en ring runt röret och en stång in i väggen, längs ledningen och på det lodräta röret
+        const clamp1 = (cx, cy, cz, vert) => { prop(new THREE.TorusGeometry(.118, .013, 6, 22), { color: 0x2c2d2d }, new V3(cx, cy, cz), vert ? [Math.PI / 2, 0, 0] : null, { shadow: false });
+          prop(new THREE.BoxGeometry(off - .1, .035, .035), { color: 0x2c2d2d }, new V3(X - (off - .1) / 2, cy, cz), null, { shadow: false }); };
+        for (let zz = zEnd + 1.6; zz < -1; zz += 2.4) clamp1(x, y, zz, false);
+        for (let yy = 2.1; yy < y - .6; yy += 1.5) clamp1(x, yy, zEnd, true);
       } }
     buildStands("berattelser", 0x56534f, 0x161717);
     opening({ C: [4, 0, CL], N: [0, 0, -1], U: [-1, 0, 0], w: 1.2, h: 2.3, to: "naturen", sign: ["02  NATUREN", "TILLBAKA"], glow: new THREE.Color(1.15, 1.2, 1.3) });
@@ -2169,7 +2173,7 @@ function useRoom(key) {
     foajen: { at: [[-6, 3.7, -9.6, 1, 0], [6, 3.7, -9.6, -1, 0]], aim: [0, 1.6, -5.5] },
     staden: { at: [[-6, 3.9, -5.6, 1, 0], [-6, 3.9, -16.6, 1, 0]], aim: [0, 1.6, -11] },
     naturen: { at: [[-6, 4.3, -7.6, 1, 0], [6, 4.3, -7.6, -1, 0]], aim: [0, 1.6, -11] },
-    berattelser: { at: [[-7, 5.2, -7, 1, 0], [7, 5.2, -7, -1, 0]], aim: [0, 1.6, -11] },
+    berattelser: { at: [[-7, 4.3, -7, 1, 0], [7, 4.3, -7, -1, 0]], aim: [0, 1.6, -11] }, // under rören
     manniskorna: { at: [[-4.2, 3.5, -16, 0, 1], [4.2, 3.5, -16, 0, 1]], aim: [0, 1.6, -7] } };
   function buildSpeaker(x, y, z, nx, nz, aim, i) {
     const wy = Math.atan2(nx, nz), g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = wy; scene.add(g); g.updateMatrixWorld(true);

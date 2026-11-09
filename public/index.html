@@ -933,8 +933,8 @@ function useRoom(key) {
     const tex = T(c); t.diff = tex;
   }
   /* ---------- 3D-modeller (Poly Haven, CC0): laddas en gång, ljuset bakas in som för övriga föremål ---------- */
-  const MODELS = {}, MODEL_FILES = { bord: "industrial_coffee_table", bur: "caged_hanging_light", vagg: "industrial_wall_sconce", pall: "metal_stool_03", vaxt1: "potted_plant_01", vaxt2: "potted_plant_02", fasad: "modular_urban_apartments_facade", ac: "exterior_aircon_unit", brandtrappa: "modular_fire_escape", ror: "modular_industrial_pipes_01", hylla: "worn_metal_rack", fatolj: "mid_century_lounge_chair", pendel: "modern_ceiling_lamp_01", bilar: "bilar" };
-  const ROOM_MODELS = { staden: ["bur", "fasad", "ac", "brandtrappa"], berattelser: ["hylla", "ror"], naturen: ["vaxt1", "vaxt2"], foajen: GATA ? ["vaxt1", "vaxt2", "fasad", "ac", "brandtrappa", "bilar"] : ["vaxt1", "vaxt2"], manniskorna: ["bord", "vagg", "pall", "fatolj", "pendel"] };
+  const MODELS = {}, MODEL_FILES = { bord: "industrial_coffee_table", bur: "caged_hanging_light", vagg: "industrial_wall_sconce", pall: "metal_stool_03", vaxt1: "potted_plant_01", vaxt2: "potted_plant_02", fasad: "modular_urban_apartments_facade", ac: "exterior_aircon_unit", brandtrappa: "modular_fire_escape", ror: "modular_industrial_pipes_01", hylla: "worn_metal_rack", fatolj: "mid_century_lounge_chair", pendel: "modern_ceiling_lamp_01", bilar: "bilar", tegelhus: "tegelhus", betonghus: "betonghus" };
+  const ROOM_MODELS = { staden: ["bur", "fasad", "ac", "brandtrappa"], berattelser: ["hylla", "ror"], naturen: ["vaxt1", "vaxt2"], foajen: GATA ? ["vaxt1", "vaxt2", "fasad", "ac", "brandtrappa", "bilar", "tegelhus", "betonghus"] : ["vaxt1", "vaxt2"], manniskorna: ["bord", "vagg", "pall", "fatolj", "pendel"] };
   function loadModels(keys) {
     if (!THREE.GLTFLoader) return Promise.resolve(); const L = new THREE.GLTFLoader();
     return Promise.all(keys.filter((k) => !MODELS[k]).map((k) => new Promise((res) => { const f = MODEL_FILES[k];
@@ -1987,13 +1987,48 @@ function useRoom(key) {
     // vår sida: butikens hus över foajén och grannhusen
     kitHouse(OURS[0], OURS[1], 1, FZ, BAND + .12, isTouch ? 3 : 4, 0);
     SIDE.forEach(([xa, xb], i) => kitHouse(xa, xb, 1, FZ, BAND + .12, (isTouch ? 2 : 3) + ((r() * 2) | 0), i + 1));
-    // andra sidan: bottenvåning med butiker och kafé, våningar ovanpå
+    // ---------- husen från Sketchfab (Fridqeir, CC BY 4.0): tegelfasader i gatuplan och låga betonghus ----------
+    const groups = (root) => { const out = {}; if (!root) return out; root.updateMatrixWorld(true);
+      root.traverse((o) => { if (!o.isMesh) return; const k = o.parent ? o.parent.name : o.name, g = (o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone()).applyMatrix4(o.matrixWorld);
+        if (!g.attributes.normal) g.computeVertexNormals(); (out[k] = out[k] || []).push({ g, mat: o.material, mn: o.material.name || "" }); });
+      return out; };
+    // vrid så att framsidan pekar mot +z och lägg hörnet (min x, min y, baksidan) i origo
+    const normalize = (parts, f) => { const R = new THREE.Matrix4().makeRotationY(-Math.atan2(f[0], f[1])), bb = new THREE.Box3();
+      const ps = parts.map((p) => { const g = p.g.clone().applyMatrix4(R); g.computeBoundingBox(); bb.union(g.boundingBox); return Object.assign({}, p, { g }); });
+      ps.forEach((p) => p.g.translate(-bb.min.x, -bb.min.y, -bb.min.z)); const sz = bb.getSize(new V3()); return { parts: ps, w: sz.x, h: sz.y, d: sz.z }; };
+    const frontOf = (parts) => { let fx = 0, fz = 0; parts.filter((p) => /window/i.test(p.mn)).forEach((p) => { const n = p.g.attributes.normal; for (let i = 0; i < n.count; i++) { fx += n.getX(i); fz += n.getZ(i); } });
+      const l = Math.hypot(fx, fz); return l > 1e-3 ? [fx / l, fz / l] : [0, 1]; };
+    const TH = groups(MODELS.tegelhus), BH = groups(MODELS.betonghus);
+    const TV = Object.keys(TH).filter((k) => /^Building_[123]$/.test(k)).sort().map((k) => normalize(TH[k], frontOf(TH[k])));
+    const BV = Object.keys(BH).filter((k) => /^building_\d$/i.test(k)).sort().map((k) => normalize(BH[k], [0, 1]));
+    const placeV = (V, xa, zf, side, s, dark) => { const M = (side > 0 ? new THREE.Matrix4().makeTranslation(xa, 0, zf) : new THREE.Matrix4().makeTranslation(xa + V.w * s, 0, zf).multiply(ROT[1])).multiply(new THREE.Matrix4().makeScale(s, s, s));
+      const lit = r() < .45;
+      for (const p of V.parts) { const g = p.g.clone().applyMatrix4(M), pa = g.attributes.position, na = g.attributes.normal, cc = new Float32Array(pa.count * 3), win = /window/i.test(p.mn);
+        for (let i = 0; i < pa.count; i++) { const nz = na.getZ(i) * side, ny = na.getY(i), y = pa.getY(i);
+          const k = win ? (lit ? 1.25 : .5) : (.5 + .34 * Math.max(0, nz) + .12 * Math.max(0, ny) - .24 * Math.max(0, -ny)) * (.7 + .3 * clamp(1 - y / 14, 0, 1)) * dark;
+          cc[i * 3] = k * (win && lit ? 1.15 : 1); cc[i * 3 + 1] = k * (win && lit ? .86 : 1); cc[i * 3 + 2] = k * (win && lit ? .6 : 1); }
+        g.setAttribute("color", new THREE.BufferAttribute(cc, 3));
+        add(new THREE.Mesh(g, sm({ map: p.mat.map || null, vertexColors: true, side: THREE.DoubleSide }))); }
+      return lit; };
+    // andra sidan: tegelfasader med butiker i gatuplan och fasadsatsens våningar ovanpå, ibland ett lågt betonghus
     { let x = -XR, i = 0; const kinds = [[.1, .9, .6], [.7, .4], [.2, .65, .85], [.5, .1], [.9, .3, .7]];
-      while (x < XR) { const w = Math.min(XR - x, 9 + 3 * ((r() * 3) | 0)); if (w < 3) break; const xa = x, xb = x + w, tone = col(putsTone[(i + 2) % putsTone.length], .55);
-        wall(xa, xb, 0, 4.3, OPP, tex(i % 2 ? "puts" : "tegelputs"), 2.6, tone, -1);
-        shopRow(xa + .25, xb - .25, OPP, -1, 70 + i, kinds[i % kinds.length]);
-        box(xa, xb, 4.2, 4.42, OPP - .22, OPP, sm({ color: col(0x4a4846) }));
-        kitHouse(xa, xb, -1, OPP, 4.42, (isTouch ? 3 : 3) + ((r() * 3) | 0), i + 2); x = xb; i++; } }
+      while (x < XR) { let w = Math.min(XR - x, 9 + 3 * ((r() * 3) | 0)); if (w < 3) break;
+        if (BV.length && i % 4 === 2 && XR - x > 9) { // lågt betonghus med graffiti
+          const V = BV[(i >> 2) % BV.length], s = 1; w = V.w * s; placeV(V, x, OPP + V.d * s, -1, s, .62);
+          box(x, x + w, 0, V.h * s, OPP + .05, OPP + V.d * s - .05, sm({ color: col(0x202326) })); x += w; i++; continue; }
+        const xa = x, xb = x + w;
+        if (TV.length) { const V = TV[i % TV.length], n = Math.max(1, Math.round(w / V.w)), s = w / (n * V.w), H = V.h * s; let anyLit = false;
+          for (let j = 0; j < n; j++) anyLit = placeV(V, xa + j * V.w * s, OPP, -1, s, .58) || anyLit;
+          box(xa, xb, 0, H, OPP, OPP + 12, sm({ color: col(0x202326) }));
+          if (anyLit) pool(w * .8, 3.4, 0x7a5330, (xa + xb) / 2, 0, OPP - 1.6, .4);
+          box(xa, xb, H - .08, H + .14, OPP - .3, OPP, sm({ color: col(0x3e3c3a) }));
+          kitHouse(xa, xb, -1, OPP, H + .14, (isTouch ? 2 : 2) + ((r() * 3) | 0), i + 2);
+        } else { const tone = col(putsTone[(i + 2) % putsTone.length], .55);
+          wall(xa, xb, 0, 4.3, OPP, tex(i % 2 ? "puts" : "tegelputs"), 2.6, tone, -1);
+          shopRow(xa + .25, xb - .25, OPP, -1, 70 + i, kinds[i % kinds.length]);
+          box(xa, xb, 4.2, 4.42, OPP - .22, OPP, sm({ color: col(0x4a4846) }));
+          kitHouse(xa, xb, -1, OPP, 4.42, 3 + ((r() * 3) | 0), i + 2); }
+        x = xb; i++; } }
     // satsens hinkar: en geometri per material
     for (const mn in KB) { const B = KB[mn], g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(B.p, 3));
       g.setAttribute("uv", new THREE.Float32BufferAttribute(B.u, 2)); g.setAttribute("color", new THREE.Float32BufferAttribute(B.c, 3)); g.computeVertexNormals(); g.computeBoundingSphere();
@@ -3207,7 +3242,11 @@ function useRoom(key) {
         const a = document.createElement("a"); a.href = "https://sketchfab.com/3d-models/generic-passenger-car-pack-20f9af9b8a404d5cb022ac6fe87f21f5"; a.target = "_blank"; a.rel = "noopener"; a.textContent = "Generic passenger car pack";
         const u = document.createElement("a"); u.href = "https://sketchfab.com/comrade1280"; u.target = "_blank"; u.rel = "noopener"; u.textContent = "Comrade1280";
         const l = document.createElement("a"); l.href = "http://creativecommons.org/licenses/by/4.0/"; l.target = "_blank"; l.rel = "noopener"; l.textContent = "CC BY 4.0";
-        e.append(a, " av ", u, ", licensierad under ", l, "."); b.append(e); }
+        e.append(a, " av ", u, ", licensierad under ", l, ". Husen på andra sidan gatan: ");
+        const h1 = document.createElement("a"); h1.href = "https://sketchfab.com/3d-models/old-building-pack-lowpoly-081eccb97be8429c83b2e9fb407727e7"; h1.target = "_blank"; h1.rel = "noopener"; h1.textContent = "Old Building Pack | Lowpoly";
+        const h2 = document.createElement("a"); h2.href = "https://sketchfab.com/3d-models/old-concrete-building-pack-lowpoly-4387dbb08a37418e8c07c992a5a9500a"; h2.target = "_blank"; h2.rel = "noopener"; h2.textContent = "Old Concrete Building Pack | Lowpoly";
+        const fu = document.createElement("a"); fu.href = "https://sketchfab.com/Fridqeir"; fu.target = "_blank"; fu.rel = "noopener"; fu.textContent = "Fridqeir";
+        const l2 = l.cloneNode(true); e.append(h1, " och ", h2, " av ", fu, ", licensierade under ", l2, "."); b.append(e); }
     } else if (kind === "priser") {
       head("Foajén · Priser", "Priser"); para("Priser och paket kommer snart.");
       para("Skicka dina paket och priser, så blir det här en tydlig prislista.", "placeholder");

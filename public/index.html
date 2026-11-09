@@ -1887,6 +1887,10 @@ function useRoom(key) {
       ground(far[0], far[1], ZA, ZB, 0, PL, 2.2, col(0x5a6065));                                                                     // trottoaren längs husen i änden
       box(sg > 0 ? XR + 1.8 : -XR - 2, sg > 0 ? XR + 2 : -XR - 1.8, RY, .005, ZA, CURB, sm({ color: col(0x4c4f52) })); box(sg > 0 ? XR + 1.8 : -XR - 2, sg > 0 ? XR + 2 : -XR - 1.8, RY, .005, R1, ZB, sm({ color: col(0x4c4f52) }));
       box(sg > 0 ? XE - 2 : -XE + 1.8, sg > 0 ? XE - 1.8 : -XE + 2, RY, .005, ZA, ZB, sm({ color: col(0x4c4f52) })); }
+    // övergångsställe över gatan (textur ur Low road av Yarelon, CC BY): vita band längs gatan, gatsten emellan
+    { const t = new THREE.TextureLoader().load("tex/overgangsstalle_diff.jpg"); t.encoding = THREE.sRGBEncoding; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = maxAniso;
+      const xa = -8.1, xb = -4.9; quadUV([[xa, RY + .006, CURB], [xa, RY + .006, R1], [xb, RY + .006, R1], [xb, RY + .006, CURB]], [[0, 0], [0, (R1 - CURB) / 5.5], [(xb - xa) / 5.5, (R1 - CURB) / 5.5], [(xb - xa) / 5.5, 0]], t, col(0xffffff, .62));
+      pool(3.4, 2.2, 0x6a5234, (xa + xb) / 2, RY + .008, CURB + 1.4, .35); }
     // ---------- vår sida: bottenvåningen ----------
     const BAND = 5.7, x0 = FOY.EX0, x1 = FOY.EX1, EH = FOY.EH;
     const OURS = [-6.45, 6.45]; // butikens hus är minst lika brett som foajén, så grannhusen aldrig når in i rummet
@@ -2160,7 +2164,7 @@ function useRoom(key) {
     const TRASH = PO("TrashCommercial"), TRASH2 = PO("TrashCanLarge"), BENCH = PO("ParkBenchLong", { long: true }), UTIL = PO("Utility", { long: true }), MAN = PO("Manhole"), STORM = PO("StormDrain", { long: true });
     put(TRASH2, -10.2, 0, CURB - .55, 0, .95, "h", .55); put(TRASH2, 5.2, 0, R1 + .65, 0, .95, "h", .55); put(TRASH, -12.4, 0, R1 + .6, 0, 1.0, "h", .55);
     put(BENCH, -15.5, 0, FZ + .55, 0, 1.9, "w", .6); put(UTIL, 13.8, 0, FZ + .45, 0, 1.25, "h", .55);
-    put(MAN, -5.5, RY + .005, (CURB + R1) / 2 + .8, 0, .8, "w", .6); put(MAN, 12, RY + .005, (CURB + R1) / 2 - .6, 0, .8, "w", .6);
+    put(MAN, 1.2, RY + .005, (CURB + R1) / 2 + .8, 0, .8, "w", .6); put(MAN, 12, RY + .005, (CURB + R1) / 2 - .6, 0, .8, "w", .6);
     for (const sx of [-14, 3.2, 16]) put(STORM, sx, RY + .004, CURB + .35, 0, .9, "w", .32);
     { const wireM = new THREE.LineBasicMaterial({ color: col(0x0c0d0e) });
       for (const wx of [-14, 0.0, 14, 28, -28]) { if (Math.abs(wx) > XR - 2) continue; const pts = [], yA = 7.6, sag = .55, za = FZ + .2, zb = OPP - .2, zm = (CURB + R1) / 2;
@@ -3322,7 +3326,7 @@ function useRoom(key) {
         const fu = document.createElement("a"); fu.href = "https://sketchfab.com/Fridqeir"; fu.target = "_blank"; fu.rel = "noopener"; fu.textContent = "Fridqeir";
         const l2 = l.cloneNode(true), lu = document.createElement("a"); lu.href = "https://sketchfab.com/ivan.anton.albarracin"; lu.target = "_blank"; lu.rel = "noopener"; lu.textContent = "lupas";
         const h3 = document.createElement("a"); h3.href = "https://sketchfab.com/3d-models/brick-shop-building-lowpoly-548d4a0e62b54efcab4483fb6d0c3611"; h3.target = "_blank"; h3.rel = "noopener"; h3.textContent = "Brick Shop Building | Lowpoly";
-        e.append(h1, ", ", h2, " och ", h3, " av ", fu, ", licensierade under ", l2, ". Gatlyktorna: simple collection of low poly street lights av ", lu, " (CC BY 4.0). Höghusen i fjärran: Low Poly Night City Building Skyline av 99.Miles (CC BY 4.0). Gatuprylarna: City Props Collection av TampaJoey."); b.append(e); }
+        e.append(h1, ", ", h2, " och ", h3, " av ", fu, ", licensierade under ", l2, ". Gatlyktorna: simple collection of low poly street lights av ", lu, " (CC BY 4.0). Övergångsstället: textur ur Low road av Yarelon (CC BY 4.0). Höghusen i fjärran: Low Poly Night City Building Skyline av 99.Miles (CC BY 4.0). Gatuprylarna: City Props Collection av TampaJoey."); b.append(e); }
     } else if (kind === "priser") {
       head("Foajén · Priser", "Priser"); para("Priser och paket kommer snart.");
       para("Skicka dina paket och priser, så blir det här en tydlig prislista.", "placeholder");

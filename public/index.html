@@ -1933,23 +1933,21 @@ function useRoom(key) {
     if (!MODELS.butikshus) SIDE.forEach(([xa, xb], i) => { const c = col(putsTone[i % putsTone.length], .55);
       wall(xa, xb, 0, BAND, FZ, tex("puts"), 2.6, c, 1); shopRow(xa + .3, xb - .3, FZ, 1, 30 + i); });
     box(MODELS.butikshus ? OURS[0] : -XR, MODELS.butikshus ? OURS[1] : XR, BAND - .12, BAND + .12, FZ, FZ + .22, sm({ color: col(0x4a4846) }));             // gesims över bottenvåningen
-    // ---------- skylten: EN BÄTTRE BILD på en flaggskylt som sticker ut från fasaden, så att den syns längs gatan ----------
-    const SX = -3.6, SY = 4.3, SD = 1.15, SH = .78, sz0 = FZ + .32, sz1 = sz0 + SD, steel = sm({ color: col(0x141516) });
-    box(SX - .06, SX + .06, SY - SH / 2 - .03, SY + SH / 2 + .03, sz0 - .03, sz1 + .03, steel);                                  // lådan
-    box(SX - .025, SX + .025, SY + SH / 2 + .08, SY + SH / 2 + .13, FZ, sz1 + .05, steel);                                      // konsolen
-    for (const zz of [sz0 + .15, sz1 - .15]) box(SX - .012, SX + .012, SY + SH / 2 + .03, SY + SH / 2 + .08, zz - .012, zz + .012, steel);
-    box(SX - .05, SX + .05, SY + SH / 2 - .1, SY + SH / 2 + .2, FZ, FZ + .04, steel);                                            // fästplattan
+    // ---------- skylten: EN BÄTTRE BILD i varmt vitt ljus över entrén ----------
+    const SY = 4.5, SW = 5.4, SH = .62;
+    box(-SW / 2, SW / 2, SY - SH / 2 - .04, SY + SH / 2 + .04, FZ, FZ + .14, sm({ color: col(0x121314) }));
     let signMat;
-    { const c = cnv(1024, 694), x = c.getContext("2d");
-      const draw = () => { x.fillStyle = "#121314"; x.fillRect(0, 0, 1024, 694); x.strokeStyle = "rgba(255,236,206,.35)"; x.lineWidth = 3; x.strokeRect(34, 34, 956, 626);
-        x.fillStyle = "#fff4e2"; x.textAlign = "center"; x.textBaseline = "middle"; x.font = '300 150px "Jost", "Archivo", sans-serif'; x.shadowColor = "rgba(255,214,160,.9)"; x.shadowBlur = 24;
-        if (x.letterSpacing !== undefined) x.letterSpacing = "26px"; x.fillText("EN BÄTTRE", 512 + 13, 262); x.fillText("BILD", 512 + 13, 450); x.shadowBlur = 0;
-        x.font = '400 34px "IBM Plex Mono", monospace'; if (x.letterSpacing !== undefined) x.letterSpacing = "10px"; x.fillStyle = "rgba(255,236,206,.55)"; x.fillText("FOTOGRAF · STOCKHOLM", 512 + 5, 590); };
+    { const c = cnv(2048, 236), x = c.getContext("2d");
+      const draw = () => { x.fillStyle = "#121314"; x.fillRect(0, 0, 2048, 236); x.fillStyle = "#fff4e2"; x.textAlign = "center"; x.textBaseline = "middle"; x.font = '300 140px "Jost", "Archivo", sans-serif';
+        if (x.letterSpacing !== undefined) x.letterSpacing = "40px"; x.shadowColor = "rgba(255,214,160,.9)"; x.shadowBlur = 26; x.fillText("EN BÄTTRE BILD", 1024 + 20, 122); x.shadowBlur = 0; };
       draw(); const st = T(c, true, false); signMat = new THREE.MeshBasicMaterial({ map: st, fog: false }); signMat.color.setRGB(1.5, 1.42, 1.32);
-      for (const sg of [-1, 1]) { const m = mesh(new THREE.PlaneGeometry(SD - .06, SH - .06), signMat, SX + sg * .062, SY, (sz0 + sz1) / 2); m.rotation.y = sg * Math.PI / 2;
-        glow(SD * 2.2, SH * 2.6, 0x5a3e24, SX + sg * .07, SY, (sz0 + sz1) / 2, 0, sg * Math.PI / 2, .6); }
-      if (document.fonts && document.fonts.load) Promise.all([document.fonts.load('300 150px "Jost"'), document.fonts.load('400 34px "IBM Plex Mono"')]).then(() => { draw(); st.needsUpdate = true; }).catch(() => {}); }
-    pool(2.4, 2.4, 0x6a4a2c, SX, 0, (sz0 + sz1) / 2, .45);
+      mesh(new THREE.PlaneGeometry(SW - .1, SH), signMat, 0, SY, FZ + .145);
+      if (document.fonts && document.fonts.load) document.fonts.load('300 140px "Jost"').then(() => { draw(); st.needsUpdate = true; }).catch(() => {}); }
+    glow(SW * 1.7, 2.6, 0x6a4a2c, 0, SY, FZ + .02, 0, 0, .8);                                       // skenet på fasaden
+    for (const sx of [-1.9, 1.9]) { // två svanhalsar som lyser ner på skylten
+      const arm = mesh(new THREE.CylinderGeometry(.016, .016, .62, 8), sm({ color: col(0x111111) }), sx, SY + .58, FZ + .3); arm.rotation.x = Math.PI / 2 - .5;
+      const hd = mesh(new THREE.ConeGeometry(.09, .14, 14, 1, true), sm({ color: col(0x161616), side: THREE.DoubleSide }), sx, SY + .66, FZ + .58); hd.rotation.x = -.5;
+      glow(.26, .26, 0xffe2b0, sx, SY + .6, FZ + .6, -Math.PI / 2 - .5, 0, 1); }
     pool(6.5, 3.2, 0x8a6036, 0, 0, FZ + 1.9, .5);                                                    // foajéns ljus faller ut på trottoaren
     pool(2.6, 9, 0x6a4626, 0, RY, CURB + 4.2, .35);
     // ---------- fasadsatsen: våningarna ovanför, på båda sidor ----------
@@ -3606,7 +3604,7 @@ function useRoom(key) {
      rullgardinen går upp när foajén är klar, och "Kliv in" går in genom dörrarna, vänder sig om när de går igen och sedan in i rummet. */
   function streetIntro() {
     const ST = { dof: { focus: 8, ap: 0 }, on: true, ready: false, phase: "walk", t: 0, enterT: 0, onDoor: null, done: null, lift: 0, ext: null, step: 0, side: 1, endZ: -2.3 };
-    const X0 = -15, ZW = 2.7, ZD = 4.3, WALK = 11.5, ease = (t) => t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2, PU = .1;
+    const X0 = -15, ZW = 2.7, ZD = 4.3, WALK = 11.5, ease = (t) => t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2, PU = .2;
     const bez = (u) => { const a = (1 - u) * (1 - u), b = 2 * u * (1 - u), c = u * u; return [a * X0 + b * -2.5 + c * 0, a * ZW + b * ZW + c * ZD]; };
     let px = X0, pz = ZW, walked = 0; const uQ = new THREE.Quaternion(), uY = new THREE.Quaternion(), uR = new V3(), uUp = new V3(0, 1, 0);
     function pose(now) {

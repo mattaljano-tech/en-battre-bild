@@ -2020,31 +2020,46 @@ function useRoom(key) {
     manniskorna: { at: [[-4.2, 3.5, -16, 0, 1], [4.2, 3.5, -16, 0, 1]], aim: [0, 1.6, -7] } };
   function buildSpeaker(x, y, z, nx, nz, aim, i) {
     const wy = Math.atan2(nx, nz), g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = wy; scene.add(g); g.updateMatrixWorld(true);
-    const id = "monitor" + i, svart = { color: 0x1d1d1e }, matt = { color: 0x121213 }, stal = { color: 0x2a2b2c }, trim = { color: 0x5a5b5c };
+    const id = "monitor" + i, svart = { color: 0x1a1a1b }, front = { color: 0x111112 }, stal = { color: 0x232425 }, alu = { color: 0x55575a }, massing = { color: 0x7d6038 };
+    const tra = { color: 0x6e5242, map: MATTEX.morktra ? MATTEX.morktra.diff : null };
     const P = (geo, m, pos, rot, par) => prop(geo, m, new V3(...pos), rot || null, { parent: par || g, id, shadow: false });
-    P(new THREE.BoxGeometry(.09, .15, .014), stal, [0, 0, .007]);                                   // väggplattan
-    P(new THREE.CylinderGeometry(.013, .013, .15, 12), stal, [0, 0, .085], [Math.PI / 2, 0, 0]);       // armen ut från väggen
-    // vrid lådan mot rummets mitt: sidled och lite nedåt, men inte mer än fästet tillåter
+    const W = .3, H = .48, D = .34;
+    // fästet: väggplatta, en kraftig arm och ett U-ok som håller lådan i sidorna
+    P(roundBox(.13, .24, .018, .006), stal, [0, 0, .009]);
+    for (const sy of [-1, 1]) for (const sx of [-1, 1]) P(new THREE.CylinderGeometry(.009, .009, .008, 10), alu, [sx * .045, sy * .09, .02], [Math.PI / 2, 0, 0]);
+    P(new THREE.CylinderGeometry(.022, .022, .2, 16), stal, [0, 0, .118], [Math.PI / 2, 0, 0]);
     const dx = aim[0] - x, dy = aim[1] - y, dz = aim[2] - z, h = Math.hypot(dx, dz);
-    let yaw = Math.atan2(dx, dz) - wy; yaw = clamp(Math.atan2(Math.sin(yaw), Math.cos(yaw)), -.7, .7);
-    const pitch = clamp(Math.atan2(dy, h), -.45, 0);
-    const c = new THREE.Group(); c.position.set(0, 0, .18); c.rotation.set(-pitch, yaw, 0, "YXZ"); g.add(c);
-    const W = .2, H = .32, D = .24;
-    P(new THREE.CylinderGeometry(.02, .02, .03, 12), stal, [0, 0, -.015], [Math.PI / 2, 0, 0], c);       // kulleden
-    { const b = roundBox(W, H, D, .016); P(b, svart, [0, 0, D / 2], null, c); }                          // lådan
-    const f = D + .002;
-    // baselementet: metallring, gummikant, membran och dammkåpa
-    P(new THREE.TorusGeometry(.079, .004, 6, 40), trim, [0, -.045, f], null, c);
-    P(new THREE.TorusGeometry(.068, .009, 8, 40), matt, [0, -.045, f - .004], null, c);
-    P(new THREE.CircleGeometry(.062, 40), { color: 0x19191a }, [0, -.045, f - .012], null, c);
-    { const cap = new THREE.SphereGeometry(.024, 20, 8, 0, Math.PI * 2, 0, Math.PI / 2); cap.rotateX(Math.PI / 2); cap.scale(1, 1, .45); P(cap, { color: 0x2a2a2b }, [0, -.045, f - .012], null, c); }
-    // diskanten i en grund vågledare
-    P(new THREE.CylinderGeometry(.046, .03, .012, 36, 1, true), matt, [0, .088, f - .005], [Math.PI / 2, 0, 0], c);
-    P(new THREE.CircleGeometry(.03, 32), matt, [0, .088, f - .011], null, c);
-    { const d = new THREE.SphereGeometry(.013, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2); d.rotateX(Math.PI / 2); P(d, { color: 0x77756f }, [0, .088, f - .011], null, c); }
-    P(new THREE.TorusGeometry(.047, .003, 6, 36), trim, [0, .088, f], null, c);
-    P(new THREE.BoxGeometry(.12, .014, .004), { color: 0x050505 }, [0, -.136, f - .001], null, c);       // basreflexporten
-    { const led = new THREE.Mesh(new THREE.CircleGeometry(.0035, 12), new THREE.MeshBasicMaterial({ color: 0xbfe9ff })); led.position.set(.072, -.136, f + .001); c.add(led); } // en liten lysdiod
+    let yaw = Math.atan2(dx, dz) - wy; yaw = clamp(Math.atan2(Math.sin(yaw), Math.cos(yaw)), -.6, .6);
+    const pitch = clamp(Math.atan2(dy, h), -.4, 0);
+    const yk = new THREE.Group(); yk.position.set(0, 0, .225); yk.rotation.y = yaw; g.add(yk);
+    P(new THREE.CylinderGeometry(.032, .032, .03, 20), stal, [0, 0, 0], [Math.PI / 2, 0, 0], yk);                // vridleden
+    const ax = W / 2 + .03, pz = .05 + D / 2;
+    P(new THREE.BoxGeometry(2 * ax + .03, .045, .03), stal, [0, 0, .02], null, yk);                              // okets rygg
+    for (const sx of [-1, 1]) { P(new THREE.BoxGeometry(.022, .06, pz + .02), stal, [sx * ax, 0, .02 + pz / 2], null, yk);
+      P(new THREE.CylinderGeometry(.03, .03, .018, 20), alu, [sx * (ax + .012), 0, pz], [0, 0, Math.PI / 2], yk); } // vredet på sidan
+    const c = new THREE.Group(); c.position.set(0, 0, pz); c.rotation.x = -pitch; yk.add(c);
+    // lådan: svart kropp, gavlar i valnöt, en något indragen front
+    P(roundBox(W - .04, H, D, .014), svart, [0, 0, 0], null, c);
+    for (const sx of [-1, 1]) P(worldUV(roundBox(.026, H + .006, D + .006, .008), .6), tra, [sx * (W / 2 - .013), 0, 0], null, c);
+    const f = D / 2;
+    P(roundBox(W - .05, H - .02, .012, .004), front, [0, 0, f - .002], null, c);
+    const fz = f + .005;
+    // baselementet: borstad ring, gummikant, konan i djup och dammkåpa
+    const wy0 = -.07;
+    P(new THREE.TorusGeometry(.118, .007, 8, 56), alu, [0, wy0, fz], null, c);
+    P(new THREE.TorusGeometry(.104, .013, 10, 56), front, [0, wy0, fz - .006], null, c);
+    { const cone = new THREE.CylinderGeometry(.095, .034, .04, 48, 1, true); cone.rotateX(-Math.PI / 2); P(cone, { color: 0x232325, side: THREE.DoubleSide }, [0, wy0, fz - .028], null, c); }
+    { const cap = new THREE.SphereGeometry(.036, 24, 10, 0, Math.PI * 2, 0, Math.PI / 2); cap.rotateX(Math.PI / 2); cap.scale(1, 1, .5); P(cap, { color: 0x2f2f31 }, [0, wy0, fz - .048], null, c); }
+    P(new THREE.TorusGeometry(.124, .0025, 6, 56), massing, [0, wy0, fz + .002], null, c);
+    // diskanten i en vågledare, med en mässingsring
+    const ty = .14;
+    P(new THREE.CylinderGeometry(.072, .04, .022, 48, 1, true), { color: 0x0e0e0f, side: THREE.DoubleSide }, [0, ty, fz - .01], [Math.PI / 2, 0, 0], c);
+    P(new THREE.CircleGeometry(.04, 32), front, [0, ty, fz - .021], null, c);
+    { const d = new THREE.SphereGeometry(.02, 20, 10, 0, Math.PI * 2, 0, Math.PI / 2); d.rotateX(Math.PI / 2); P(d, { color: 0x7d7a73 }, [0, ty, fz - .021], null, c); }
+    P(new THREE.TorusGeometry(.074, .003, 6, 48), massing, [0, ty, fz], null, c);
+    // två runda basportar längst ner och en liten lysdiod
+    for (const sx of [-1, 1]) { P(new THREE.TorusGeometry(.019, .004, 6, 24), alu, [sx * .055, -.205, fz], null, c); P(new THREE.CircleGeometry(.019, 24), { color: 0x030303 }, [sx * .055, -.205, fz - .002], null, c); }
+    { const led = new THREE.Mesh(new THREE.CircleGeometry(.004, 12), new THREE.MeshBasicMaterial({ color: 0xffd8a0 })); led.position.set(0, -.205, fz + .001); c.add(led); }
   }
   function buildCamera(x, y, z, yaw) {
     const g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = yaw; scene.add(g);

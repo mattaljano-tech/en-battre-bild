@@ -2503,9 +2503,9 @@ function useRoom(key) {
         this.every(this.bird, 1800, 6500);
       },
       berattelser(ctx) {
-        const wind = this.loop(this.brown, "bandpass", 520, .36, .6);
-        const lfo = ctx.createOscillator(), lg = ctx.createGain(); lfo.frequency.value = .05; lg.gain.value = .2; lfo.connect(lg); lg.connect(wind.gain); lfo.start(); this.amb._src.push(lfo);
-        this.loop(this.brown, "lowpass", 90, .26);
+        const wind = this.loop(this.brown, "bandpass", 520, .12, .6); // vinden genom hallen: svag, duvor, dropp och knarr har kvar sin volym
+        const lfo = ctx.createOscillator(), lg = ctx.createGain(); lfo.frequency.value = .05; lg.gain.value = .065; lfo.connect(lg); lg.connect(wind.gain); lfo.start(); this.amb._src.push(lfo);
+        this.loop(this.brown, "lowpass", 90, .085);
         this.every(this.pigeon, 7000, 16000); this.every(this.drip, 3500, 9000); this.every(this.creak, 12000, 25000);
       },
       manniskorna(ctx) { // stilla ateljé: stad långt borta, något som knarrar ibland

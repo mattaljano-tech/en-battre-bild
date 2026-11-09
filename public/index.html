@@ -2627,7 +2627,19 @@ function useRoom(key) {
       tour.anim = null; fadeEl.classList.add("on");
       setTimeout(() => { Object.assign(player, { x: v.x, z: v.z, yaw: v.yaw, pitch: v.pitch, eyeOff: v.eyeOff }); fadeEl.classList.remove("on"); }, reduceMotion ? 0 : 320);
     } else { let dy = v.yaw - player.yaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
-      tour.anim = { t: 0, T: clamp(Math.hypot(v.x - player.x, v.z - player.z) / 1.5, .9, 3.2), from: { x: player.x, z: player.z, yaw: player.yaw, pitch: player.pitch, eyeOff: player.eyeOff }, to: { x: v.x, z: v.z, yaw: player.yaw + dy, pitch: v.pitch, eyeOff: v.eyeOff } }; }
+      const dist = Math.hypot(v.x - player.x, v.z - player.z), from = { x: player.x, z: player.z, yaw: player.yaw, pitch: player.pitch, eyeOff: player.eyeOff };
+      // gå en båge ut i rummet i stället för rakt i sidled längs väggen, så att man ser rummet mellan bilderna
+      const R = walkRects().reduce((m, r) => (r.x1 - r.x0) * (r.z1 - r.z0) > (m.x1 - m.x0) * (m.z1 - m.z0) ? r : m);
+      const mx = (from.x + v.x) / 2, mz = (from.z + v.z) / 2, rx = (R.x0 + R.x1) / 2 - mx, rz = Math.max(R.z0 + 2, Math.min(R.z1 - 2, mz)) - mz, rl = Math.hypot(rx, rz);
+      let ctl = null;
+      for (const k of [Math.min(1.6, dist * .35), Math.min(.8, dist * .18), 0]) {
+        const c = k && rl > .3 ? { x: mx + rx / rl * k, z: mz + rz / rl * k } : { x: mx, z: mz }; let ok = true;
+        for (let i = 1; i < 24 && ok; i++) { const u = i / 24, a = (1 - u) * (1 - u), b = 2 * u * (1 - u), d = u * u; if (blocked(a * from.x + b * c.x + d * v.x, a * from.z + b * c.z + d * v.z)) ok = false; }
+        if (ok) { ctl = c; break; } }
+      if (!ctl) { tour.anim = null; fadeEl.classList.add("on");
+        setTimeout(() => { Object.assign(player, { x: v.x, z: v.z, yaw: v.yaw, pitch: v.pitch, eyeOff: v.eyeOff }); fadeEl.classList.remove("on"); }, 320); tourUI(); return; }
+      const look = dist > 1.1; // korta kliv: vrid bara direkt mot bilden
+      tour.anim = { t: 0, T: look ? clamp(dist / 1.25 + 1.1, 2.2, 5.5) : clamp(dist / 1.5, .9, 3.2), look, ctl, d1: null, from, to: { x: v.x, z: v.z, yaw: player.yaw + dy, pitch: v.pitch, eyeOff: v.eyeOff } }; }
     tourUI();
   }
   function tourNext() {
@@ -2658,7 +2670,7 @@ function useRoom(key) {
   // ?debug visar bildfrekvens, upplösning och grafikkort
   const dbg = /[?&]debug/.test(location.search) ? Object.assign(document.body.appendChild(document.createElement("div")), { style: "position:fixed;left:8px;top:40px;z-index:20;font:11px/1.4 monospace;color:#9fe;background:rgba(0,0,0,.6);padding:4px 6px;pointer-events:none;white-space:pre" }) : null;
   let dbgT = 0, dbgN = 0, gpuName = "?";
-  if (dbg) { window.__scene = scene; window.__cam = camera; window.__order = () => tourStops().map((st) => st.art.slot.key + "@" + st.v.x.toFixed(1) + "," + st.v.z.toFixed(1)); window.__dump = () => ({ key: currentKey, start: SPECS[currentKey].start, rects: walkRects(), arts: arts.filter((a) => PHOTOS[a.slot.key] && PHOTOS[a.slot.key].src).map((a) => ({ k: a.slot.key, C: a.slot.C.map((v) => +v.toFixed(2)), N: a.slot.N, w: +(a.w || 0).toFixed(2) })) }); }
+  if (dbg) { window.__scene = scene; window.__cam = camera; window.__pl = () => JSON.stringify({ x: +player.x.toFixed(2), z: +player.z.toFixed(2), yaw: +player.yaw.toFixed(2), pitch: +player.pitch.toFixed(2), eo: +player.eyeOff.toFixed(2), anim: !!tour.anim, locked }); window.__order = () => tourStops().map((st) => st.art.slot.key + "@" + st.v.x.toFixed(1) + "," + st.v.z.toFixed(1)); window.__dump = () => ({ key: currentKey, start: SPECS[currentKey].start, rects: walkRects(), arts: arts.filter((a) => PHOTOS[a.slot.key] && PHOTOS[a.slot.key].src).map((a) => ({ k: a.slot.key, C: a.slot.C.map((v) => +v.toFixed(2)), N: a.slot.N, w: +(a.w || 0).toFixed(2) })) }); }
   if (dbg) window.__setView = (v) => { player.x = v[0]; player.z = v[1]; player.yaw = v[2]; player.pitch = v[3] || 0; };
   try { const gl = renderer.getContext(), ext = gl.getExtension("WEBGL_debug_renderer_info"); if (ext) gpuName = gl.getParameter(ext.UNMASKED_RENDERER_WEBGL); } catch (e) {}
   function frame(now) {
@@ -2675,8 +2687,19 @@ function useRoom(key) {
       if (entered && !loading) {
         if (tour.anim && (walkTarget || ["KeyW", "KeyA", "KeyS", "KeyD", "ArrowUp", "ArrowDown"].some((k) => keys[k]))) tour.anim = null; // egen rörelse avbryter glidningen
         if (tour.anim) { const A = tour.anim; A.t = Math.min(1, A.t + Math.min(.25, raw / 1000) / A.T); const t = A.t, e = t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
-          const nx = A.from.x + (A.to.x - A.from.x) * e, nz = A.from.z + (A.to.z - A.from.z) * e, mv = Math.hypot(nx - player.x, nz - player.z);
-          player.x = nx; player.z = nz; player.yaw = A.from.yaw + (A.to.yaw - A.from.yaw) * e; player.pitch = A.from.pitch + (A.to.pitch - A.from.pitch) * e; player.eyeOff = A.from.eyeOff + (A.to.eyeOff - A.from.eyeOff) * e;
+          const qa = (1 - e) * (1 - e), qb = 2 * e * (1 - e), qc = e * e;
+          const nx = qa * A.from.x + qb * A.ctl.x + qc * A.to.x, nz = qa * A.from.z + qb * A.ctl.z + qc * A.to.z, mv = Math.hypot(nx - player.x, nz - player.z);
+          player.x = nx; player.z = nz;
+          if (A.look) { // vänd dig i gångriktningen, gå, och vänd dig mot bilden när du är framme
+            const sm = (a, b, x) => { const u = clamp((x - a) / (b - a), 0, 1); return u * u * (3 - 2 * u); };
+            const tx = 2 * (1 - e) * (A.ctl.x - A.from.x) + 2 * e * (A.to.x - A.ctl.x), tz = 2 * (1 - e) * (A.ctl.z - A.from.z) + 2 * e * (A.to.z - A.ctl.z);
+            const hd = Math.hypot(tx, tz) > 1e-4 ? Math.atan2(-tx, -tz) : A.from.yaw;
+            const raw1 = hd - A.from.yaw; A.d1 = A.d1 === null ? Math.atan2(Math.sin(raw1), Math.cos(raw1)) : A.d1 + Math.atan2(Math.sin(raw1 - A.d1), Math.cos(raw1 - A.d1));
+            const wa = sm(0, .32, t), wb = sm(.62, 1, t), y1 = A.from.yaw + A.d1 * wa;
+            player.yaw = y1 + Math.atan2(Math.sin(A.to.yaw - y1), Math.cos(A.to.yaw - y1)) * wb;
+            const p1 = A.from.pitch + (-.03 - A.from.pitch) * wa, o1 = A.from.eyeOff * (1 - wa);
+            player.pitch = p1 + (A.to.pitch - p1) * wb; player.eyeOff = o1 + (A.to.eyeOff - o1) * wb;
+          } else { player.yaw = A.from.yaw + (A.to.yaw - A.from.yaw) * e; player.pitch = A.from.pitch + (A.to.pitch - A.from.pitch) * e; player.eyeOff = A.from.eyeOff + (A.to.eyeOff - A.from.eyeOff) * e; }
           if (mv > 0) { bob += mv * 5.2; stepAcc += mv; if (stepAcc > .72) { stepAcc = 0; stepSide = -stepSide; Sound.step(stepSide); } }
           if (t >= 1) tour.anim = null; }
         let f = 0, s = 0;
@@ -2693,7 +2716,7 @@ function useRoom(key) {
         if (rcStart && Math.hypot(player.x - rcStart.x, player.z - rcStart.z) > 2.5) hideRoomCard();
         if (!tour.anim) for (const ex of exits) if (player.x > ex.x0 && player.x < ex.x1 && player.z > ex.z0 && player.z < ex.z1) { goRoom(ex.to); break; }
       }
-      if (entered && !locked && !isTouch && mouse && !drag && lb.hidden) {
+      if (entered && !locked && !isTouch && mouse && !drag && lb.hidden && !tour.on) {
         const nx = mouse.x / innerWidth * 2 - 1, ny = mouse.y / innerHeight * 2 - 1, E = .62;
         if (Math.abs(nx) > E) player.yaw -= Math.sign(nx) * Math.pow((Math.abs(nx) - E) / (1 - E), 1.5) * 1.9 * dt;
         if (Math.abs(ny) > .7) player.pitch = clamp(player.pitch - Math.sign(ny) * Math.pow((Math.abs(ny) - .7) / .3, 1.5) * .9 * dt, -.9, .9);

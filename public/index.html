@@ -92,6 +92,12 @@ button { font: inherit; }
 .tourbar .tbtns .chip { white-space: nowrap; }
 .tourbar .chip { justify-content: center; }
 .tourbar .chip:disabled { opacity: .35; cursor: default; }
+.roomcard { padding-top: 14px; border-top: 1px solid var(--line); background: linear-gradient(to top, rgba(6,8,8,.72), rgba(6,8,8,0)); }
+.roomcard .tbtns .chip { flex: 0 0 auto; }
+.roomcard kbd { font-family: var(--font-mono); font-size: 10px; opacity: .6; margin-left: 6px; }
+.where .rcopen { margin-top: 10px; }
+body.rc #where { visibility: hidden; }
+@media (max-width: 520px) { .roomcard .tbtns { flex-wrap: wrap; } .roomcard .tbtns .btn { flex: 1 1 100%; } .roomcard .tbtns .chip { flex: 1; } .roomcard kbd { display: none; } }
 .fade { position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none; transition: opacity .28s; z-index: 4; }
 .fade.on { opacity: 1; }
 .cross { left: 50%; top: 50%; width: 5px; height: 5px; margin: -2.5px 0 0 -2.5px; border-radius: 50%; background: var(--paper); opacity: .75; }
@@ -178,6 +184,7 @@ body.viewing #soundBtn { visibility: hidden; pointer-events: none; }
 <div class="ui where" id="where" hidden>
   <div class="room"><span id="roomNum">01</span><b id="roomName">Staden</b></div>
   <div id="hint"></div>
+  <button type="button" class="chip rcopen" id="rcOpen" hidden>Bilderna i rummet</button>
 </div>
 <div class="ui cross" id="cross" hidden></div>
 <div class="ui aim" id="aim" hidden></div>
@@ -194,6 +201,14 @@ body.viewing #soundBtn { visibility: hidden; pointer-events: none; }
     <button type="button" class="chip" id="tourPrev" aria-label="Föregående bild">←</button>
     <button type="button" class="btn" id="tourNext">Nästa bild →</button>
     <button type="button" class="chip" id="tourEnd">Avsluta ✕</button>
+  </div>
+</div>
+<div class="ui tourbar roomcard" id="roomCard" hidden role="region" aria-label="Välj hur du vill se rummet">
+  <div class="tinfo"><span class="troom" id="rcRoom"></span><b id="rcName"></b><span class="tcount" id="rcCount"></span></div>
+  <div class="tbtns">
+    <button type="button" class="btn" id="rcTour">Ta turen i rummet →<kbd>T</kbd></button>
+    <button type="button" class="chip" id="rcAll">Se alla bilder<kbd>B</kbd></button>
+    <button type="button" class="chip" id="rcClose">Gå själv ✕</button>
   </div>
 </div>
 <div class="fade" id="fade"></div>
@@ -2184,6 +2199,7 @@ function useRoom(key) {
     }
     if (loading || !SPECS[key] || (key === currentKey && !first)) return;
     loading = true; walkTarget = null; for (const k in keys) keys[k] = false; aimEl.hidden = true;
+    hideRoomCard(true); if (tour.on && tour.only) tourStop(true);
     const S = SPECS[key];
     $("ldEyebrow").textContent = S.eyebrow || ("En bättre bild · Rum " + S.num + " av 4"); $("ldName").textContent = S.name; progress(0, "Förbereder rummet…");
     loader.classList.remove("done");
@@ -2205,7 +2221,7 @@ function useRoom(key) {
     Sound.setRoom(key);
     roomReady = true; loading = false;
     setTimeout(() => loader.classList.add("done"), 200);
-    if (tour.on) tourEnter();
+    if (tour.on) tourEnter(); else if (entered) showRoomCard();
     return S;
   }
 
@@ -2395,6 +2411,7 @@ function useRoom(key) {
     if (e.code === "Escape") { if (!lb.hidden) closeLB(); else closePanel(); }
     if ((e.code === "KeyE" || e.code === "Enter") && lb.hidden) { const a = pickNDC(0, 0); if (a && a.art) openArt(a.art); else if (a && a.menu) openPanel(a.menu); else if (a && a.exit && a.dist < 6) goRoom(a.exit); }
     if (e.code === "KeyM") Sound.set(!Sound.on);
+    if (!tour.on && lb.hidden && panel.hidden && !loading && roomCount() && (e.code === "KeyT" || e.code === "KeyB") && !e.repeat) { if (e.code === "KeyT") roomTourStart(); else { hideRoomCard(); openPanel("rum"); } }
   });
   addEventListener("keyup", (e) => { keys[e.code] = false; });
   addEventListener("blur", () => { for (const k in keys) keys[k] = false; });
@@ -2498,6 +2515,14 @@ function useRoom(key) {
           bt.append(im, sp); bt.addEventListener("click", () => openPhoto(sl.key)); grid.append(bt); });
         const go = document.createElement("button"); go.type = "button"; go.className = "chip go"; go.textContent = "Gå till " + S.name + " →"; go.addEventListener("click", () => { closePanel(); goRoom(k); }); b.append(go);
       }
+    } else if (kind === "rum") {
+      const S = SPECS[currentKey]; head(S.num + " · " + S.name, S.name); para(S.sub + ". Tryck på en bild för att se den i full storlek.");
+      const tg = document.createElement("button"); tg.type = "button"; tg.className = "btn tourgo"; tg.textContent = "Ta turen i rummet →";
+      tg.addEventListener("click", () => { closePanel(); roomTourStart(); }); b.append(tg);
+      const grid = document.createElement("div"); grid.className = "grid"; b.append(grid);
+      S.slots.filter((sl) => PHOTOS[sl.key] && PHOTOS[sl.key].src).forEach((sl) => { const Ph = PHOTOS[sl.key], bt = document.createElement("button"); bt.type = "button";
+        const im = document.createElement("img"); im.src = Ph.src; im.alt = Ph.title; im.loading = "lazy"; const sp = document.createElement("span"); sp.textContent = Ph.title;
+        bt.append(im, sp); bt.addEventListener("click", () => openPhoto(sl.key)); grid.append(bt); });
     } else if (kind === "om") {
       head("Foajén · Om", "En bättre bild"); para("Fotografi i staden, i naturen och bilder som bär en berättelse.");
       para("Här kommer din presentation: vem du är, hur du arbetar och vad du helst fotograferar. Skicka texten så lägger jag in den.", "placeholder");
@@ -2521,7 +2546,7 @@ function useRoom(key) {
     $("cross").hidden = !locked;
   }
   function enter(withSound) {
-    entered = true; $("intro").classList.add("gone"); $("where").hidden = false; $("rooms").hidden = false; updateHint();
+    entered = true; $("intro").classList.add("gone"); $("where").hidden = false; $("rooms").hidden = false; updateHint(); if (roomReady && !loading) showRoomCard();
     if (withSound) Sound.set(true);
     setTimeout(() => { $("intro").hidden = true; }, 800);
   }
@@ -2531,7 +2556,7 @@ function useRoom(key) {
   addEventListener("hashchange", () => { const k = location.hash.slice(1); if (SPECS[k] && k !== currentKey) goRoom(k); });
 
   /* ================= guidad tur: från bild till bild genom alla rum ================= */
-  const tour = { on: false, stops: [], i: -1, anim: null };
+  const tour = { on: false, stops: [], i: -1, anim: null, only: null }; // only: turen gäller bara det här rummet
   const tourEl = $("tour"), fadeEl = $("fade");
   function segClear(ax, az, bx, bz) { const n = Math.ceil(Math.hypot(bx - ax, bz - az) / .2); for (let k = 1; k < n; k++) { const t = k / n; if (blocked(ax + (bx - ax) * t, az + (bz - az) * t)) return false; } return true; }
   // var man ska stå för att se en bild: rakt framför, på ett avstånd som passar bildens storlek
@@ -2563,12 +2588,29 @@ function useRoom(key) {
       const st = list.splice(bi, 1)[0]; out.push(st); cx = st.v.x; cz = st.v.z; }
     return out;
   }
-  function tourStart() { unlock(); tour.on = true; tour.stops = []; tour.i = -1; goRoom("staden"); }
-  function tourStop() { tour.on = false; tour.anim = null; tourEl.hidden = true; if (entered) { $("where").hidden = false; $("rooms").hidden = false; } }
-  function tourEnter() {
+  function tourStart() { unlock(); hideRoomCard(true); tour.on = true; tour.only = null; tour.stops = []; tour.i = -1; goRoom("staden"); }
+  function tourStop(quiet) { tour.on = false; tour.only = null; tour.anim = null; tourEl.hidden = true; if (entered) { $("where").hidden = false; $("rooms").hidden = false; } if (!quiet) syncRcOpen(); }
+  // bara det här rummet: samma tur, men den slutar vid rummets sista bild
+  function roomTourStart() { if (loading || currentKey === "foajen") return; unlock(); hideRoomCard(true); tour.on = true; tour.only = currentKey; tourEnter(true); }
+
+  /* ================= rumskortet: välj tur eller alla bilder när man kommer in i ett rum ================= */
+  const rcEl = $("roomCard"); let rcStart = null;
+  const roomCount = () => currentKey && currentKey !== "foajen" && SPECS[currentKey] ? SPECS[currentKey].slots.filter((sl) => PHOTOS[sl.key] && PHOTOS[sl.key].src).length : 0;
+  function syncRcOpen() { $("rcOpen").hidden = !entered || tour.on || !rcEl.hidden || !roomCount(); }
+  function showRoomCard() {
+    const n = roomCount(); if (!n || tour.on) { syncRcOpen(); return; }
+    const S = SPECS[currentKey]; $("rcRoom").textContent = S.num + "  " + S.name; $("rcName").textContent = S.sub; $("rcCount").textContent = n + (n === 1 ? " bild" : " bilder");
+    rcEl.hidden = false; document.body.classList.add("rc"); $("rooms").hidden = true; rcStart = { x: player.x, z: player.z }; syncRcOpen();
+  }
+  function hideRoomCard(quiet) { if (rcEl.hidden) return; rcEl.hidden = true; document.body.classList.remove("rc"); rcStart = null; if (entered && !tour.on) $("rooms").hidden = false; if (!quiet) syncRcOpen(); }
+  $("rcTour").addEventListener("click", (e) => { e.currentTarget.blur(); roomTourStart(); });
+  $("rcAll").addEventListener("click", (e) => { e.currentTarget.blur(); hideRoomCard(); openPanel("rum"); });
+  $("rcClose").addEventListener("click", (e) => { e.currentTarget.blur(); hideRoomCard(); canvas.focus({ preventScroll: true }); });
+  $("rcOpen").addEventListener("click", (e) => { e.currentTarget.blur(); showRoomCard(); });
+  function tourEnter(now) {
     if (currentKey === "foajen") { tourStop(); return; }
     tour.stops = tourStops(); tour.i = -1; tour.anim = null; tourUI();
-    if (tour.stops.length) setTimeout(() => { if (tour.on && tour.i < 0) tourGo(0); }, reduceMotion ? 300 : 1000);
+    if (tour.stops.length) setTimeout(() => { if (tour.on && tour.i < 0) tourGo(0); }, now ? 60 : reduceMotion ? 300 : 1000);
   }
   function tourGo(i) {
     if (!tour.stops.length) return;
@@ -2584,6 +2626,7 @@ function useRoom(key) {
     if (loading) return;
     if (tour.i < tour.stops.length - 1) { tourGo(tour.i + 1); return; }
     const nx = SPECS[currentKey].next; tour.anim = null;
+    if (tour.only) { const S = SPECS[currentKey]; tourStop(); toast("Det var alla bilder i " + S.name + ". Gå vidare själv eller välj ett rum nere till höger."); return; }
     if (!nx || nx === "foajen") { tourStop(); goRoom("foajen"); setTimeout(() => toast("Det var hela vernissagen. Tack för att du tittade!"), 1400); }
     else goRoom(nx);
   }
@@ -2595,11 +2638,11 @@ function useRoom(key) {
     $("tourTitle").textContent = !n ? "Inga bilder här ännu" : tour.i >= 0 ? PHOTOS[tour.stops[tour.i].art.slot.key].title : "";
     $("tourCount").textContent = n && tour.i >= 0 ? (tour.i + 1) + " / " + n : "";
     $("tourPrev").disabled = tour.i <= 0;
-    $("tourNext").textContent = n && !last ? "Nästa bild →" : S.next === "foajen" ? "Avsluta turen →" : "Nästa: " + SPECS[S.next].name + " →";
+    $("tourNext").textContent = n && !last ? "Nästa bild →" : tour.only ? "Klar ✓" : S.next === "foajen" ? "Avsluta turen →" : "Nästa: " + SPECS[S.next].name + " →";
   }
   $("tourNext").addEventListener("click", (e) => { e.currentTarget.blur(); tourNext(); });
   $("tourPrev").addEventListener("click", (e) => { e.currentTarget.blur(); tourPrev(); });
-  $("tourEnd").addEventListener("click", () => { tourStop(); toast("Turen är avslutad. Gå runt fritt, eller välj ett rum nere till höger."); });
+  $("tourEnd").addEventListener("click", () => { const only = tour.only; tourStop(); if (only) return; toast("Turen är avslutad. Gå runt fritt, eller välj ett rum nere till höger."); });
 
   /* ================= loop ================= */
   let last = performance.now();
@@ -2639,6 +2682,7 @@ function useRoom(key) {
         if (dz && !blocked(player.x, player.z + dz)) { player.z += dz; moved += Math.abs(dz); } else if (dz && walkTarget) walkTarget = null;
         if (player.eyeOff && !tour.anim && (moved > 0 || !tour.on)) { player.eyeOff *= Math.exp(-dt * 3); if (Math.abs(player.eyeOff) < .005) player.eyeOff = 0; } // går man själv sjunker blicken tillbaka
         if (moved > 0) { bob += moved * 5.2; stepAcc += moved; if (stepAcc > .72) { stepAcc = 0; stepSide = -stepSide; Sound.step(stepSide); } }
+        if (rcStart && Math.hypot(player.x - rcStart.x, player.z - rcStart.z) > 2.5) hideRoomCard();
         if (!tour.anim) for (const ex of exits) if (player.x > ex.x0 && player.x < ex.x1 && player.z > ex.z0 && player.z < ex.z1) { goRoom(ex.to); break; }
       }
       if (entered && !locked && !isTouch && mouse && !drag && lb.hidden) {

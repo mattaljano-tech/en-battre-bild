@@ -2928,8 +2928,10 @@ function useRoom(key) {
   }
   // var man ska stå: rakt framför bilden på ett avstånd som passar storleken, där man kan stå och ser bilden fritt
   function viewFor(art) {
-    const C = art.slot.C, N = art.slot.N, size = Math.max(art.w || 1, art.h || 1), ideal = clamp(size * 1.3 + .7, 2, 4.4);
-    const ds = []; for (let d = 1.2; d <= 7; d += .15) ds.push(d); ds.sort((a, b) => Math.abs(a - ideal) - Math.abs(b - ideal));
+    const C = art.slot.C, N = art.slot.N, fw = (art.w || 1) + .26, fh = (art.h || 1) + .26; // bilden med ram
+    // avståndet där bilden med ram fyller ungefär 70 % av skärmen, oavsett om det är en bred skärm eller en stående mobil
+    const tv = Math.tan(camera.fov * Math.PI / 360), th = tv * camera.aspect, ideal = clamp(Math.max(fw / 2 / (th * .7), fh / 2 / (tv * .7)), 1.1, 5.5);
+    const ds = []; for (let d = 1.0; d <= 7; d += .1) ds.push(d); ds.sort((a, b) => Math.abs(a - ideal) - Math.abs(b - ideal));
     let best = null;
     for (const d of ds) { const x = C[0] + N[0] * d, z = C[2] + N[2] * d; if (!blocked(x, z) && canSee(x, z, C, N)) { best = { x, z }; break; } }
     if (!best) { const c = clampWalk(C[0] + N[0] * ideal, C[2] + N[2] * ideal); best = { x: c.x, z: c.z }; }

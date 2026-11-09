@@ -657,7 +657,7 @@ function manSDF(x, y, z) {
   return d;
 }
 const MAN_SOFT = [[-1.9, 2.05, -13.2], [1.9, 2.05, -13.2]], MAN_STOOL = [0, 1.2, -14.3];
-const MAN_LOUNGE = { x: 0, z: -6.6, lampY: 2.75 }, MAN_PENDANTS = [[-.42, 1.5], [.42, 1.88]]; // [x, underkant på glaskupan] // soffgruppen mitt i rummet
+const MAN_LOUNGE = { x: 0, z: -6.6, lampY: 2.75 }, MAN_PENDANTS = [0, 1, 2].map((i) => { const a = Math.PI / 2 + i * 2 * Math.PI / 3; return [Math.cos(a) * .4, Math.sin(a) * .4, [1.42, 1.78, 2.12][i]]; }); // tre i en cirkel: [x, z, underkant på glaskupan] // soffgruppen mitt i rummet
 const SUNM = (() => { const v = [-.82, .62, .22], l = Math.hypot(...v); return v.map((c) => c / l); })(); // mot solen, utanför västra fönstren
 function manSunGate(px, py, pz) {
   if (pz > 0 || px <= -MAN.X + .01) return 0;
@@ -679,7 +679,7 @@ function manLights() {
   // softboxarna i fotohörnan
   // softboxarna: mjukt, starkt ljus som faller på pallen och bakgrundspappret, med pallens skugga
   for (const p of MAN_SOFT) addSpot(p, [MAN_STOOL[0], .66, MAN_STOOL[2]], .62, 1.8, [1, .97, .92], { hard: false, k: 8, bounce: .12, fx: "none", only: inMR });
-  for (const [dx, y] of MAN_PENDANTS) addPoint([MAN_LOUNGE.x + dx, y + .14, MAN_LOUNGE.z], .42, COL.tung, 5, .02, { only: inMR }); // pendlarna över soffbordet
+  for (const [dx, dz, y] of MAN_PENDANTS) addPoint([MAN_LOUNGE.x + dx, y + .14, MAN_LOUNGE.z + dz], .34, COL.tung, 5, .02, { only: inMR }); // pendlarna över soffbordet
   for (const sx of [-1.6, 1.6]) addPoint([sx, 2.45, -.28], .3, COL.tung, 3.5, .015, { only: inMR }); // vägglamporna vid dörren
   addTube([0, 2.74, 2.4], 3.0, .8, [1, .8, .58], { only: inMC });
   addPoint([0, 2.0, 4.25], .45, [1, .76, .5], 4, .02, { only: inMC });
@@ -2222,9 +2222,9 @@ function useRoom(key) {
     // soffan vänd mot bordet, två fåtöljer på andra sidan
     // riktiga möbler: en soffa mot bordet och två fåtöljer på andra sidan (faller tillbaka på de enkla om modellerna saknas)
     // fyra fåtöljer två och två mot varandra, lätt vinklade in mot bordet
-    for (const [dx, dz, yaw] of [[-.75, -1.45, .48], [.75, -1.45, -.48], [-.75, 1.45, Math.PI - .48], [.75, 1.45, Math.PI + .48]]) {
-      if (!placeModel("fatolj", [lx + dx, 0, lz + dz], yaw, { w: .85, id: "chair" + dx + dz, shadow: true })) leatherSeat(lx + dx, lz + dz, yaw, .98, 1, leather, "chair" + dx + dz);
-      colliders.push({ x0: lx + dx - .45, x1: lx + dx + .45, z0: lz + dz - .45, z1: lz + dz + .45 }); }
+    for (const [dx, dz, yaw] of [[-.88, -1.62, .48], [.88, -1.62, -.48], [-.88, 1.62, Math.PI - .48], [.88, 1.62, Math.PI + .48]]) {
+      if (!placeModel("fatolj", [lx + dx, 0, lz + dz], yaw, { w: 1.06, id: "chair" + dx + dz, shadow: true })) leatherSeat(lx + dx, lz + dz, yaw, .98, 1, leather, "chair" + dx + dz);
+      colliders.push({ x0: lx + dx - .55, x1: lx + dx + .55, z0: lz + dz - .55, z1: lz + dz + .55 }); }
     // soffbordet i industristil, med böcker
     const tb = placeModel("bord", [lx, 0, lz], 0, { h: .46, stretch: 1.9, id: "ctable", shadow: true });
     colliders.push({ x0: lx - .8, x1: lx + .8, z0: lz - .35, z1: lz + .35 });
@@ -2232,8 +2232,8 @@ function useRoom(key) {
       prop(new THREE.BoxGeometry(w, h, d), { color: col }, new V3(lx - .3, y + h / 2, lz + .05), [0, rot, 0], { id: "books" }); return y + h; }, tb.top);
     // en gammal ljuskrona i kätting från taket ovanför soffbordet
     // två moderna pendlar i glas, lågt och i olika höjd över soffbordet
-    for (const [dx, y] of MAN_PENDANTS) { const pl = placeModel("pendel", [lx + dx, y, lz], 0, { h: .95, cutAbove: .545, glass: /glass/, glassCol: [1.4, 1.25, 1.05], glow: /globe/, glowCol: [5, 3.6, 2] });
-      if (pl) rodProp([lx + dx, pl.top - .01, lz], [lx + dx, MAN.H, lz], .004, 0x111111); }
+    for (const [dx, dz, y] of MAN_PENDANTS) { const pl = placeModel("pendel", [lx + dx, y, lz + dz], 0, { h: .95, cutAbove: .545, glass: /glass/, glassCol: [1.4, 1.25, 1.05], glow: /globe/, glowCol: [5, 3.6, 2] });
+      if (pl) rodProp([lx + dx, pl.top - .01, lz + dz], [lx + dx, MAN.H, lz + dz], .004, 0x111111); }
   }
   const BUILD = { foajen: buildFoajen, staden: buildStaden, naturen: buildNaturen, berattelser: buildHall, manniskorna: buildManniskorna };
 

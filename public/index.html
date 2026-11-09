@@ -886,7 +886,7 @@ function useRoom(key) {
   }
   function T(c, srgb, repeat) { const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = repeat === false ? THREE.ClampToEdgeWrapping : THREE.RepeatWrapping; if (srgb !== false) t.encoding = THREE.sRGBEncoding; t.anisotropy = maxAniso; return t; }
   /* ---------- fotograferade material (Poly Haven, CC0): färg, ytstruktur (normal) och skugga i skrymslen (AO) ---------- */
-  const MATDEF = { betong: ["concrete_wall_008", 3], betong6: ["concrete_wall_006", 3], sten: ["coastal_cliff_04", 1.2], grus: ["ganges_river_pebbles", .9], betonggolv: ["concrete_floor_03", 2.6], garage: ["garage_floor", 3], puts: ["plastered_wall", 2.6],
+  const MATDEF = { betong: ["concrete_wall_008", 3], betong6: ["concrete_wall_006", 3], betonggolv: ["concrete_floor_03", 2.6], garage: ["garage_floor", 3], puts: ["plastered_wall", 2.6],
     tegel: ["red_bricks_04", 2.2], tra: ["wood_floor_worn", 2.2], rost: ["rusty_metal_03", 2], element: ["precast_concrete_wall", 3], tegelputs: ["plaster_brick_pattern", 2.4],
     lader: ["fabric_leather_02", 1], matta: ["dirty_carpet", 1.2], plat: ["rusty_corrugated_iron", 2], rost2: ["rusty_metal_05", 1.6], panel: ["rusty_metal_grid", 1.8], slitputs: ["damaged_plaster", 3.2], kalk: ["plaster_brick_pattern", 2.4], mork: ["beige_wall_001", 2.6], radtegel: ["brick_wall_001", 2.2], morktra: ["dark_wood", 2.4] };
   const MATTEX = {};
@@ -1419,25 +1419,11 @@ function useRoom(key) {
     if (MODELS[k]) { // krukväxt från Poly Haven: ljuset mäts nere vid krukan och uppe i bladen
       const hh = k === "vaxt1" ? 1.95 : 1.32, sh = (y) => shade(x, y, z, 0, 1, 0, null), lo = sh(.3), hi = sh(hh);
       placeModel(k, [x, 0, z], seed * 1.7, { h: hh, flat: { y0: .1, y1: hh, lo, hi }, flatOnly: /leaves|stem/ }); // ingen lådskugga i bakningen: bara den runda skuggan nedan
-      if (!plantShadowTex) plantShadowTex = T(radial([[0, "rgba(0,0,0,.62)"], [.45, "rgba(0,0,0,.38)"], [1, "rgba(0,0,0,0)"]], 128), false, false);
-      const shadowDisc = (sz, y, a) => { const sm = new THREE.Mesh(new THREE.PlaneGeometry(sz, sz), new THREE.MeshBasicMaterial({ map: plantShadowTex, transparent: true, opacity: a, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 }));
-        sm.rotation.x = -Math.PI / 2; sm.position.set(x, y, z); scene.add(sm); };
-      shadowDisc(2.1, .004, .8);                                                       // mjuk skugga under hela bädden
-      // en bädd av runda flodstenar runt krukan
-      const R = k === "vaxt1" ? .62 : .55, pr = rng(seed * 31 + 7);
-      if (MATTEX.grus && MATTEX.grus.diff.image) { const dg = new THREE.CylinderGeometry(R, R + .03, .05, 44, 1), uv = dg.attributes.uv, pa = dg.attributes.position;
-        for (let i = 0; i < pa.count; i++) uv.setXY(i, (pa.getX(i) + R) / .9, (pa.getZ(i) + R) / .9); // ovansidan: stenarna i rätt storlek
-        prop(dg, { color: new THREE.Color(1.3, 1.28, 1.25), map: MATTEX.grus.diff }, new V3(x, .025, z), null, { id: "plantbed" + seed, shadow: false }); }
-      shadowDisc(k === "vaxt1" ? .95 : .8, .052, .7);                                   // krukans skugga på stenbädden
-      // en ram av oregelbundna stenblock runt bädden
-      if (MATTEX.sten && MATTEX.sten.diff.image) { const n = 13;
-        for (let i = 0; i < n; i++) { const a = (i + pr() * .35) / n * Math.PI * 2, rr = R + .04 + pr() * .03, s0 = .1 + pr() * .055;
-          const g = new THREE.IcosahedronGeometry(s0, 2), q = g.attributes.position, A = [pr() - .5, pr() - .5, pr() - .5], B = [pr() - .5, pr() - .5, pr() - .5];
-          for (let v = 0; v < q.count; v++) { const X = q.getX(v) / s0, Y = q.getY(v) / s0, Z = q.getZ(v) / s0, da = X * A[0] + Y * A[1] + Z * A[2], db = X * B[0] + Y * B[1] + Z * B[2];
-            const f = .92 + .3 * da + .35 * db * db; q.setXYZ(v, q.getX(v) * f * 1.3, q.getY(v) * f * .6, q.getZ(v) * f); } // runda, släta stenar
-          g.computeVertexNormals(); worldUV(g, .45);
-          prop(g, { color: new THREE.Color(1.75, 1.75, 1.85), map: MATTEX.sten.diff }, new V3(x + Math.cos(a) * rr, s0 * .42, z + Math.sin(a) * rr), [pr() * .4, -a, pr() * .3], { id: "plantstone" + seed, shadow: false }); } }
-      colliders.push({ x0: x - .8, x1: x + .8, z0: z - .8, z1: z + .8 }); return; }
+      { // mjuk kontaktskugga under krukan
+        if (!plantShadowTex) plantShadowTex = T(radial([[0, "rgba(0,0,0,.62)"], [.45, "rgba(0,0,0,.38)"], [1, "rgba(0,0,0,0)"]], 128), false, false);
+        const sm = new THREE.Mesh(new THREE.PlaneGeometry(1.35, 1.35), new THREE.MeshBasicMaterial({ map: plantShadowTex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 }));
+        sm.rotation.x = -Math.PI / 2; sm.position.set(x, .004, z); scene.add(sm); }
+      colliders.push({ x0: x - .35, x1: x + .35, z0: z - .35, z1: z + .35 }); return; }
     if (!leafTexC) leafTexC = T(leafCanvas(), true, false);
     prop(new THREE.CylinderGeometry(.3, .24, .55, 28, 2), { color: 0x8f8b84 }, new V3(x, .275, z), null, { collide: true });
     const pr = rng(seed);

@@ -1420,8 +1420,9 @@ function useRoom(key) {
       const hh = k === "vaxt1" ? 1.95 : 1.32, sh = (y) => shade(x, y, z, 0, 1, 0, null), lo = sh(.3), hi = sh(hh);
       placeModel(k, [x, 0, z], seed * 1.7, { h: hh, flat: { y0: .1, y1: hh, lo, hi }, flatOnly: /leaves|stem/ }); // ingen lådskugga i bakningen: bara den runda skuggan nedan
       { // mjuk kontaktskugga under krukan
-        if (!plantShadowTex) plantShadowTex = T(radial([[0, "rgba(0,0,0,.62)"], [.45, "rgba(0,0,0,.38)"], [1, "rgba(0,0,0,0)"]], 128), false, false);
-        const sm = new THREE.Mesh(new THREE.PlaneGeometry(1.35, 1.35), new THREE.MeshBasicMaterial({ map: plantShadowTex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 }));
+        // mörk precis under krukan, sedan en mjuk övergång ut mot golvet
+        if (!plantShadowTex) plantShadowTex = T(radial(Array.from({ length: 17 }, (_, i) => { const t = i / 16, a = t < .3 ? .88 - t * .4 : .76 * Math.exp(-Math.pow((t - .3) / .3, 2) * 2.2); return [t, "rgba(0,0,0," + (t >= 1 ? 0 : a).toFixed(3) + ")"]; }), 256), false, false);
+        const sm = new THREE.Mesh(new THREE.PlaneGeometry(k === "vaxt1" ? 2.0 : 1.75, k === "vaxt1" ? 2.0 : 1.75), new THREE.MeshBasicMaterial({ map: plantShadowTex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 }));
         sm.rotation.x = -Math.PI / 2; sm.position.set(x, .004, z); scene.add(sm); }
       colliders.push({ x0: x - .35, x1: x + .35, z0: z - .35, z1: z + .35 }); return; }
     if (!leafTexC) leafTexC = T(leafCanvas(), true, false);

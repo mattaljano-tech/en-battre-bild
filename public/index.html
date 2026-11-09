@@ -466,7 +466,7 @@ function standSlots(room, size, o) {
    Hela östra långväggen är industriglas från taket ner till en låg betongbröstning, och utanför ligger staden i dagsljus.
    En neonskylt, CITYVIBE, står på golvet lutad mot glaset. En liten ståltrappa med fyra steg leder upp till en dörr vidare.
    x: tvärs (väggarna x=±6, glaset x=+6), z: längs (ingången z=0, bortre väggen z=-22), takhöjd 5,4 m. */
-const REGN = /[?&]regn/.test(location.search); // förhandsvisning: regnig dag utanför Staden
+const REGN = !/[?&]sol/.test(location.search); // det regnar utanför Staden (?sol visar soligt väder)
 const CV = { X: 6, L: 22, H: 5.4, PIL: [[-2.9, -7.3], [2.9, -7.3], [-2.9, -14.6], [2.9, -14.6]], PW: .56,
   WIN: { y0: 1.1, y1: 5.25, PZ: 1.1 }, ST: { x: 0, z0: -20.1, run: .3, rise: .18 }, DOOR: { x: 0, w: 1.05, h: 2.15 },
   NEON: { x: 5.55, z: -11, w: 3.4, h: .95 }, LAMPS: [-4.2, -17.6] };
@@ -757,7 +757,7 @@ const SPECS = {
     look: { mirror: { mat: "garage", k: .24 }, fog: 0x0a0a09, density: .006, bg: 0x050505, exposure: 1.25, bloom: .4, thr: 1.6 }, step: 520, wet: .35,
     slots: foySlots() }
 };
-if (REGN) Object.assign(SPECS.staden.look, { fog: 0x8c949b, bg: 0x8c949b, density: .011, exposure: 1.08, bloom: .35, thr: 1.6 });
+if (REGN) Object.assign(SPECS.staden.look, { fog: 0x464d53, bg: 0x464d53, density: .011, exposure: 1.08, bloom: .35, thr: 1.6 });
 const ROOM_ORDER = ["foajen", "staden", "naturen", "berattelser", "manniskorna"];
 function useRoom(key) {
   const S = SPECS[key]; OBJ = []; LIGHTS = []; SOLIDS = S.solids || []; SDF = S.sdf; AMBF = S.amb;
@@ -2067,7 +2067,7 @@ function useRoom(key) {
       const street = new THREE.Mesh(new THREE.PlaneGeometry(80, 120), m(0x7d7b76)); street.rotation.x = -Math.PI / 2; street.position.set(46, -12, -10); scene.add(street); }
     // himlen: ljus dis vid horisonten, blå uppåt
     const sg = new THREE.SphereGeometry(66, 32, 16), pc = sg.attributes.position, cols = new Float32Array(pc.count * 3);
-    for (let i = 0; i < pc.count; i++) { const t = clamp(pc.getY(i) / 66, 0, 1), k = Math.pow(t, .6); cols[i * 3] = REGN ? .62 - .16 * k : .84 * (1 - k) + .5 * k; cols[i * 3 + 1] = REGN ? .65 - .15 * k : .87 * (1 - k) + .64 * k; cols[i * 3 + 2] = REGN ? .69 - .13 * k : .9 * (1 - k) + .84 * k; }
+    for (let i = 0; i < pc.count; i++) { const t = clamp(pc.getY(i) / 66, 0, 1), k = Math.pow(t, .6); cols[i * 3] = REGN ? .33 - .1 * k : .84 * (1 - k) + .5 * k; cols[i * 3 + 1] = REGN ? .355 - .1 * k : .87 * (1 - k) + .64 * k; cols[i * 3 + 2] = REGN ? .385 - .09 * k : .9 * (1 - k) + .84 * k; }
     sg.setAttribute("color", new THREE.BufferAttribute(cols, 3));
     scene.add(new THREE.Mesh(sg, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, fog: false, depthWrite: false })));
     return (now) => { const t = now / 1000 * .09; // flocken drar en stor slinga långt bort, vingarna slår ibland
@@ -2111,7 +2111,7 @@ function useRoom(key) {
     const cols = Math.round(L / W.PZ), steel = 0x1b1d1d;
     for (let i = 0; i <= cols; i++) prop(new THREE.BoxGeometry(.07, W.y1 - W.y0, i % 5 === 0 ? .14 : .05, 1, 8, 1), { color: steel }, new V3(X - .03, (W.y0 + W.y1) / 2, -i * W.PZ), null, { shadow: false });
     for (let j = 0; j <= 5; j++) prop(new THREE.BoxGeometry(.07, j % 5 === 0 ? .12 : .045, L, 1, 1, 60), { color: steel }, new V3(X - .03, W.y0 + j * W.PY, -L / 2), null, { shadow: false });
-    { const g = new THREE.Mesh(new THREE.PlaneGeometry(L, W.y1 - W.y0), new THREE.MeshBasicMaterial({ map: T(glassCanvas(L, W.y1 - W.y0, cols, 5), true, false), color: 0xffffff, transparent: true, depthWrite: false, side: THREE.DoubleSide }));
+    { const g = new THREE.Mesh(new THREE.PlaneGeometry(L, W.y1 - W.y0), new THREE.MeshBasicMaterial({ map: T(glassCanvas(L, W.y1 - W.y0, cols, 5), true, false), color: REGN ? 0x6a7076 : 0xffffff, transparent: true, depthWrite: false, side: THREE.DoubleSide }));
       g.position.set(X, (W.y0 + W.y1) / 2, -L / 2); g.rotation.y = -Math.PI / 2; scene.add(g); }
     const cityTick0 = buildCity(), rain = REGN ? buildRain(X, L, W) : null;
     const cityTick = (now, dt) => { cityTick0(now, dt); if (rain) rain(now, dt); };

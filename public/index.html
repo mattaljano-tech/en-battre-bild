@@ -933,8 +933,8 @@ function useRoom(key) {
     const tex = T(c); t.diff = tex;
   }
   /* ---------- 3D-modeller (Poly Haven, CC0): laddas en gång, ljuset bakas in som för övriga föremål ---------- */
-  const MODELS = {}, MODEL_FILES = { bord: "industrial_coffee_table", bur: "caged_hanging_light", vagg: "industrial_wall_sconce", pall: "metal_stool_03", vaxt1: "potted_plant_01", vaxt2: "potted_plant_02", fasad: "modular_urban_apartments_facade", ac: "exterior_aircon_unit", brandtrappa: "modular_fire_escape", ror: "modular_industrial_pipes_01", hylla: "worn_metal_rack", fatolj: "mid_century_lounge_chair", pendel: "modern_ceiling_lamp_01", bilar: "bilar", tegelhus: "tegelhus", betonghus: "betonghus", butikshus: "butikshus" };
-  const ROOM_MODELS = { staden: ["bur", "fasad", "ac", "brandtrappa"], berattelser: ["hylla", "ror"], naturen: ["vaxt1", "vaxt2"], foajen: GATA ? ["vaxt1", "vaxt2", "fasad", "ac", "brandtrappa", "bilar", "tegelhus", "betonghus", "butikshus"] : ["vaxt1", "vaxt2"], manniskorna: ["bord", "vagg", "pall", "fatolj", "pendel"] };
+  const MODELS = {}, MODEL_FILES = { bord: "industrial_coffee_table", bur: "caged_hanging_light", vagg: "industrial_wall_sconce", pall: "metal_stool_03", vaxt1: "potted_plant_01", vaxt2: "potted_plant_02", fasad: "modular_urban_apartments_facade", ac: "exterior_aircon_unit", brandtrappa: "modular_fire_escape", ror: "modular_industrial_pipes_01", hylla: "worn_metal_rack", fatolj: "mid_century_lounge_chair", pendel: "modern_ceiling_lamp_01", bilar: "bilar", tegelhus: "tegelhus", betonghus: "betonghus", butikshus: "butikshus", lyktor: "lyktor", gatuprylar: "gatuprylar" };
+  const ROOM_MODELS = { staden: ["bur", "fasad", "ac", "brandtrappa"], berattelser: ["hylla", "ror"], naturen: ["vaxt1", "vaxt2"], foajen: GATA ? ["vaxt1", "vaxt2", "fasad", "ac", "brandtrappa", "bilar", "tegelhus", "betonghus", "butikshus", "lyktor", "gatuprylar"] : ["vaxt1", "vaxt2"], manniskorna: ["bord", "vagg", "pall", "fatolj", "pendel"] };
   function loadModels(keys) {
     if (!THREE.GLTFLoader) return Promise.resolve(); const L = new THREE.GLTFLoader();
     return Promise.all(keys.filter((k) => !MODELS[k]).map((k) => new Promise((res) => { const f = MODEL_FILES[k];
@@ -1805,7 +1805,7 @@ function useRoom(key) {
   }
   /* ---------- gatan utanför foajén (?gata): samma värld inifrån och utifrån ----------
      Foajéns glasentré sitter i fasaden mot en regnig gata i skymningen. Gatan går längs x, ut från huset är +z. */
-  const STR = { FZ: .35, CURB: 5.0, ROAD1: 13.2, OPP: 16.8, XR: isTouch ? 27 : 39 };
+  const STR = { FZ: .35, CURB: 5.0, ROAD1: 13.2, OPP: 16.8, XR: 21, CW: 9 }; // XR: där kvarteret slutar; sedan en tvärgata (CW bred) och husen på andra sidan den
   let streetExt = null;
   // entrén som riktiga delar (inte bakade): stålprofiler, glas och två dörrblad som kan svänga upp, och en rullgardin som hänger nere medan rummet byggs
   function glassEntranceGata() {
@@ -1852,7 +1852,7 @@ function useRoom(key) {
     const r = rng(404), XR = STR.XR, FZ = STR.FZ, CURB = STR.CURB, R1 = STR.ROAD1, OPP = STR.OPP, RY = -.14;
     const HZ = { value: new THREE.Color(.105, .12, .145) };
     const sm = (o) => { const m = new THREE.MeshBasicMaterial(o); m.customProgramCacheKey = () => "gatdis";
-      m.onBeforeCompile = (sh) => { sh.uniforms.hazeC = HZ; sh.fragmentShader = "uniform vec3 hazeC;\n" + sh.fragmentShader.replace("#include <fog_fragment>", "#ifdef USE_FOG\n float fogFactor = 1.0 - exp(-.0012 * fogDepth * fogDepth);\n gl_FragColor.rgb = mix(gl_FragColor.rgb, hazeC, fogFactor);\n#endif"); }; return m; };
+      m.onBeforeCompile = (sh) => { sh.uniforms.hazeC = HZ; sh.fragmentShader = "uniform vec3 hazeC;\n" + sh.fragmentShader.replace("#include <fog_fragment>", "#ifdef USE_FOG\n float fogFactor = 1.0 - exp(-.00055 * fogDepth * fogDepth);\n gl_FragColor.rgb = mix(gl_FragColor.rgb, hazeC, fogFactor);\n#endif"); }; return m; };
     const add = (m) => { m.layers.set(1); scene.add(m); return m; };
     const mesh = (geo, mat, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x || 0, y || 0, z || 0); return add(m); };
     const box = (xa, xb, ya, yb, za, zb, mat) => mesh(new THREE.BoxGeometry(xb - xa, yb - ya, zb - za), mat, (xa + xb) / 2, (ya + yb) / 2, (za + zb) / 2);
@@ -1873,12 +1873,20 @@ function useRoom(key) {
       g.setAttribute("color", new THREE.BufferAttribute(c, 3)); const m = mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, fog: false, depthWrite: false })); m.renderOrder = -5; return m; })();
     // ---------- marken: trottoarplattor, kantsten av granit och gatsten, mörkt av regnet ----------
     const PL = tex("plattor"), GS = tex("gatsten");
+    const XE = XR + STR.CW, ZA = -26, ZB = OPP + 26; // tvärgatorna i båda ändar
     ground(-XR, XR, FZ, CURB - .2, 0, PL, 2.2, col(0x5d6368));
     ground(-XR, XR, R1 + .2, OPP, 0, PL, 2.2, col(0x585e63));
-    ground(-XR, XR, CURB, R1, RY, GS, 2.0, col(0x4a4f55));
+    ground(-XE + 2, XE - 2, CURB, R1, RY, GS, 2.0, col(0x4a4f55));
     for (const [za, zb] of [[CURB - .2, CURB], [R1, R1 + .2]]) { box(-XR, XR, RY, .005, za, zb, sm({ color: col(0x4c4f52) })); }
-    ground(-XR, XR, CURB, CURB + .45, RY + .004, null, 1, col(0x15181b));   // rännstenen: vattnet står kvar
-    ground(-XR, XR, R1 - .45, R1, RY + .004, null, 1, col(0x15181b));
+    ground(-XE + 2, XE - 2, CURB, CURB + .45, RY + .004, null, 1, col(0x15181b));   // rännstenen: vattnet står kvar
+    ground(-XE + 2, XE - 2, R1 - .45, R1, RY + .004, null, 1, col(0x15181b));
+    for (const sg of [-1, 1]) { const a = sg > 0 ? XR : -XE, b = sg > 0 ? XE : -XR, ra = sg > 0 ? XR + 2 : -XE + 2, rb = sg > 0 ? XE - 2 : -XR - 2;
+      ground(ra, rb, ZA, CURB, RY, GS, 2.0, col(0x4a4f55)); ground(ra, rb, R1, ZB, RY, GS, 2.0, col(0x4a4f55));                       // tvärgatan
+      const near = sg > 0 ? [XR, XR + 2] : [-XR - 2, -XR], far = sg > 0 ? [XE - 2, XE] : [-XE, -XE + 2];
+      ground(near[0], near[1], ZA, CURB, 0, PL, 2.2, col(0x5d6368)); ground(near[0], near[1], R1, ZB, 0, PL, 2.2, col(0x585e63));
+      ground(far[0], far[1], ZA, ZB, 0, PL, 2.2, col(0x5a6065));                                                                     // trottoaren längs husen i änden
+      box(sg > 0 ? XR + 1.8 : -XR - 2, sg > 0 ? XR + 2 : -XR - 1.8, RY, .005, ZA, CURB, sm({ color: col(0x4c4f52) })); box(sg > 0 ? XR + 1.8 : -XR - 2, sg > 0 ? XR + 2 : -XR - 1.8, RY, .005, R1, ZB, sm({ color: col(0x4c4f52) }));
+      box(sg > 0 ? XE - 2 : -XE + 1.8, sg > 0 ? XE - 1.8 : -XE + 2, RY, .005, ZA, ZB, sm({ color: col(0x4c4f52) })); }
     // ---------- vår sida: bottenvåningen ----------
     const BAND = 5.7, x0 = FOY.EX0, x1 = FOY.EX1, EH = FOY.EH;
     const OURS = [-6.45, 6.45]; // butikens hus är minst lika brett som foajén, så grannhusen aldrig når in i rummet
@@ -1946,11 +1954,11 @@ function useRoom(key) {
       for (const k in idx) { const b = new THREE.Box3(); idx[k].forEach((pc) => { pc.g.computeBoundingBox(); b.union(pc.g.boundingBox); }); idx[k].box = b; }
       return idx; };
     const KIT = kitIndex(MODELS.fasad), ACK = kitIndex(MODELS.ac), FEK = kitIndex(MODELS.brandtrappa), KB = {};
-    const ROT = [new THREE.Matrix4(), new THREE.Matrix4().makeRotationY(Math.PI)];
+    const ROT = [new THREE.Matrix4(), new THREE.Matrix4().makeRotationY(Math.PI)], kv = new V3(); let kitXf = null; // kitXf: hela raden vriden (husen i gatans ände)
     const kitAdd = (idx, key, M, tint, side, glass) => { const parts = idx && idx[key]; if (!parts) return false; const nmM = new THREE.Matrix3().getNormalMatrix(M);
       for (const pc of parts) { const mn = pc.mat.name || "x"; const B = KB[mn] || (KB[mn] = { p: [], u: [], c: [], mat: pc.mat });
         const g = pc.g.clone(); g.applyMatrix4(M); const pa = g.attributes.position, na = g.attributes.normal, ua = g.attributes.uv, isG = /glass/i.test(mn);
-        for (let i = 0; i < pa.count; i++) { const y = pa.getY(i); B.p.push(pa.getX(i), y, pa.getZ(i)); B.u.push(ua ? ua.getX(i) : 0, ua ? ua.getY(i) : 0);
+        for (let i = 0; i < pa.count; i++) { const y = pa.getY(i); if (kitXf) { kv.set(pa.getX(i), y, pa.getZ(i)).applyMatrix4(kitXf); B.p.push(kv.x, kv.y, kv.z); } else B.p.push(pa.getX(i), y, pa.getZ(i)); B.u.push(ua ? ua.getX(i) : 0, ua ? ua.getY(i) : 0);
           const nz = na.getZ(i) * side, ny = na.getY(i), hgt = .62 + .38 * clamp(1 - (y - 6) / 16, 0, 1);
           const k = (.5 + .34 * Math.max(0, nz) + .12 * Math.max(0, ny) - .24 * Math.max(0, -ny)) * hgt, t = isG ? glass : tint;
           B.c.push(t[0] * (isG ? 1 : k), t[1] * (isG ? 1 : k), t[2] * (isG ? 1 : k)); } }
@@ -1978,7 +1986,7 @@ function useRoom(key) {
       const crb = KIT.crown_standard_standard_01 && KIT.crown_standard_standard_01.box, top = yb0 + 3 * nf;
       if (crb) for (let i = 0; i < n; i++) { const xs = side > 0 ? xa + i * cw : xa + (i + 1) * cw; kitAdd(KIT, "crown_standard_standard_01", at(xs, top, zf, side).multiply(S).multiply(new THREE.Matrix4().makeTranslation(-crb.min.x, -crb.min.y, 0)), tint, side); }
       // husets kropp bakom fasaden och taket, så att glappen och taklinjen blir hela
-      box(xa, xb, yb0, top + .3, side > 0 ? zf - 12 : zf, side > 0 ? zf : zf + 12, sm({ color: col(0x24272a) }));
+      { const bm = box(xa, xb, yb0, top + .3, side > 0 ? zf - 12 : zf, side > 0 ? zf : zf + 12, sm({ color: col(0x24272a) })); if (kitXf) bm.applyMatrix4(kitXf); }
       if (FEK && fe < 1 && side < 0 && nf >= 3 && xb - xa > 8 && r() < .7) { fe++; const xc = (xa + xb) / 2 + (r() - .5) * 3, ft = [.32, .32, .34];
         for (let f = 0; f < nf; f++) { const yb = yb0 + 3 * f;
           kitPlace(FEK, "modular_fire_escape_platform_middle", xc, yb - .72 + 3, zf + side * .68, ft, side); kitPlace(FEK, "modular_fire_escape_railing_middle", xc, yb + .03 + 3, zf + side * .7, ft, side);
@@ -2000,13 +2008,13 @@ function useRoom(key) {
     const TH = groups(MODELS.tegelhus), BH = groups(MODELS.betonghus);
     const TV = Object.keys(TH).filter((k) => /^Building_[123]$/.test(k)).sort().map((k) => normalize(TH[k], frontOf(TH[k])));
     const BV = Object.keys(BH).filter((k) => /^building_\d$/i.test(k)).sort().map((k) => normalize(BH[k], [0, 1]));
-    const placeV = (V, xa, zf, side, s, dark) => { const M = (side > 0 ? new THREE.Matrix4().makeTranslation(xa, 0, zf) : new THREE.Matrix4().makeTranslation(xa + V.w * s, 0, zf).multiply(ROT[1])).multiply(new THREE.Matrix4().makeScale(s, s, s));
+    const placeV = (V, xa, zf, side, s, dark, xf) => { const M = (side > 0 ? new THREE.Matrix4().makeTranslation(xa, 0, zf) : new THREE.Matrix4().makeTranslation(xa + V.w * s, 0, zf).multiply(ROT[1])).multiply(new THREE.Matrix4().makeScale(s, s, s));
       const lit = r() < .45;
       for (const p of V.parts) { const g = p.g.clone().applyMatrix4(M), pa = g.attributes.position, na = g.attributes.normal, cc = new Float32Array(pa.count * 3), win = /window/i.test(p.mn);
         for (let i = 0; i < pa.count; i++) { const nz = na.getZ(i) * side, ny = na.getY(i), y = pa.getY(i);
           const k = win ? (lit ? 1.25 : .5) : (.5 + .34 * Math.max(0, nz) + .12 * Math.max(0, ny) - .24 * Math.max(0, -ny)) * (.7 + .3 * clamp(1 - y / 14, 0, 1)) * dark;
           cc[i * 3] = k * (win && lit ? 1.15 : 1); cc[i * 3 + 1] = k * (win && lit ? .86 : 1); cc[i * 3 + 2] = k * (win && lit ? .6 : 1); }
-        g.setAttribute("color", new THREE.BufferAttribute(cc, 3));
+        g.setAttribute("color", new THREE.BufferAttribute(cc, 3)); if (xf) g.applyMatrix4(xf);
         add(new THREE.Mesh(g, sm({ map: p.mat.map || null, vertexColors: true, side: THREE.DoubleSide }))); }
       return lit; };
     // andra sidan: tegelfasader med butiker i gatuplan och fasadsatsens våningar ovanpå, ibland ett lågt betonghus
@@ -2036,6 +2044,17 @@ function useRoom(key) {
         for (let j = 0; j < n; j++) placeV(SV, xa + j * SV.w * s, FZ - SV.d * s, 1, s, .6);
         pool(w * .7, 3, 0x7a5330, (xa + xb) / 2, 0, FZ + 1.5, .35);
         if (i % 3 !== 1) kitHouse(xa, xb, 1, FZ - .02, H, (isTouch ? 1 : 2) + ((r() * 2) | 0), i + 1); }); }
+    // husen i gatans båda ändar, på andra sidan tvärgatorna: samma sorts rad, vriden så att den vetter mot oss
+    for (const sg of [1, -1]) { const xf = new THREE.Matrix4().makeTranslation(sg * XE, 0, (ZA + ZB) / 2).multiply(new THREE.Matrix4().makeRotationY(sg * Math.PI / 2)), half = (ZB - ZA) / 2;
+      kitXf = xf; let x = -half, i = 0;
+      while (x < half) { const w = Math.min(half - x, 9 + 3 * ((r() * 3) | 0)); if (w < 3) break; const xa = x, xb = x + w;
+        if (TV.length) { const V = TV[(i + 1 + (sg > 0 ? 0 : 1)) % TV.length], n = Math.max(1, Math.round(w / V.w)), sc = w / (n * V.w), H = V.h * sc;
+          for (let j = 0; j < n; j++) placeV(V, xa + j * V.w * sc, 0, -1, sc, .55, xf);
+          const bm = box(xa, xb, 0, H, 0, 12, sm({ color: col(0x202326) })); bm.applyMatrix4(xf);
+          kitHouse(xa, xb, -1, 0, H + .14, (isTouch ? 2 : 3) + ((r() * 3) | 0), i + 7);
+        } else kitHouse(xa, xb, -1, 0, 0, 5, i + 7);
+        x = xb; i++; }
+      kitXf = null; }
     // satsens hinkar: en geometri per material
     for (const mn in KB) { const B = KB[mn], g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(B.p, 3));
       g.setAttribute("uv", new THREE.Float32BufferAttribute(B.u, 2)); g.setAttribute("color", new THREE.Float32BufferAttribute(B.c, 3)); g.computeVertexNormals(); g.computeBoundingSphere();
@@ -2086,16 +2105,53 @@ function useRoom(key) {
       car("wagon", 10.8, lane, Math.PI, col(0x3a1e22, .7), 4.8);
       car("minivan", -2.5, lane2, Math.PI, col(0x2a2d30, .7), 4.9);
       car("suv", 16, lane2, 0, col(0x15171a, .8), 4.9);
-      if (!isTouch) { car("hatchback", -24, lane, 0, col(0x4a4a46, .6), 4.2); car("compact", 26, lane2, Math.PI, col(0x2f3a30, .65), 3.9); }
+      if (!isTouch) { car("hatchback", -18, lane, 0, col(0x4a4a46, .6), 4.2); car("compact", 7, lane2, Math.PI, col(0x2f3a30, .65), 3.9); }
     }
     // ---------- gatlyktor vid kantstenen och lampor i vajrar över gatan ----------
-    const poleM = sm({ color: col(0x1a1c1e) }), lampC = 0xffd6a0;
-    for (const lx of [-22, -7.5, 7.5, 22, 36, -36]) { if (Math.abs(lx) > XR - 1) continue; const lz = CURB - .45;
-      mesh(new THREE.CylinderGeometry(.06, .09, 5.2, 10), poleM, lx, 2.6, lz); box(lx - .05, lx + .05, 5.1, 5.18, lz, lz + 1.0, poleM);
-      box(lx - .18, lx + .18, 4.94, 5.14, lz + .8, lz + 1.25, sm({ color: col(0x202224) }));
-      mesh(new THREE.PlaneGeometry(.3, .38), new THREE.MeshBasicMaterial({ color: col(lampC, 1.6), fog: false }), lx, 4.93, lz + 1.02).rotation.x = Math.PI / 2;
-      const h = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: col(lampC), transparent: true, opacity: .5, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })); h.scale.set(1.2, 1.2, 1); h.position.set(lx, 4.85, lz + 1.02); add(h).layers.set(2);
-      pool(5.5, 5, 0x8a6a44, lx, 0, lz - .6, .75); pool(5, 4.5, 0x7a5c3a, lx, RY, lz + 2.2, .6); pool(1.3, 7.5, 0x6a5234, lx, RY, lz + 5.5, .55); }
+    // ---------- lyktor (simple collection of low poly street lights, lupas, CC BY) och gatuprylar (City Props Collection, TampaJoey) ----------
+    // ett föremål: fot i origo (lyktor: stolpens fot, armen mot +z), längsta sidan längs x om long är satt
+    const objOf = (parts, o) => { o = o || {}; let f = [0, 1];
+      const vsOf = (p) => p.g.attributes.position; const allMin = Math.min(...parts.map((p) => { p.g.computeBoundingBox(); return p.g.boundingBox.min.y; }));
+      const allMax = Math.max(...parts.map((p) => p.g.boundingBox.max.y)), h = allMax - allMin;
+      let px = 0, pz = 0, pn = 0; parts.forEach((p) => { const a = vsOf(p); for (let i = 0; i < a.count; i++) if (a.getY(i) < allMin + h * .05) { px += a.getX(i); pz += a.getZ(i); pn++; } }); px /= pn || 1; pz /= pn || 1;
+      if (o.arm) { let ex = 0, ez = 0, en = 0; parts.filter((p) => /emit/i.test(p.mn)).forEach((p) => { const a = vsOf(p); for (let i = 0; i < a.count; i++) { ex += a.getX(i); ez += a.getZ(i); en++; } });
+        if (en) { const dx = ex / en - px, dz = ez / en - pz, l = Math.hypot(dx, dz); if (l > 1e-4) f = [dx / l, dz / l]; } }
+      if (o.long) { let sxx = 0, szz = 0, sxz = 0; parts.forEach((p) => { const a = vsOf(p); for (let i = 0; i < a.count; i++) { const dx = a.getX(i) - px, dz = a.getZ(i) - pz; sxx += dx * dx; szz += dz * dz; sxz += dx * dz; } });
+        const th = .5 * Math.atan2(2 * sxz, sxx - szz); f = [Math.sin(th - Math.PI / 2), Math.cos(th - Math.PI / 2)]; }
+      const R = new THREE.Matrix4().makeRotationY(-Math.atan2(f[0], f[1])).multiply(new THREE.Matrix4().makeTranslation(-px, -allMin, -pz)), bb = new THREE.Box3();
+      const ps = parts.map((p) => { const g = p.g.clone().applyMatrix4(R); g.computeBoundingBox(); bb.union(g.boundingBox); return Object.assign({}, p, { g }); });
+      if (!o.arm) { const c = bb.getCenter(new V3()); ps.forEach((p) => p.g.translate(-c.x, 0, -c.z)); }
+      let head = null; ps.filter((p) => /emit/i.test(p.mn)).forEach((p) => { p.g.computeBoundingBox(); const c = p.g.boundingBox.getCenter(new V3()); head = head ? head.lerp(c, .5) : c; });
+      const sz = new THREE.Box3().setFromPoints(ps.flatMap((p) => { p.g.computeBoundingBox(); return [p.g.boundingBox.min, p.g.boundingBox.max]; })).getSize(new V3());
+      return { parts: ps, h: sz.y, w: Math.max(sz.x, sz.z), head }; };
+    const lampC = 0xffd6a0;
+    const placeObj = (O, x, y, z, yaw, sc, dark) => { const M = new THREE.Matrix4().makeTranslation(x, y, z).multiply(new THREE.Matrix4().makeRotationY(yaw)).multiply(new THREE.Matrix4().makeScale(sc, sc, sc));
+      for (const p of O.parts) { const g = p.g.clone().applyMatrix4(M);
+        if (/emit/i.test(p.mn)) { add(new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: col(lampC, 1.7), fog: false, side: THREE.DoubleSide }))); continue; }
+        const na = g.attributes.normal, cc = new Float32Array(na.count * 3);
+        for (let i = 0; i < na.count; i++) { const k = (.38 + .42 * Math.max(0, na.getY(i)) + .22 * Math.abs(na.getZ(i))) * (dark || .7); cc[i * 3] = cc[i * 3 + 1] = cc[i * 3 + 2] = k; }
+        g.setAttribute("color", new THREE.BufferAttribute(cc, 3));
+        add(new THREE.Mesh(g, sm({ map: p.mat.map || null, color: p.mat.map ? 0xffffff : col(0x2a2c2e), vertexColors: true, side: THREE.DoubleSide }))); }
+      return O.head ? O.head.clone().applyMatrix4(M) : null; };
+    const LG = groups(MODELS.lyktor), PG = groups(MODELS.gatuprylar);
+    const LAMP = LG.FarolaModernaRodonaDe1 ? objOf(LG.FarolaModernaRodonaDe1, { arm: true }) : null, WALL = LG.FarolaPared1 ? objOf(LG.FarolaPared1, { arm: true }) : null;
+    const lampSprite = (p, sc, a) => { const h = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: col(lampC), transparent: true, opacity: a, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })); h.scale.set(sc, sc, 1); h.position.copy(p); add(h).layers.set(2); };
+    const poleM = sm({ color: col(0x1a1c1e) });
+    for (const lx of [-17.5, -7.5, 7.5, 17.5]) { const lz = CURB - .45; let hp = null;
+      if (LAMP) hp = placeObj(LAMP, lx, 0, lz, 0, 5.6 / LAMP.h, .55);
+      if (!hp) { mesh(new THREE.CylinderGeometry(.06, .09, 5.2, 10), poleM, lx, 2.6, lz); box(lx - .05, lx + .05, 5.1, 5.18, lz, lz + 1.0, poleM);
+        box(lx - .18, lx + .18, 4.94, 5.14, lz + .8, lz + 1.25, sm({ color: col(0x202224) })); hp = new V3(lx, 4.9, lz + 1.02); }
+      lampSprite(hp.clone().add(new V3(0, -.12, 0)), 1.2, .5);
+      pool(5.5, 5, 0x8a6a44, hp.x, 0, Math.min(hp.z, CURB - .3) - .6, .75); pool(5, 4.5, 0x7a5c3a, hp.x, RY, hp.z + 1.2, .6); pool(1.3, 7.5, 0x6a5234, hp.x, RY, hp.z + 4.5, .55); }
+    if (WALL) for (const wx of [-3.75, 3.75]) { const hp = placeObj(WALL, wx, 2.75, FZ, 0, .62 / WALL.h, .5); if (hp) { lampSprite(hp, .7, .55); pool(2.6, 2.4, 0x8a6a44, wx, 0, FZ + 1.1, .45); } }
+    // gatuprylar: soptunnor, en bänk, ett elskåp, brunnslock och dagvattenbrunnar
+    const PO = (k, o) => PG[k] ? objOf(PG[k], o) : null;
+    const put = (O, x, y, z, yaw, size, by, dark) => { if (!O) return; const sc = size / (by === "w" ? O.w : O.h); placeObj(O, x, y, z, yaw, sc, dark); };
+    const TRASH = PO("TrashCommercial"), TRASH2 = PO("TrashCanLarge"), BENCH = PO("ParkBenchLong", { long: true }), UTIL = PO("Utility", { long: true }), MAN = PO("Manhole"), STORM = PO("StormDrain", { long: true });
+    put(TRASH2, -10.2, 0, CURB - .55, 0, .95, "h", .55); put(TRASH2, 5.2, 0, R1 + .65, 0, .95, "h", .55); put(TRASH, -12.4, 0, R1 + .6, 0, 1.0, "h", .55);
+    put(BENCH, -15.5, 0, FZ + .55, 0, 1.9, "w", .6); put(UTIL, 13.8, 0, FZ + .45, 0, 1.25, "h", .55);
+    put(MAN, -5.5, RY + .005, (CURB + R1) / 2 + .8, 0, .8, "w", .6); put(MAN, 12, RY + .005, (CURB + R1) / 2 - .6, 0, .8, "w", .6);
+    for (const sx of [-14, 3.2, 16]) put(STORM, sx, RY + .004, CURB + .35, 0, .9, "w", .32);
     { const wireM = new THREE.LineBasicMaterial({ color: col(0x0c0d0e) });
       for (const wx of [-14, 0.0, 14, 28, -28]) { if (Math.abs(wx) > XR - 2) continue; const pts = [], yA = 7.6, sag = .55, za = FZ + .2, zb = OPP - .2, zm = (CURB + R1) / 2;
         for (let i = 0; i <= 16; i++) { const t = i / 16, z = za + (zb - za) * t; pts.push(new V3(wx, yA - sag * (1 - Math.pow((z - zm) / ((zb - za) / 2), 2)), z)); }
@@ -3253,8 +3309,9 @@ function useRoom(key) {
         const h1 = document.createElement("a"); h1.href = "https://sketchfab.com/3d-models/old-building-pack-lowpoly-081eccb97be8429c83b2e9fb407727e7"; h1.target = "_blank"; h1.rel = "noopener"; h1.textContent = "Old Building Pack | Lowpoly";
         const h2 = document.createElement("a"); h2.href = "https://sketchfab.com/3d-models/old-concrete-building-pack-lowpoly-4387dbb08a37418e8c07c992a5a9500a"; h2.target = "_blank"; h2.rel = "noopener"; h2.textContent = "Old Concrete Building Pack | Lowpoly";
         const fu = document.createElement("a"); fu.href = "https://sketchfab.com/Fridqeir"; fu.target = "_blank"; fu.rel = "noopener"; fu.textContent = "Fridqeir";
-        const l2 = l.cloneNode(true), h3 = document.createElement("a"); h3.href = "https://sketchfab.com/3d-models/brick-shop-building-lowpoly-548d4a0e62b54efcab4483fb6d0c3611"; h3.target = "_blank"; h3.rel = "noopener"; h3.textContent = "Brick Shop Building | Lowpoly";
-        e.append(h1, ", ", h2, " och ", h3, " av ", fu, ", licensierade under ", l2, "."); b.append(e); }
+        const l2 = l.cloneNode(true), lu = document.createElement("a"); lu.href = "https://sketchfab.com/ivan.anton.albarracin"; lu.target = "_blank"; lu.rel = "noopener"; lu.textContent = "lupas";
+        const h3 = document.createElement("a"); h3.href = "https://sketchfab.com/3d-models/brick-shop-building-lowpoly-548d4a0e62b54efcab4483fb6d0c3611"; h3.target = "_blank"; h3.rel = "noopener"; h3.textContent = "Brick Shop Building | Lowpoly";
+        e.append(h1, ", ", h2, " och ", h3, " av ", fu, ", licensierade under ", l2, ". Gatlyktorna: simple collection of low poly street lights av ", lu, " (CC BY 4.0). Gatuprylarna: City Props Collection av TampaJoey."); b.append(e); }
     } else if (kind === "priser") {
       head("Foajén · Priser", "Priser"); para("Priser och paket kommer snart.");
       para("Skicka dina paket och priser, så blir det här en tydlig prislista.", "placeholder");

@@ -1239,16 +1239,39 @@ function useRoom(key) {
 
   /* ---------- fotona i tjocka svarta ramar ---------- */
   const arts = [];
+  // ramlister: svartbetsad ek, ljus ek eller smal svart metall med passepartout (?ram= för att jämföra)
+  const RAM = {
+    svart: { fw: .085, bevel: .014, color: 0x22272e, map: () => MATTEX.morktra && MATTEX.morktra.diff, grain: .9, fillet: 0x6c665e },
+    ek: { fw: .085, bevel: .014, color: 0xaeb6c0, map: () => MATTEX.tra && MATTEX.tra.diff, grain: 1.4, fillet: 0x2a2724 },
+    metall: { fw: .03, bevel: .006, color: 0x262728, map: () => MATTEX.rost2 && MATTEX.rost2.diff, grain: 3, fillet: 0, mat: .075 } };
+  const RAMVAL = new URLSearchParams(location.search).get("ram") || "svart";
   function frameFor(slot, aspect, S) {
     let w, h; if (slot.h) { h = slot.h; w = h * aspect; } else { w = slot.w; h = w / aspect; }
     if (slot.maxW && w > slot.maxW) { w = slot.maxW; h = w / aspect; } // på en skiva: alltid luft runt bilden
     const C = slot.C, U = slot.U, Vv = [0, 1, 0], N = slot.N;
     const g = new THREE.Group(); g.matrixAutoUpdate = false;
     g.matrix.makeBasis(new V3(...U), new V3(...Vv), new V3(...N)).setPosition(new V3(...C)); scene.add(g);
-    const fw = .1, fd = .075, id = "frame-" + slot.key;
-    const bars = [[0, h / 2 + fw / 2, w + fw * 2, fw], [0, -h / 2 - fw / 2, w + fw * 2, fw], [-w / 2 - fw / 2, 0, fw, h], [w / 2 + fw / 2, 0, fw, h]];
-    bars.forEach(([x, y, bw, bh]) => { const m = prop(new THREE.BoxGeometry(bw, bh, fd, 2, 2, 1), { color: PC.frame }, new V3(x, y, fd / 2), null, { parent: g, shadow: false, id });
-      const bb = aabbOf(m); OBJ.push({ c: bb.c, h: bb.h, id }); });
+    const RS = RAM[RAMVAL] || RAM.svart, fd = .075, id = "frame-" + slot.key, mat = RS.mat || 0;
+    // passepartout: en ljus kartong mellan list och bild
+    if (mat) { const mw = w + mat * 2, mh = h + mat * 2;
+      const ms = new THREE.Shape([new THREE.Vector2(-mw / 2, -mh / 2), new THREE.Vector2(mw / 2, -mh / 2), new THREE.Vector2(mw / 2, mh / 2), new THREE.Vector2(-mw / 2, mh / 2)]);
+      ms.holes.push(new THREE.Path([new THREE.Vector2(-w / 2, -h / 2), new THREE.Vector2(-w / 2, h / 2), new THREE.Vector2(w / 2, h / 2), new THREE.Vector2(w / 2, -h / 2)]));
+      const mg = new THREE.ExtrudeGeometry(ms, { depth: .004, bevelEnabled: true, bevelThickness: .002, bevelSize: .002, bevelSegments: 1 });
+      prop(mg, { color: 0xeeebe3 }, new V3(0, 0, fd - .032), null, { parent: g, shadow: false, id }); }
+    const iw = w / 2 + mat, ih = h / 2 + mat, fw = RS.fw;
+    // listen: en ram i ett stycke med gerade hörn och fasade kanter, ådringen följer varje sida
+    const sh = new THREE.Shape([new THREE.Vector2(-iw - fw, -ih - fw), new THREE.Vector2(iw + fw, -ih - fw), new THREE.Vector2(iw + fw, ih + fw), new THREE.Vector2(-iw - fw, ih + fw)]);
+    sh.holes.push(new THREE.Path([new THREE.Vector2(-iw, -ih), new THREE.Vector2(-iw, ih), new THREE.Vector2(iw, ih), new THREE.Vector2(iw, -ih)]));
+    const bv = RS.bevel, fg = new THREE.ExtrudeGeometry(sh, { depth: fd - bv * 2, bevelEnabled: true, bevelThickness: bv, bevelSize: bv * .8, bevelSegments: 3, curveSegments: 1 });
+    { const pa = fg.attributes.position, uv = fg.attributes.uv, sc = RS.grain;
+      for (let i = 0; i < pa.count; i++) { const x = pa.getX(i), y = pa.getY(i), z = pa.getZ(i), side = Math.abs(x) / (iw + fw) > Math.abs(y) / (ih + fw);
+        uv.setXY(i, (side ? y : x) / sc + (side ? 3.1 : 0), (side ? x : y) / sc * .25 + z * 2); } }
+    const fm = prop(fg, { color: RS.color, map: RS.map() }, new V3(0, 0, bv), null, { parent: g, shadow: false, id });
+    { const bb = aabbOf(fm); OBJ.push({ c: bb.c, h: bb.h, id }); }
+    // ett tunt inre steg närmast bilden, i en annan ton
+    if (RS.fillet) { const f2 = new THREE.Shape([new THREE.Vector2(-iw - .012, -ih - .012), new THREE.Vector2(iw + .012, -ih - .012), new THREE.Vector2(iw + .012, ih + .012), new THREE.Vector2(-iw - .012, ih + .012)]);
+      f2.holes.push(new THREE.Path([new THREE.Vector2(-iw, -ih), new THREE.Vector2(-iw, ih), new THREE.Vector2(iw, ih), new THREE.Vector2(iw, -ih)]));
+      prop(new THREE.ExtrudeGeometry(f2, { depth: fd - .028, bevelEnabled: false }), { color: RS.fillet }, new V3(0, 0, .004), null, { parent: g, shadow: false, id }); }
     const depth = fd - .03, O = [C[0] - U[0] * w / 2 + N[0] * depth, C[1] - h / 2, C[2] - U[2] * w / 2 + N[2] * depth];
     const s = planar({ name: "foto " + slot.key, O, U, V: Vv, lu: w, lv: h, tu: w, tv: h, res: isTouch ? 30 : 48, color: PHOTOS[slot.key].src ? 0xffffff : 0x1a1b1a });
     s.slot = slot; s.isPhoto = true;
@@ -1257,8 +1280,8 @@ function useRoom(key) {
       { text: "EN BÄTTRE BILD · RUM " + S.num + " " + S.name.toUpperCase(), font: '500 24px "IBM Plex Mono", monospace', y: 160, x: 36, track: 2, alpha: .7 }
     ], { w: 640, h: 220, bg: "#d9d5cb", fg: "#141514", align: "left" });
     const lp = new THREE.Mesh(new THREE.PlaneGeometry(.32, .11), new THREE.MeshBasicMaterial({ map: T(label, true, false) }));
-    const lpos = slot.labelBelow ? new V3(...C).add(new V3(0, -h / 2 - fw - .16, 0)).add(new V3(...N).multiplyScalar(.012)) // under bilden, på skivan
-      : new V3(...C).add(new V3(...U).multiplyScalar(w / 2 + fw + .25)).add(new V3(0, -h / 2 + .06, 0)).add(new V3(...N).multiplyScalar(.012));
+    const lpos = slot.labelBelow ? new V3(...C).add(new V3(0, -h / 2 - mat - fw - .16, 0)).add(new V3(...N).multiplyScalar(.012)) // under bilden, på skivan
+      : new V3(...C).add(new V3(...U).multiplyScalar(w / 2 + mat + fw + .25)).add(new V3(0, -h / 2 - mat + .06, 0)).add(new V3(...N).multiplyScalar(.012));
     lp.position.copy(lpos); lp.lookAt(lpos.clone().add(new V3(...N))); scene.add(lp);
     const art = { slot, s, w, h, label: lp, labelPos: lpos }; arts.push(art); return art;
   }

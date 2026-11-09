@@ -28,7 +28,7 @@ html, body { margin: 0; padding: 0; }
   --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
   color-scheme: dark;
 }
-html, body { height: 100%; overflow: hidden; overscroll-behavior: none; background: var(--ink); color: var(--paper); }
+html, body { height: 100%; overflow: hidden; overflow: clip; overscroll-behavior: none; background: var(--ink); color: var(--paper); }
 body { font-family: var(--font-body); font-size: 15px; line-height: 1.5; }
 canvas#c { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; touch-action: none; outline: none; }
 .ui { position: fixed; z-index: 3; pointer-events: none; }
@@ -92,7 +92,7 @@ button { font: inherit; }
 .tourbar .tbtns .chip { white-space: nowrap; }
 .tourbar .chip { justify-content: center; }
 .tourbar .chip:disabled { opacity: .35; cursor: default; }
-.roomcard { padding-top: 14px; border-top: 1px solid var(--line); background: linear-gradient(to top, rgba(6,8,8,.72), rgba(6,8,8,0)); }
+.roomcard { width: min(680px, calc(100vw - 32px)); padding-top: 14px; border-top: 1px solid var(--line); background: linear-gradient(to top, rgba(6,8,8,.72), rgba(6,8,8,0)); }
 .roomcard .tbtns .chip { flex: 0 0 auto; }
 .roomcard kbd { font-family: var(--font-mono); font-size: 10px; opacity: .6; margin-left: 6px; }
 .where .rcopen { margin-top: 10px; }
@@ -706,7 +706,7 @@ const SPECS = {
     ceil: () => CV.H,
     start: { x: -1, z: -1.2, yaw: .12 },
     walk: [{ x0: -5.7, x1: 5.55, z0: -21.7, z1: -.45 }],
-    look: { mirror: { mat: "garage", k: .19 }, fog: 0xc9d0d6, density: .02, bg: 0xc9d0d6, exposure: 1.15, bloom: .45, thr: 1.2 }, step: 560, wet: .45,
+    look: { mirror: { mat: "garage", k: .19 }, fog: 0xc9d0d6, density: .008, bg: 0xc9d0d6, exposure: 1.15, bloom: .45, thr: 1.2 }, step: 560, wet: .45,
     slots: stadenSlots() },
   naturen: { num: "02", name: "Naturen", sub: "Ut ur mörkret, in i ljuset", next: "berattelser",
     intro: "Du kliver ut ur mörkret. Dagsljus, luft och färg: havet, kusten, bergen och hösten.",
@@ -714,7 +714,7 @@ const SPECS = {
     amb: (x, y, z) => { if (z > 0) { const k = clamp(1 - z / 2.6, 0, 1) * .06; return [.005 + k * .9, .007 + k, .007 + k * 1.04]; } return [.18, .185, .192]; },
     ceil: (x, z) => z > 0 ? NAT.CH : NAT.H,
     start: { x: 0, z: 3.75, yaw: 0 }, walk: [{ x0: -5.6, x1: 5.6, z0: -19.6, z1: -.45 }, { x0: -.75, x1: .75, z0: -.6, z1: 4.15 }],
-    look: { mirror: { mat: "betonggolv", k: .286 }, fog: 0xb9b5ab, density: .011, bg: 0xdedad2, exposure: 1.0, bloom: .35, thr: 2.2 }, step: 640, wet: .3,
+    look: { mirror: { mat: "betonggolv", k: .286 }, fog: 0xb9b5ab, density: .006, bg: 0xdedad2, exposure: 1.0, bloom: .35, thr: 2.2 }, step: 640, wet: .3,
     slots: [
       { key: "klippan", C: [-6, 2.05, -5.5], U: [0, 0, -1], N: [1, 0, 0], h: 2.4, spots: [{ p: [-3.8, 6.55, -5.5], t: [-6, 2.05, -5.5], a: .3, T: 1.7 }] },
       { key: "ronda", C: [-6, 2.05, -14.5], U: [0, 0, -1], N: [1, 0, 0], h: 2.4, spots: [{ p: [-3.8, 6.55, -14.5], t: [-6, 2.05, -14.5], a: .3, T: 1.7 }] },
@@ -730,7 +730,7 @@ const SPECS = {
     amb: (x, y, z) => z > 0 ? [.02, .018, .016] : [.15, .15, .155],
     ceil: (x, z) => z > 0 ? HAL.CH : HAL.H,
     start: { x: 4, z: 4.2, yaw: 0 }, walk: [{ x0: -6.6, x1: 6.6, z0: -21.6, z1: -.4 }, { x0: 3.25, x1: 4.75, z0: -.6, z1: 4.6 }],
-    look: { mirror: { mat: "betonggolv", k: .282 }, fog: 0x9a968c, density: .012, bg: 0xc9c5bc, exposure: 1.15, bloom: .4, thr: 2.0 }, step: 560, wet: .5,
+    look: { mirror: { mat: "betonggolv", k: .282 }, fog: 0x9a968c, density: .006, bg: 0xc9c5bc, exposure: 1.15, bloom: .4, thr: 2.0 }, step: 560, wet: .5,
     slots: [
       { key: "pojken", C: [0, 2.3, -22], U: [1, 0, 0], N: [0, 0, 1], h: 3.0, spots: [{ p: [0, 7.7, -18.6], t: [0, 2.3, -22], a: .28, T: 1.5, o: { only: (x, y, z) => z < .05 } }] },
       { key: "lisboa", C: [7, 2.4, -11], U: [0, 0, 1], N: [-1, 0, 0], w: 4.4, spots: [{ p: [4.3, 7.7, -11], t: [7, 2.4, -11], a: .4, T: 1.5, o: { only: (x, y, z) => z < .05 } }] },
@@ -744,13 +744,13 @@ const SPECS = {
     amb: (x, y, z) => z > 0 ? [.02, .017, .014] : [.08, .072, .062],
     ceil: (x, z) => z > 0 ? MAN.CH : MAN.H - .3,
     start: { x: 0, z: 4.0, yaw: 0 }, walk: [{ x0: -5.6, x1: 5.6, z0: -15.6, z1: -.4 }, { x0: -.75, x1: .75, z0: -.6, z1: 4.1 }],
-    look: { mirror: { mat: "tra", k: .16 }, fog: 0x1a1410, density: .012, bg: 0x0b0907, exposure: 1.25, bloom: .45, thr: 1.5 }, step: 540, wet: .2,
+    look: { mirror: { mat: "tra", k: .16 }, fog: 0x1a1410, density: .007, bg: 0x0b0907, exposure: 1.25, bloom: .45, thr: 1.5 }, step: 540, wet: .2,
     slots: manSlots() },
   foajen: { num: "00", name: "Foajén", eyebrow: "En bättre bild · Entré", sub: "Välj rum, se galleriet eller boka", next: "staden",
     intro: "Välkommen till En bättre bild. Gå in genom den stora öppningen längst in för att komma till vernissagen. På väggarna hittar du galleriet, priser och kontakt.",
     sdf: foySDF, solids: [], lights: foyLights, amb: () => [.075, .07, .064], ceil: () => FOY.H,
     start: { x: 0, z: -1.6, yaw: 0 }, walk: [{ x0: -5.6, x1: 5.6, z0: -11.6, z1: -.45 }],
-    look: { mirror: { mat: "garage", k: .24 }, fog: 0x0a0a09, density: .01, bg: 0x050505, exposure: 1.25, bloom: .4, thr: 1.6 }, step: 520, wet: .35,
+    look: { mirror: { mat: "garage", k: .24 }, fog: 0x0a0a09, density: .006, bg: 0x050505, exposure: 1.25, bloom: .4, thr: 1.6 }, step: 520, wet: .35,
     slots: foySlots() }
 };
 const ROOM_ORDER = ["foajen", "staden", "naturen", "berattelser", "manniskorna"];
@@ -1784,9 +1784,9 @@ function useRoom(key) {
     };
     const plate = (x, za, zb, ya, yb, col) => quad([x, ya, za], [x, ya, zb], [x, yb, zb], [x, yb, za], col);
     const SKYLO = hx(0x1f2731), SKYHI = hx(0x56677a);
-    // stadens dis: hälften så tätt som rummets, annars blir husen bleka
+    // stadens eget dis, oberoende av rummets: luftperspektiv utan att husen blir bleka
     const cityMat = (o) => { const m = new THREE.MeshBasicMaterial(o); m.customProgramCacheKey = () => "stadsdis";
-      m.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace("#include <fog_fragment>", "#ifdef USE_FOG\n float fogFactor = .5 * (1.0 - exp(-fogDensity * fogDensity * fogDepth * fogDepth));\n gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor, fogFactor);\n#endif"); }; return m; };
+      m.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace("#include <fog_fragment>", "#ifdef USE_FOG\n float fogFactor = 1.0 - exp(-.000144 * fogDepth * fogDepth);\n gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor, fogFactor);\n#endif"); }; return m; };
     // ett fönster i fasaden x0, mellan zB < zA och y0 < y1
     const win = (x0, zA, zB, y0, y1, o) => {
       const D = o.depth, xg = x0 + D, wc = o.wall;
@@ -2434,6 +2434,7 @@ function useRoom(key) {
   /* ================= ljud (syntetiserat, ett ljudlandskap per rum) ================= */
   let lbClosedAt = 0; // stängknappen i fotovyn ligger där ljudknappen ligger: ett klick får inte slå på ljudet
   const MUSIC = { foajen: "musik/deep-bass-vibes.mp3", "*": "musik/rainy-city-night.mp3" }, MUSIC_VOL = .62; // låt per rum, * för resten
+  addEventListener("scroll", () => { if (scrollX || scrollY) scrollTo(0, 0); }, { passive: true });
   const Sound = {
     ctx: null, on: false, tracks: {}, cur: null, master: null, wet: null, send: null, amb: null, timers: [], room: "staden", white: null, brown: null, chordI: 0,
     init() {

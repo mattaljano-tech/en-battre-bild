@@ -2178,7 +2178,16 @@ function useRoom(key) {
     // takbjälkar i trä
     for (let z = -1.5; z > -L; z -= 3) prop(new THREE.BoxGeometry(2 * X, .3, .24, 8, 1, 1), { color: 0x161616 }, new V3(0, H - .15, z), null, { shadow: false });
     // upphängningslist i mässing längs långväggarna, med en tunn vajer ner till varje tavla
-    for (const sx of [-1, 1]) prop(new THREE.BoxGeometry(.03, .05, L - .3), { color: 0xb08a4a }, new V3(sx * (X - .03), 3.25, -L / 2), null, { shadow: false });
+    // på fönsterväggen tar listen slut vid varje fönster och börjar igen efter, med en liten ändknopp
+    for (const sx of [-1, 1]) {
+      const cuts = sx < 0 ? MAN.WIN.map((w) => [w.z0 - .18, w.z1 + .18]).sort((a, b) => b[1] - a[1]) : [];
+      let z = -.15; const segs = [];
+      for (const [c0, c1] of cuts) { if (c1 < z) segs.push([c1, z]); z = c0; }
+      segs.push([-L + .15, z]);
+      for (const [z0, z1] of segs) { if (z1 - z0 < .3) continue;
+        prop(new THREE.BoxGeometry(.03, .05, z1 - z0), { color: 0xb08a4a }, new V3(sx * (X - .03), 3.25, (z0 + z1) / 2), null, { shadow: false });
+        for (const ze of [z0, z1]) prop(new THREE.SphereGeometry(.022, 12, 8), { color: 0xb08a4a }, new V3(sx * (X - .035), 3.25, ze), null, { shadow: false }); }
+    }
     SPECS.manniskorna.slots.forEach((sl) => { if (Math.abs(Math.abs(sl.C[0]) - X) > .01) return; const sx = Math.sign(sl.C[0]); for (const dz of [-.3, .3]) rodProp([sx * (X - .03), 3.22, sl.C[2] + dz], [sx * (X - .05), sl.C[1] + sl.h / 2 + .1, sl.C[2] + dz * .4], .0025, 0x9a9a96); });
     // ett tungt sammetsdraperi bakom fotohörnet, i veck från en svart stång
     { const W = 5.2, Hh = H - .35, seg = 160, g = new THREE.PlaneGeometry(W, Hh, seg, 1), pp = g.attributes.position;

@@ -464,7 +464,7 @@ function standSlots(room, size, o) {
 /* ================= 01 STADEN =================
    Ett råare rum mitt i stan: putsen har släppt så att teglet syns, betong i golv, tak, balkar och pelare.
    Hela östra långväggen är industriglas från taket ner till en låg betongbröstning, och utanför ligger staden i dagsljus.
-   En neonskylt, CITYVIBE, står på golvet lutad mot glaset. En liten ståltrappa med fyra steg leder upp till en dörr vidare.
+   En liten ståltrappa med fyra steg leder upp till en dörr vidare.
    x: tvärs (väggarna x=±6, glaset x=+6), z: längs (ingången z=0, bortre väggen z=-22), takhöjd 5,4 m. */
 const REGN = !/[?&]sol/.test(location.search); // det regnar utanför Staden (?sol visar soligt väder)
 const CV = { X: 6, L: 22, H: 5.4, PIL: [[-2.9, -7.3], [2.9, -7.3], [-2.9, -14.6], [2.9, -14.6]], PW: .56,
@@ -491,7 +491,6 @@ function stadenLights() {
   for (let i = 0; i < 6; i++) for (let j = 0; j < 2; j++) addPanel([CV.X - .05, 2.1 + j * 2.1, -1.8 - i * 3.7], [-1, 0, 0], REGN ? 1.25 : 1.05, REGN ? [.78, .85, .95] : COL.sky, 24, inRoom); // regn: bara grått, svalt dagsljus
   if (!REGN) for (let i = 0; i < 3; i++) { const z = -3.5 - i * 7.2, t = 3.2 / SUNC[1]; addFill([CV.X - SUNC[0] * t, .3, z - SUNC[2] * t], .5, COL.sun, inRoom); }
   for (const z of CV.LAMPS) addPoint([-1.6, 3.4, z], .5, [1, .74, .44], 7, .03);                 // två burlampor
-  addPoint([CV.NEON.x + .3, (CV.WIN.y0 + CV.WIN.y1) / 2, CV.NEON.z], .45, [1, .62, .32], 3.5, .03);   // bakljuset bakom skylten
   addPoint([CV.DOOR.x, 1.9, -21.6], .45, [.8, .9, 1], 4, .02);                                  // ljus genom dörren på glänt
   addPoint([0, 1.4, 1.2], .3, [1, .8, .55], 4, .01);                                             // ljus från foajén
 }
@@ -2145,31 +2144,6 @@ function useRoom(key) {
         { text: "GÅ VIDARE", font: '500 40px "IBM Plex Mono", monospace', y: 196, track: 6, alpha: .75, fit: true }],
         { w: 1024, h: 256, bg: "#14302f", fg: "#ece9e0", border: "rgba(236,233,224,.6)", bw: 5, wear: true }), 1.1, .275, new V3(d.x, y0 + d.h + .38, dz + .02), new V3(0, 0, 1), { boost: 1.3, minL: .07 });
     }
-    // skylten: en tung plåt i rostigt stål med bokstäverna utskurna, hängande i två stålrör från taket mitt framför glaset, bakbelyst
-    const N = CV.NEON, sh = N.w * 640 / 2048 + .25, cy = sh / 2, Y0 = (W.y0 + W.y1) / 2 - cy, ng = new THREE.Group(); ng.position.set(N.x, Y0, N.z); ng.rotation.y = -Math.PI / 2; scene.add(ng);
-    const tilt = new THREE.Group(); ng.add(tilt);
-    for (const dz of [-N.w / 2 + .35, N.w / 2 - .35]) { rodProp([N.x - .03, Y0 + sh - .06, N.z + dz], [N.x - .03, H, N.z + dz], .022, 0x1b1d1d);
-      prop(new THREE.CylinderGeometry(.06, .06, .03, 16), { color: 0x1b1d1d }, new V3(N.x - .03, H - .015, N.z + dz), null, { shadow: false }); }
-    { const W = 2048, Hh = Math.round(W * sh / N.w), c = cnv(W, Hh), x = c.getContext("2d"), img = MATTEX.rost2.diff.image, r = rng(4);
-      for (let tx = 0; tx < W; tx += Hh) x.drawImage(img, tx, 0, Hh, Hh);
-      x.globalCompositeOperation = "multiply"; x.fillStyle = "#b8a090"; x.fillRect(0, 0, W, Hh); x.globalCompositeOperation = "source-over";
-      const g = x.createLinearGradient(0, 0, 0, Hh); g.addColorStop(0, "rgba(20,12,8,.0)"); g.addColorStop(.8, "rgba(20,12,8,.15)"); g.addColorStop(1, "rgba(20,12,8,.55)"); x.fillStyle = g; x.fillRect(0, 0, W, Hh);
-      x.strokeStyle = "rgba(18,10,6,.8)"; x.lineWidth = 14; x.strokeRect(7, 7, W - 14, Hh - 14);
-      for (const [bx, by] of [[50, 50], [W - 50, 50], [50, Hh - 50], [W - 50, Hh - 50], [W / 2, 50], [W / 2, Hh - 50]]) { const bg = x.createRadialGradient(bx - 4, by - 4, 2, bx, by, 18); bg.addColorStop(0, "#8a7a68"); bg.addColorStop(1, "#2a1a10"); x.fillStyle = bg; x.beginPath(); x.arc(bx, by, 16, 0, 7); x.fill(); }
-      x.globalCompositeOperation = "destination-out"; x.fillStyle = "#000"; x.textAlign = "center"; x.textBaseline = "middle";
-      let fs = 470; x.font = `800 ${fs}px "Big Shoulders Display", "Arial Narrow", sans-serif`; if (x.letterSpacing !== undefined) x.letterSpacing = "40px";
-      while (x.measureText("CITYVIBE").width > W * .86) { fs -= 10; x.font = `800 ${fs}px "Big Shoulders Display", "Arial Narrow", sans-serif`; }
-      x.fillText("CITYVIBE", W / 2 + 20, Hh / 2 + 12); x.globalCompositeOperation = "source-over";
-      const plate = new THREE.Mesh(new THREE.PlaneGeometry(N.w, sh), new THREE.MeshBasicMaterial({ map: T(c, true, false), alphaTest: .5, side: THREE.DoubleSide }));
-      plate.position.set(0, cy, .012); tilt.add(plate);
-      plate.updateWorldMatrix(true, false); const wp = new V3().setFromMatrixPosition(plate.matrixWorld), wn = new V3(0, 0, 1).transformDirection(plate.matrixWorld);
-      decals.push({ mesh: plate, pos: wp, n: wn, boost: 1.35, minL: .05 }); }
-    // plåtens kant och baksida
-    prop(new THREE.BoxGeometry(N.w, sh, .012), { color: 0x2a1c14 }, new V3(0, cy, -.06), null, { parent: tilt, shadow: false });
-    // bakljuset: varmt sken som lyser genom bokstäverna och läcker ut runt plåten mot glaset
-    { const back = new THREE.Mesh(new THREE.PlaneGeometry(N.w - .1, sh - .1), new THREE.MeshBasicMaterial({ color: new THREE.Color(3.2, 2.1, 1.15) })); back.position.set(0, cy, -.045); tilt.add(back);
-      const halo = new THREE.Mesh(new THREE.PlaneGeometry(N.w * 1.5, sh * 2.6), new THREE.MeshBasicMaterial({ map: T(radial([[0, "rgba(255,255,255,.9)"], [.45, "rgba(255,255,255,.35)"], [1, "rgba(255,255,255,0)"]], 256), false, false), color: new THREE.Color(1.1, .7, .38), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
-      halo.position.set(0, cy + .05, -.07); tilt.add(halo); }
     // burlampor, en bänk i betong och lite skräp som blivit kvar
     for (const z of CV.LAMPS) { const b = placeModel("bur", [-1.6, 3.95, z], 0, { h: .75, hang: true, emisCol: [4, 2.6, 1.3] }); if (b) rodProp([-1.6, b.top, z], [-1.6, H, z], .01, 0x111111); else cageLamp(-1.6, 3.4, z, H); }
     buildStands("staden", 0x52504c, 0x1b1d1d);

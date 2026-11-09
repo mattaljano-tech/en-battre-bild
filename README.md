@@ -6,6 +6,7 @@ Hemsida och 3D-showroom för fotofirman En bättre bild. Utan byggsteg.
 - `public/showroom.html` – 3D-showroomet (Three.js): sidans HTML och CSS, och listan över skriptfilerna
 - `public/js/` – koden, uppdelad i filer som laddas i ordning (se längst ner i `showroom.html`)
   - `foton.js` – fotona på väggarna
+  - `fotomatt.js` – bildernas format (bredd/höjd) för den vanliga sidan; saknas en bild där mäts den när den laddas
   - `bakning.js` – ljusmotorn och rummens form, ljus och fotoplatser
   - `start.js`, `texturer.js`, `motor.js` – grunden: hjälpfunktioner, texturer, renderare och ytor
   - `rum-*.js` – ett rum per fil; `gata.js` och `promenaden.js` – gatan och entrén

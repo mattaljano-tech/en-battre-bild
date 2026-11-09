@@ -1406,7 +1406,7 @@ function useRoom(key) {
     const b = new THREE.Mesh(new THREE.SphereGeometry(.075 * sc, 18, 12), new THREE.MeshBasicMaterial({ color: new THREE.Color(5, 3.3, 1.5) })); b.scale.set(.85, 1, .85); b.position.set(lx, ly + .15 * sc, lz); scene.add(b);
   }
   function plant(x, z, h, seed) {
-    const k = h >= 1.95 ? "vaxt1" : "vaxt2";
+    const k = h >= 2.05 ? "vaxt1" : "vaxt2"; // den stora (100 000 blad-trianglar) bara på ett ställe per rum
     if (MODELS[k]) { // krukväxt från Poly Haven: ljuset mäts nere vid krukan och uppe i bladen
       const hh = k === "vaxt1" ? 1.55 : 1.05, sh = (y) => shade(x, y, z, 0, 1, 0, null), lo = sh(.3), hi = sh(hh);
       placeModel(k, [x, 0, z], seed * 1.7, { h: hh, flat: { y0: .1, y1: hh, lo, hi } });
@@ -1889,16 +1889,68 @@ function useRoom(key) {
       { src: "tegel", base: "#c99a80", wall: 0x8a5a48, style: "tegel" }, { src: "puts", base: "#b8c2bc", wall: 0xaab4ae, style: "klassisk" }];
     const tex = TYPES.map((ty) => { const t = T(cityFacade(SRC[ty.src], ty.base)); t.wrapS = t.wrapT = THREE.RepeatWrapping; return t; });
     const roofCols = [0x3f4746, 0x4a3f3a, 0x55524c, 0x394140];
-    const house = (x0, z0, w, d, top, rough) => {
+    // ---------- modulsatser från Poly Haven: fasad, AC-aggregat och brandtrappor ----------
+    const kitIndex = (root) => { if (!root) return null; root.updateMatrixWorld(true); const idx = {};
+      root.traverse((o) => { if (!o.isMesh) return; const nm = o.parent && o.parent !== root ? o.parent.name : o.name;
+        const g = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone(); g.applyMatrix4(o.matrixWorld); if (!g.attributes.normal) g.computeVertexNormals();
+        (idx[nm] = idx[nm] || []).push({ g, mat: o.material }); });
+      for (const k in idx) { const b = new THREE.Box3(); idx[k].forEach((pc) => { pc.g.computeBoundingBox(); b.union(pc.g.boundingBox); }); idx[k].box = b; }
+      return idx; };
+    const KIT = kitIndex(MODELS.fasad), ACK = kitIndex(MODELS.ac), FEK = kitIndex(MODELS.brandtrappa), KB = {};
+    const KBASIS = new THREE.Matrix4().makeBasis(new V3(0, 0, 1), new V3(0, 1, 0), new V3(-1, 0, 0)); // satsens framsida (+z) vänds mot rummet (−x)
+    // lägg en del i rätt hink per material; ljuset sätts per hörn: framsidor ljusa, undersidor mörka
+    const kitAdd = (idx, key, M, tint, glass) => { const parts = idx && idx[key]; if (!parts) return false;
+      for (const pc of parts) { const mn = pc.mat.name || "x"; const B = KB[mn] || (KB[mn] = { p: [], u: [], c: [], mat: pc.mat });
+        const g = pc.g.clone(); g.applyMatrix4(M); const pa = g.attributes.position, na = g.attributes.normal, ua = g.attributes.uv, isG = /glass/i.test(mn);
+        for (let i = 0; i < pa.count; i++) { B.p.push(pa.getX(i), pa.getY(i), pa.getZ(i)); B.u.push(ua ? ua.getX(i) : 0, ua ? ua.getY(i) : 0);
+          const nx = na.getX(i), ny = na.getY(i), k = .6 + .3 * Math.max(0, -nx) + .16 * Math.max(0, ny) - .22 * Math.max(0, -ny), t = isG ? glass : tint;
+          B.c.push(t[0] * (isG ? 1 : k), t[1] * (isG ? 1 : k), t[2] * (isG ? 1 : k)); } }
+      return true; };
+    // centrerad del: mitten i (cx, cz), nederkant på yMin, skalad (sx, sy, sz) i satsens koordinater
+    const kitPlace = (idx, key, cx, yMin, cz, tint, sc, glass) => { const b = idx && idx[key] && idx[key].box; if (!b) return false; sc = sc || [1, 1, 1];
+      const M = new THREE.Matrix4().makeTranslation(cx, yMin, cz).multiply(KBASIS).multiply(new THREE.Matrix4().makeScale(sc[0], sc[1], sc[2]))
+        .multiply(new THREE.Matrix4().makeTranslation(-(b.min.x + b.max.x) / 2, -b.min.y, -(b.min.z + b.max.z) / 2));
+      return kitAdd(idx, key, M, tint, glass || [0, 0, 0]); };
+    const KITTINTS = [[1, 1, 1], [1.3, 1.2, 1.05], [1.15, 1.1, 1.08], [1.42, 1.34, 1.2], [.92, .9, .92]];
+    const KITTYPES = [["centered_large", "_01", "_02", "_03"], ["centered_small", "_01", "_02", "_03"], ["centered_double", "_01", "_02", "_03"], ["offset_small", "_01", "_03", "_05"]];
+    let fireEscapes = 0;
+    // ett hus i fasadsatsen: moduler om 3 × 3 m våning för våning uppifrån, en takkrona överst och gesimser mellan våningarna
+    const kitFacade = (x0, z0, w, top, wall, holesOut) => {
+      const n = Math.max(1, Math.round(w / 3)), cw = w / n, nf = Math.ceil((top + 4.5) / 3), kb = top - 3 * nf, tint = KITTINTS[(r() * KITTINTS.length) | 0];
+      const T = KITTYPES[(r() * KITTYPES.length) | 0];
+      for (let f = 0; f < nf; f++) { const yb = top - 3 * (f + 1), suf = f === 0 ? T[3] : f === 1 ? T[2] : T[1];
+        for (let i = 0; i < n; i++) { const zs = z0 - w + i * cw, plain = r() < .1;
+          const wk = plain ? "wall_standard_standard_01" : "wall_window_" + T[0] + suf, nk = "window_" + T[0] + suf, b = KIT[wk] && KIT[wk].box; if (!b) continue;
+          const M = new THREE.Matrix4().makeTranslation(x0, yb, zs).multiply(KBASIS).multiply(new THREE.Matrix4().makeScale(cw / 3, 1, 1)).multiply(new THREE.Matrix4().makeTranslation(-b.min.x, -b.min.y, -b.min.z));
+          const k = r(), glass = k < .45 ? [.12, .15, .19] : k < .75 ? [.055, .065, .085] : k < .9 ? [.38, .37, .35] : [1.1, .82, .48];
+          kitAdd(KIT, wk, M, tint); if (!plain) kitAdd(KIT, nk, M, tint, glass);
+          if (f > 0) { const cb = KIT.cornice_standard_standard_01 && KIT.cornice_standard_standard_01.box; // gesims vid varje bjälklag
+            if (cb) kitAdd(KIT, "cornice_standard_standard_01", new THREE.Matrix4().makeTranslation(x0, yb + 3 - .1, zs).multiply(KBASIS).multiply(new THREE.Matrix4().makeScale(cw / 3, 1, 1)).multiply(new THREE.Matrix4().makeTranslation(-cb.min.x, -cb.min.y, 0)), tint); }
+          // AC-aggregat på konsoler under ett och annat fönster
+          if (!plain && f > 0 && ACK && r() < .34) { const key = r() < .55 ? "exterior_aircon_unit" : "exterior_aircon_unit_rusted", ab = ACK[key] && ACK[key].box;
+            if (ab) kitPlace(ACK, key, x0 - (ab.max.z - ab.min.z) / 2 - .02, yb - .55, zs + cw / 2 + (r() - .5) * .6, [1, 1, 1]); }
+        }
+      }
+      { const crb = KIT.crown_standard_standard_01 && KIT.crown_standard_standard_01.box; // takkronan
+        if (crb) for (let i = 0; i < n; i++) kitAdd(KIT, "crown_standard_standard_01", new THREE.Matrix4().makeTranslation(x0, top, z0 - w + i * cw).multiply(KBASIS).multiply(new THREE.Matrix4().makeScale(cw / 3, 1, 1)).multiply(new THREE.Matrix4().makeTranslation(-crb.min.x, -crb.min.y, 0)), tint); }
+      // brandtrappa på ett par hus: plattform och räcke vid varje våning, trappor emellan
+      if (FEK && fireEscapes < 2 && w > 7 && nf >= 2 && r() < .55) { fireEscapes++; const zc = z0 - w * (.3 + r() * .4), ft = [.55, .55, .58];
+        for (let f = 0; f < nf; f++) { const yb = top - 3 * (f + 1);
+          kitPlace(FEK, "modular_fire_escape_platform_middle", x0 - .68, yb - .72, zc, ft); kitPlace(FEK, "modular_fire_escape_railing_middle", x0 - .7, yb + .03, zc, ft);
+          if (f < nf - 1) kitPlace(FEK, "modular_fire_escape_stairs", x0 - .69, yb - 3 + .03, zc + (f % 2 ? .5 : -.5), ft, [f % 2 ? -1 : 1, .75, 1]); } }
+      return kb;
+    };
+    const house = (x0, z0, w, d, top, rough, kit) => {
       const bot = -12, ti = (r() * TYPES.length) | 0, ty = TYPES[ti], wall = hx(ty.wall), style = ty.style;
       const o = style === "modern" ? { ww: 1.9 + r() * .5, wh: 1.55, sp: 2.9, fh: 3, depth: .2, frame: hx(0x2a2d2f), sill: hx(0x8c8f90), header: null, transom: false }
         : style === "tegel" ? { ww: 1.15, wh: 1.85, sp: 2.35 + r() * .3, fh: 3.2, depth: .3, frame: hx(r() < .5 ? 0xe6e2d8 : 0x2f3d37), sill: hx(0xb3ada2), header: hx(0x6a3526), transom: true, plants: true }
         : { ww: 1.1 + r() * .15, wh: 1.8, sp: 2.4 + r() * .35, fh: 3.25, depth: .28, frame: hx(r() < .7 ? 0xeeeae0 : 0x3a4a44), sill: hx(0xa9a59c), header: hx(ty.wall, 1.08), transom: true, plants: true };
       o.wall = wall;
-      const balc = style === "modern" && r() < .7, holes = [];
+      const useKit = kit && KIT, balc = style === "modern" && r() < .7, holes = [];
       box(x0, x0 + d, bot, top, z0 - w, z0, mul(wall, .92), true); // husets kropp: gavlarna syns i glappen
+      const ftop = useKit ? kitFacade(x0, z0, w, top, wall) : top; // med satsen: den släta fasaden går bara upp till modulerna
       const n = Math.max(1, Math.floor((w - 1.4) / o.sp)), m0 = (w - (n - 1) * o.sp) / 2;
-      for (let y = bot + 1; y + o.wh < top - (style === "modern" ? .9 : 1.3); y += o.fh) {
+      for (let y = bot + 1; !useKit && y + o.wh < top - (style === "modern" ? .9 : 1.3); y += o.fh) {
         const ground = y < bot + 2;
         for (let i = 0; i < n; i++) {
           const u = m0 + i * o.sp, ww = ground ? Math.min(o.sp - .5, o.ww * 1.6) : o.ww, wh = ground ? o.wh * 1.3 : o.wh;
@@ -1913,7 +1965,7 @@ function useRoom(key) {
         if (style !== "modern" && y > bot + 2 && y < bot + 2 + o.fh) box(x0 - .1, x0, y - .45, y - .25, z0 - w, z0, hx(ty.wall, 1.06)); // våningsband
       }
       // fasaden med riktiga hål för fönstren
-      const sh = new THREE.Shape([new THREE.Vector2(0, bot), new THREE.Vector2(w, bot), new THREE.Vector2(w, top), new THREE.Vector2(0, top)]);
+      const sh = new THREE.Shape([new THREE.Vector2(0, bot), new THREE.Vector2(w, bot), new THREE.Vector2(w, ftop), new THREE.Vector2(0, ftop)]);
       for (const [u0, u1, y0, y1] of holes) sh.holes.push(new THREE.Path([new THREE.Vector2(u0, y0), new THREE.Vector2(u0, y1), new THREE.Vector2(u1, y1), new THREE.Vector2(u1, y0)]));
       const fg = new THREE.ShapeGeometry(sh), fp = fg.attributes.position, fu = fg.attributes.uv, fcol = new Float32Array(fp.count * 3), tone = .9 + r() * .14;
       for (let i = 0; i < fp.count; i++) { const u = fp.getX(i), v = fp.getY(i), k = (.74 + .26 * clamp((v - bot) / (top - bot) * 1.4, 0, 1)) * tone;
@@ -1922,8 +1974,8 @@ function useRoom(key) {
       { const fm = new THREE.Mesh(fg, cityMat({ map: tex[ti], vertexColors: true, color: 0xe6e2da, side: THREE.DoubleSide })); fm.layers.set(1); scene.add(fm); }
       // taket
       const rc = hx(roofCols[(r() * roofCols.length) | 0]);
-      if (style !== "modern") box(x0 - .38, x0 + .06, top - .55, top - .1, z0 - w, z0, hx(ty.wall, 1.1)); // takgesims
-      if (rough && style !== "modern" && r() < .7) { // sadeltak i plåt med takkupor och skorstenar
+      if (style !== "modern" && !useKit) box(x0 - .38, x0 + .06, top - .55, top - .1, z0 - w, z0, hx(ty.wall, 1.1)); // takgesims
+      if (rough && style !== "modern" && !useKit && r() < .7) { // sadeltak i plåt med takkupor och skorstenar
         const rh = d * .34, xr = x0 + d / 2, ax = x0 - .35, ys = (x) => top + (x - ax) / (xr - ax) * rh;
         quad([ax, top, z0], [ax, top, z0 - w], [xr, top + rh, z0 - w], [xr, top + rh, z0], mul(rc, 1.05), mul(rc, 1.05), mul(rc, .8), mul(rc, .8));
         quad([xr, top + rh, z0], [xr, top + rh, z0 - w], [x0 + d, top, z0 - w], [x0 + d, top, z0], mul(rc, .6));
@@ -1937,15 +1989,23 @@ function useRoom(key) {
           box(xc - .35, xc + .35, top + rh - .4, top + rh + 1.3, zc - .5, zc + .5, hx(0x8c5a46, .9)); box(xc - .42, xc + .42, top + rh + 1.3, top + rh + 1.42, zc - .57, zc + .57, hx(0x45403c)); }
       } else { // platt tak: bröstning, plåtkant och saker på taket
         box(x0 + .1, x0 + d, top, top + .25, z0 - w, z0, mul(rc, .9));
-        box(x0 - .05, x0 + .3, top, top + .7, z0 - w, z0, mul(wall, .93)); box(x0 - .12, x0 + .37, top + .7, top + .8, z0 - w, z0, hx(0x9a9894));
+        if (!useKit) { box(x0 - .05, x0 + .3, top, top + .7, z0 - w, z0, mul(wall, .93)); box(x0 - .12, x0 + .37, top + .7, top + .8, z0 - w, z0, hx(0x9a9894)); }
         if (r() < .6) { const zc = z0 - w * (.2 + r() * .6), xc = x0 + d * (.3 + r() * .4); box(xc - 1.3, xc + 1.3, top, top + 2.6, zc - 1.2, zc + 1.2, mul(wall, .85)); }
         for (let i = 0; i < (r() * 4 | 0); i++) { const zc = z0 - w * (.1 + r() * .8), xc = x0 + 1.2 + r() * (d - 2.4); box(xc - .5, xc + .5, top + .25, top + 1.1, zc - .7, zc + .7, hx(0x9fa4a6, .8 + r() * .25)); }
         if (r() < .5) { const zc = z0 - w * (.2 + r() * .6), xc = x0 + d * (.4 + r() * .4), hh = 2.5 + r() * 3; box(xc - .04, xc + .04, top, top + hh, zc - .04, zc + .04, hx(0x2c2e30)); box(xc - .04, xc + .04, top + hh - .6, top + hh - .55, zc - .7, zc + .7, hx(0x2c2e30)); }
       }
     };
-    for (const [xa, xb, tmin, tmax, rough] of [[15, 18, 1.5, 9, 1], [30, 36, 5, 17, 1], [48, 56, 9, 26, 0]]) {
-      let z = 30; while (z > -60) { const w = 7 + r() * 8; house(xa + r() * (xb - xa), z, w, 10 + r() * 6, tmin + r() * (tmax - tmin), rough); z -= w + (r() < .3 ? 2 + r() * 3 : 0); }
+    for (const [xa, xb, tmin, tmax, rough, kit] of [[15, 18, 1.5, 9, 1, 1], [30, 36, 5, 17, 1, 0], [48, 56, 9, 26, 0, 0]]) {
+      let z = 30; while (z > -60) { const w = 7 + r() * 8; house(xa + r() * (xb - xa), z, w, 10 + r() * 6, tmin + r() * (tmax - tmin), rough, kit && (isTouch ? z < 8 && z - w > -32 : z < 22 && z - w > -50)); z -= w + (r() < .3 ? 2 + r() * 3 : 0); }
     }
+    // satsens hinkar blir en geometri per material
+    for (const mn in KB) { const B = KB[mn], g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(B.p, 3));
+      g.setAttribute("uv", new THREE.Float32BufferAttribute(B.u, 2)); g.setAttribute("color", new THREE.Float32BufferAttribute(B.c, 3)); g.computeBoundingSphere();
+      const src = B.mat, blend = src.transparent || /exterior_aircon_unit(_rusted)?_02/.test(mn), glass = /glass/i.test(mn);
+      const m = glass ? cityMat({ vertexColors: true, side: THREE.DoubleSide })
+        : blend ? cityMat({ vertexColors: true, color: 0x3a3c3e, alphaMap: src.map || null, alphaTest: .5, side: THREE.DoubleSide })
+        : cityMat({ map: src.map || null, vertexColors: true, side: THREE.DoubleSide });
+      const mesh = new THREE.Mesh(g, m); mesh.layers.set(1); scene.add(mesh); }
     { const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(P, 3)); g.setAttribute("color", new THREE.Float32BufferAttribute(C, 3)); g.computeBoundingSphere();
       const cm = new THREE.Mesh(g, cityMat({ vertexColors: true, side: THREE.DoubleSide })); cm.layers.set(1); scene.add(cm); }
     // några fåglar som glider runt över taken

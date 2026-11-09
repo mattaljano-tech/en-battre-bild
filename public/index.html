@@ -480,7 +480,7 @@ function standSlots(room, size, o) {
    Hela östra långväggen är industriglas från taket ner till en låg betongbröstning, och utanför ligger staden i dagsljus.
    En liten ståltrappa med fyra steg leder upp till en dörr vidare.
    x: tvärs (väggarna x=±6, glaset x=+6), z: längs (ingången z=0, bortre väggen z=-22), takhöjd 5,4 m. */
-const GATA = /[?&]gata/.test(location.search); // förhandsvisning: gatan utanför foajén och entrén från gatan
+const GATA = !/[?&]utangata/.test(location.search); // gatan utanför foajén och entrén från gatan (?utangata visar den gamla dagsljusfoajén)
 const REGN = !/[?&]sol/.test(location.search); // det regnar utanför Staden (?sol visar soligt väder)
 const CV = { X: 6, L: 22, H: 5.4, PIL: [[-2.9, -7.3], [2.9, -7.3], [-2.9, -14.6], [2.9, -14.6]], PW: .56,
   WIN: { y0: 1.1, y1: 5.25, PZ: 1.1 }, ST: { x: 0, z0: -20.1, run: .3, rise: .18 }, DOOR: { x: 0, w: 1.05, h: 2.15 },
@@ -3661,7 +3661,7 @@ function useRoom(key) {
   requestAnimationFrame(frame);
   const startKey = SPECS[location.hash.slice(1)] ? location.hash.slice(1) : "foajen";
   // första besöket i foajén börjar ute på gatan (?direkt hoppar över det)
-  if (startKey === "foajen" && !reduceMotion && GATA) { // förhandsvisning tills grafiken är klar
+  if (startKey === "foajen" && !reduceMotion && GATA && !/[?&]direkt/.test(location.search)) { // första besöket börjar ute på gatan (?direkt hoppar över promenaden)
     STREET = streetIntro(); $("intro").classList.add("street"); $("skipBtn").hidden = false; }
   goRoom(startKey, true).then((S) => {
     if (STREET) { $("introName").textContent = "En bättre bild"; $("introEyebrow").textContent = "Fotograf · Stockholm"; $("introText").textContent = "Kliv in i värmen. Foajén väntar, och där börjar vernissagen.";

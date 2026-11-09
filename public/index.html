@@ -1244,14 +1244,14 @@ function useRoom(key) {
     svart: { fw: .085, bevel: .014, color: 0x22272e, map: () => MATTEX.morktra && MATTEX.morktra.diff, grain: .9, fillet: 0x6c665e },
     ek: { fw: .085, bevel: .014, color: 0xaeb6c0, map: () => MATTEX.tra && MATTEX.tra.diff, grain: 1.4, fillet: 0x2a2724 },
     metall: { fw: .03, bevel: .006, color: 0x262728, map: () => MATTEX.rost2 && MATTEX.rost2.diff, grain: 3, fillet: 0, mat: .075 } };
-  const RAMVAL = new URLSearchParams(location.search).get("ram") || "svart";
+  const RAMQ = new URLSearchParams(location.search).get("ram"), RAM_ROOM = { manniskorna: "metall" }; // ram per rum, svartbetsad ek annars
   function frameFor(slot, aspect, S) {
     let w, h; if (slot.h) { h = slot.h; w = h * aspect; } else { w = slot.w; h = w / aspect; }
     if (slot.maxW && w > slot.maxW) { w = slot.maxW; h = w / aspect; } // på en skiva: alltid luft runt bilden
     const C = slot.C, U = slot.U, Vv = [0, 1, 0], N = slot.N;
     const g = new THREE.Group(); g.matrixAutoUpdate = false;
     g.matrix.makeBasis(new V3(...U), new V3(...Vv), new V3(...N)).setPosition(new V3(...C)); scene.add(g);
-    const RS = RAM[RAMVAL] || RAM.svart, fd = .075, id = "frame-" + slot.key, mat = RS.mat || 0;
+    const RS = RAM[RAMQ || RAM_ROOM[currentKey] || "svart"] || RAM.svart, fd = .075, id = "frame-" + slot.key, mat = RS.mat || 0;
     // passepartout: en ljus kartong mellan list och bild
     if (mat) { const mw = w + mat * 2, mh = h + mat * 2;
       const ms = new THREE.Shape([new THREE.Vector2(-mw / 2, -mh / 2), new THREE.Vector2(mw / 2, -mh / 2), new THREE.Vector2(mw / 2, mh / 2), new THREE.Vector2(-mw / 2, mh / 2)]);

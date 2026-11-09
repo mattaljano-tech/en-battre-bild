@@ -2648,7 +2648,7 @@ function useRoom(key) {
         this.loop(this.brown, "lowpass", 260, .11);
         this.loop(this.brown, "bandpass", 520, .025, .5);
         this.every(this.bell, 30000, 60000);
-        if (REGN) { this.loop(this.rainBuf, "bandpass", 2600, .06, .4); this.loop(this.rainBuf, "lowpass", 900, .05); } // regn mot rutorna
+        if (REGN) { this.loop(this.rainBuf, "bandpass", 2600, .011, .4); this.loop(this.rainBuf, "lowpass", 900, .01); } // regn mot rutorna, svagt i bakgrunden
       },
       naturen(ctx) {
         const air = this.loop(this.brown, "bandpass", 900, .1, .5); // vindsuset: svagt, fåglarna har kvar sin volym

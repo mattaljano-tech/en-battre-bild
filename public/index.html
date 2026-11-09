@@ -97,7 +97,9 @@ button { font: inherit; }
 .roomcard kbd { font-family: var(--font-mono); font-size: 10px; opacity: .6; margin-left: 6px; }
 .where .rcopen { margin-top: 10px; }
 body.rc #where { visibility: hidden; }
+body.sitting #hint { visibility: hidden; }
 @media (max-width: 520px) { .roomcard .tbtns { flex-wrap: wrap; } .roomcard .tbtns .btn { flex: 1 1 100%; } .roomcard .tbtns .chip { flex: 1; } .roomcard kbd { display: none; } }
+.sitbar { left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); display: flex; gap: 12px; align-items: center; font-family: var(--font-mono); font-size: 12px; color: var(--paper); text-shadow: 0 1px 10px rgba(0,0,0,.9); white-space: nowrap; }
 .fade { position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none; transition: opacity .28s; z-index: 4; }
 .fade.on { opacity: 1; }
 .cross { left: 50%; top: 50%; width: 5px; height: 5px; margin: -2.5px 0 0 -2.5px; border-radius: 50%; background: var(--paper); opacity: .75; }
@@ -211,6 +213,7 @@ body.viewing #soundBtn { visibility: hidden; pointer-events: none; }
     <button type="button" class="chip" id="rcClose">Gå själv ✕</button>
   </div>
 </div>
+<div class="ui sitbar" id="sitBar" hidden><span id="sitHint">Du sitter · se dig omkring</span><button type="button" class="chip" id="standBtn">Res dig ↑</button></div>
 <div class="fade" id="fade"></div>
 <div class="ui toast" id="toast" role="status"></div>
 
@@ -657,7 +660,7 @@ function manSDF(x, y, z) {
   return d;
 }
 const MAN_SOFT = [[-1.9, 2.05, -13.2], [1.9, 2.05, -13.2]], MAN_STOOL = [0, 1.2, -14.3];
-const MAN_LOUNGE = { x: 0, z: -6.6, lampY: 2.75 }, MAN_PENDANTS = [0, 1, 2].map((i) => { const a = Math.PI / 2 + i * 2 * Math.PI / 3; return [Math.cos(a) * .4, Math.sin(a) * .4, [1.42, 1.78, 2.12][i]]; }); // tre i en cirkel: [x, z, underkant på glaskupan] // soffgruppen mitt i rummet
+const MAN_LOUNGE = { x: 0, z: -6.6, lampY: 2.75 }, MAN_PENDANTS = [0, 1, 2].map((i) => { const a = Math.PI / 2 + i * 2 * Math.PI / 3; return [Math.cos(a) * .27, Math.sin(a) * .27, [1.32, 1.5, 1.68][i]]; }); // lägre än stående ögon, men ovanför siktlinjen när man sitter // tre i en cirkel: [x, z, underkant på glaskupan] // soffgruppen mitt i rummet
 const SUNM = (() => { const v = [-.82, .62, .22], l = Math.hypot(...v); return v.map((c) => c / l); })(); // mot solen, utanför västra fönstren
 function manSunGate(px, py, pz) {
   if (pz > 0 || px <= -MAN.X + .01) return 0;
@@ -1134,7 +1137,7 @@ function useRoom(key) {
   const RES = isTouch ? 9 : 16;  // texlar per meter i ljuskartorna
 
   /* ================= ytor med bakad ljuskarta ================= */
-  const surfaces = [], props = [], occluders = [], photoMeshes = [];
+  const surfaces = [], props = [], occluders = [], photoMeshes = [], seats = [];
   function planar(o) {
     if (o.map && o.map.pbr) { const m = o.map; o = Object.assign({}, o, { map: m.map, nor: m.nor, arm: m.arm, relK: m.relK, layer: m.layer, color: m.color, tu: o.keepUV ? o.tu : m.s, tv: o.keepUV ? o.tv : m.s }); }
     const U = o.U, V = o.V, N = [U[1] * V[2] - U[2] * V[1], U[2] * V[0] - U[0] * V[2], U[0] * V[1] - U[1] * V[0]];
@@ -1454,7 +1457,7 @@ function useRoom(key) {
     prop(new THREE.BoxGeometry(.12, .06, 1.1, 1, 1, 4), { color: 0x9a9d98 }, new V3(0, CH - .04, 3.6), null, { shadow: false });
     { const t = new THREE.Mesh(new THREE.CylinderGeometry(.02, .02, .96, 10), new THREE.MeshBasicMaterial({ color: new THREE.Color(.9, 2.6, 2.4) })); t.rotation.x = Math.PI / 2; t.position.set(0, CH - .09, 3.6); scene.add(t); }
     // bänk, växter, dörrar
-    prop(worldUV(new THREE.BoxGeometry(.5, .06, 3.2, 2, 1, 8), 1.5), { color: 0xe8d0b0, map: MATTEX.tra.diff }, new V3(0, .45, -10), null, { id: "nbench", collide: true });
+    prop(worldUV(new THREE.BoxGeometry(.5, .06, 3.2, 2, 1, 8), 1.5), { color: 0xe8d0b0, map: MATTEX.tra.diff }, new V3(0, .45, -10), null, { id: "nbench", collide: true }); benchSeats(0, -10, 3.2, .5, .48, false);
     for (const dz of [-1.1, 1.1]) prop(worldUV(new THREE.BoxGeometry(.44, .42, .44, 2, 2, 2), 2), { color: 0xd8d8d2, map: MATTEX.betong.diff }, new V3(0, .21, -10 + dz), null, { id: "nbench" });
     plant(-4.9, -1.4, 2.0, 3); plant(4.9, -1.4, 1.7, 8); plant(5.3, -16.0, 2.1, 12);
     buildStands("naturen", 0xdedad2);
@@ -1630,7 +1633,7 @@ function useRoom(key) {
       for (const z of [fw.z0 + .07, fw.z1 - .07]) for (const sx of [-1, 1]) prop(new THREE.BoxGeometry(.5, .05, .3), { color: sh }, new V3(sx * .3, .025, z), null, { id: "fwall" }); }
     // två tunga bänkar i ek på stålben, under takljusen, och lampor som hänger lågt ner från takstolarna
     for (const bz of HAL.BENCH) {
-      prop(worldUV(new THREE.BoxGeometry(2.8, .09, .5, 8, 1, 2), 1.5), { color: 0x9c7454, map: MATTEX.tra.diff }, new V3(0, .45, bz), null, { id: "hbench", collide: true });
+      prop(worldUV(new THREE.BoxGeometry(2.8, .09, .5, 8, 1, 2), 1.5), { color: 0x9c7454, map: MATTEX.tra.diff }, new V3(0, .45, bz), null, { id: "hbench", collide: true }); benchSeats(0, bz, 2.8, .5, .48, true);
       for (const bx of [-1.15, 1.15]) { prop(new THREE.BoxGeometry(.06, .41, .46, 1, 2, 1), { color: 0x141615 }, new V3(bx, .205, bz), null, { id: "hbench" });
         prop(new THREE.BoxGeometry(.06, .06, .46), { color: 0x141615 }, new V3(bx, .03, bz), null, { id: "hbench" }); }
       for (const lx of [-1.4, 1.4]) industrialLamp(lx, HAL.LAMPY, bz, 7.63, 1.2);
@@ -2001,7 +2004,7 @@ function useRoom(key) {
     // burlampor, en bänk i betong och lite skräp som blivit kvar
     for (const z of CV.LAMPS) { const b = placeModel("bur", [-1.6, 3.95, z], 0, { h: .75, hang: true, emisCol: [4, 2.6, 1.3] }); if (b) rodProp([-1.6, b.top, z], [-1.6, H, z], .01, 0x111111); else cageLamp(-1.6, 3.4, z, H); }
     buildStands("staden", 0x52504c, 0x1b1d1d);
-    prop(worldUV(new THREE.BoxGeometry(2.2, .44, .62, 8, 2, 2), 2), { color: 0xc0c0ba, map: MATTEX.betong.diff }, new V3(-3.3, .22, -11), null, { id: "cbench", collide: true });
+    prop(worldUV(new THREE.BoxGeometry(2.2, .44, .62, 8, 2, 2), 2), { color: 0xc0c0ba, map: MATTEX.betong.diff }, new V3(-3.3, .22, -11), null, { id: "cbench", collide: true }); benchSeats(-3.3, -11, 2.2, .62, .44, true);
     opening({ C: [0, 0, 0], N: [0, 0, -1], U: [-1, 0, 0], w: 1.4, h: 2.5, to: "foajen", sign: ["00  FOAJÉN", "TILLBAKA"], glow: new THREE.Color(1.1, .82, .55) });
     return { noDust: true, update: cityTick };
   }
@@ -2010,6 +2013,21 @@ function useRoom(key) {
     sh.moveTo(x, y - r); sh.lineTo(x + W, y - r); sh.quadraticCurveTo(x + W + r, y - r, x + W + r, y); sh.lineTo(x + W + r, y + H); sh.quadraticCurveTo(x + W + r, y + H + r, x + W, y + H + r);
     sh.lineTo(x, y + H + r); sh.quadraticCurveTo(x - r, y + H + r, x - r, y + H); sh.lineTo(x - r, y); sh.quadraticCurveTo(x - r, y - r, x, y - r);
     const g = new THREE.ExtrudeGeometry(sh, { depth: d - 2 * r, bevelEnabled: true, bevelThickness: r, bevelSize: r * .6, bevelSegments: 3, curveSegments: 6 }); g.translate(0, 0, -(d - 2 * r) / 2); return g; }
+  // sittplatser: en osynlig låda att klicka på, och ett eller flera sätt att sitta (där ögat hamnar, vart man tittar, var man reser sig)
+  // opts: [{ x, z, yaw, eye, ox, oz }] – den som ligger närmast besökaren väljs
+  function addSeat(cx, cy, cz, sx, sy, sz, ry, opts) {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), new THREE.MeshBasicMaterial()); m.visible = false;
+    m.position.set(cx, cy, cz); m.rotation.y = ry || 0; m.updateMatrixWorld(true); scene.add(m);
+    const seat = { opts }; m.userData.seat = seat; occluders.push(m); seats.push(seat); return seat;
+  }
+  // en bänk längs x (vänd åt ±z) eller längs z (vänd åt ±x): sitt på den sida man kommer ifrån, där man klickade
+  function benchSeats(cx, cz, len, wid, h, alongX) {
+    const eye = h + .68, opts = [];
+    for (const sd of [-1, 1]) for (const t of [-.3, 0, .3]) {
+      if (alongX) opts.push({ x: cx + t * len, z: cz + sd * .05, yaw: sd > 0 ? 0 : Math.PI, eye, ox: cx + t * len, oz: cz + sd * (wid / 2 + .5) });
+      else opts.push({ x: cx + sd * .05, z: cz + t * len, yaw: sd > 0 ? Math.PI / 2 : -Math.PI / 2, eye, ox: cx + sd * (wid / 2 + .5), oz: cz + t * len }); }
+    return addSeat(cx, h / 2 + .1, cz, alongX ? len : wid + .1, h + .3, alongX ? wid + .1 : len, 0, opts);
+  }
   // studiomonitorer: matt svart låda med baselement och diskant, på ett väggfäste som riktar dem ner mot rummets mitt
   // [x, y, z på väggen, normal x, normal z], och punkten de pekar mot
   const SPEAKERS = {
@@ -2224,7 +2242,9 @@ function useRoom(key) {
     // fyra fåtöljer två och två mot varandra, lätt vinklade in mot bordet
     for (const [dx, dz, yaw] of [[-.88, -1.62, .48], [.88, -1.62, -.48], [-.88, 1.62, Math.PI - .48], [.88, 1.62, Math.PI + .48]]) {
       if (!placeModel("fatolj", [lx + dx, 0, lz + dz], yaw, { w: 1.06, id: "chair" + dx + dz, shadow: true })) leatherSeat(lx + dx, lz + dz, yaw, .98, 1, leather, "chair" + dx + dz);
-      colliders.push({ x0: lx + dx - .55, x1: lx + dx + .55, z0: lz + dz - .55, z1: lz + dz + .55 }); }
+      colliders.push({ x0: lx + dx - .55, x1: lx + dx + .55, z0: lz + dz - .55, z1: lz + dz + .55 });
+      { const fx = Math.sin(yaw), fz = Math.cos(yaw), cx = lx + dx, cz = lz + dz; // fåtöljen tittar åt +z vid yaw 0
+        addSeat(cx, .5, cz, 1, 1.05, 1, yaw, [{ x: cx + fx * .06, z: cz + fz * .06, yaw: yaw + Math.PI, eye: 1.08, ox: cx + fx * .95, oz: cz + fz * .95 }]); } }
     // soffbordet i industristil, med böcker
     const tb = placeModel("bord", [lx, 0, lz], 0, { h: .46, stretch: 1.9, id: "ctable", shadow: true });
     colliders.push({ x0: lx - .8, x1: lx + .8, z0: lz - .35, z1: lz + .35 });
@@ -2299,7 +2319,7 @@ function useRoom(key) {
     });
     while (scene.children.length) scene.remove(scene.children[0]);
     floorMirror = null;
-    [surfaces, props, occluders, photoMeshes, colliders, decals, exits, arts, tubeMats].forEach((a) => { a.length = 0; });
+    [surfaces, props, occluders, photoMeshes, colliders, decals, exits, arts, tubeMats, seats].forEach((a) => { a.length = 0; });
     dust = null; dustBase = null; dustPh = null; dustMat = null; floorGlowTex = null; flickerDark = null; marker = null; glowTexC = null; leafTexC = null; RT = null;
   }
   async function buildRoom(key) {
@@ -2359,7 +2379,7 @@ function useRoom(key) {
     }
     if (loading || !SPECS[key] || (key === currentKey && !first)) return;
     loading = true; walkTarget = null; for (const k in keys) keys[k] = false; aimEl.hidden = true;
-    hideRoomCard(true); if (tour.on && tour.only) tourStop(true);
+    hideRoomCard(true); standUp(true); if (tour.on && tour.only) tourStop(true);
     const S = SPECS[key];
     $("ldEyebrow").textContent = S.eyebrow || ("En bättre bild · Rum " + S.num + " av 4"); $("ldName").textContent = S.name; progress(0, "Förbereder rummet…");
     loader.classList.remove("done");
@@ -2569,6 +2589,7 @@ function useRoom(key) {
   /* ================= rörelse och styrning ================= */
   const EYE = 1.62;
   const player = { x: -1.4, z: -1.5, yaw: -.2, pitch: -.02, eyeOff: 0 }; // eyeOff: turen lyfter blicken till bildens mitt
+  let sitting = null; // sittplatsen man sitter på
   let walkTarget = null, entered = false, locked = false, bob = 0, stepAcc = 0, stepSide = 1;
   const walkRects = () => (currentKey ? SPECS[currentKey].walk : []);
   function blocked(px, pz) {
@@ -2589,7 +2610,8 @@ function useRoom(key) {
     if (e.target && e.target.tagName === "BUTTON" && (e.code === "Enter" || e.code === "Space" || e.code === "NumpadEnter")) return;
     keys[e.code] = true; if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space"].includes(e.code)) e.preventDefault();
     if (e.code === "Escape") { if (!lb.hidden) closeLB(); else closePanel(); }
-    if ((e.code === "KeyE" || e.code === "Enter") && lb.hidden) { const a = pickNDC(0, 0); if (a && a.art) openArt(a.art); else if (a && a.menu) openPanel(a.menu); else if (a && a.exit && a.dist < 6) goRoom(a.exit); }
+    if ((e.code === "KeyE" || e.code === "Enter") && lb.hidden) { const a = pickNDC(0, 0); if (a && a.art) openArt(a.art); else if (a && a.menu) openPanel(a.menu); else if (a && a.seat && a.dist < 7 && !sitting) sitDown(a.seat); else if (a && a.exit && a.dist < 6) goRoom(a.exit); }
+    if (e.code === "Space" && sitting && !e.repeat) standUp();
     if (e.code === "KeyM") Sound.set(!Sound.on);
     if (!tour.on && lb.hidden && panel.hidden && !loading && roomCount() && (e.code === "KeyT" || e.code === "KeyB") && !e.repeat) { if (e.code === "KeyT") roomTourStart(); else { hideRoomCard(); openPanel("rum"); } }
   });
@@ -2609,6 +2631,7 @@ function useRoom(key) {
     if (u.art) return { art: u.art, dist: hit.distance };
     if (u.exit) return { exit: u.exit, dist: hit.distance };
     if (u.menu) return { menu: u.menu, title: u.title, dist: hit.distance };
+    if (u.seat) return { seat: u.seat, dist: hit.distance };
     if (u.floor) return { floor: hit.point };
     return null;
   }
@@ -2618,6 +2641,7 @@ function useRoom(key) {
     if (p.art) { if (p.dist < 9 || isTouch) openArt(p.art); else walkTo(p.art.s.N, p.art); return; }
     if (p.exit) { goRoom(p.exit); return; }
     if (p.menu) { openPanel(p.menu); return; }
+    if (p.seat) { sitDown(p.seat); return; }
     if (p.floor) setWalk(p.floor.x, p.floor.z);
   }
   function setWalk(x, z) { walkTarget = clampWalk(x, z); showMarker(walkTarget.x, walkTarget.z); }
@@ -2628,13 +2652,13 @@ function useRoom(key) {
   canvas.addEventListener("mousemove", (e) => { if (!locked) return; const mx = e.movementX, my = e.movementY; if (Math.abs(mx) > 260 || Math.abs(my) > 260) return; lookDX += mx; lookDY += my; });
   canvas.addEventListener("pointerdown", (e) => {
     if (!entered) return; canvas.focus({ preventScroll: true });
-    if (locked) { const a = pickNDC(0, 0); if (a && a.art) { if (a.dist < 9) { openArt(a.art); unlock(); } else walkTo(a.art.s.N, a.art); } else if (a && a.exit) goRoom(a.exit); else if (a && a.menu) openPanel(a.menu); else if (a && a.floor) setWalk(a.floor.x, a.floor.z); return; }
+    if (locked) { const a = pickNDC(0, 0); if (a && a.art) { if (a.dist < 9) { openArt(a.art); unlock(); } else walkTo(a.art.s.N, a.art); } else if (a && a.exit) goRoom(a.exit); else if (a && a.menu) openPanel(a.menu); else if (a && a.seat && a.dist < 7) sitDown(a.seat); else if (a && a.floor) setWalk(a.floor.x, a.floor.z); return; }
     drag = { id: e.pointerId, x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, t: performance.now(), touch: e.pointerType === "touch" };
     try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
   });
   canvas.addEventListener("pointermove", (e) => {
     if (drag && drag.id === e.pointerId) { look(e.clientX - drag.x, e.clientY - drag.y, drag.touch ? .0048 : .0032); drag.x = e.clientX; drag.y = e.clientY; }
-    else if (!locked && entered && e.pointerType === "mouse") { mouse = { x: e.clientX, y: e.clientY }; const t = performance.now(); if (t - lastHover > 90) { lastHover = t; const p = pickAt(e.clientX, e.clientY); canvas.style.cursor = p && (p.art || p.exit || p.menu || p.floor) ? "pointer" : "default"; } }
+    else if (!locked && entered && e.pointerType === "mouse") { mouse = { x: e.clientX, y: e.clientY }; const t = performance.now(); if (t - lastHover > 90) { lastHover = t; const p = pickAt(e.clientX, e.clientY); canvas.style.cursor = p && (p.art || p.exit || p.menu || p.floor || p.seat) ? "pointer" : "default"; } }
   });
   canvas.addEventListener("pointerleave", () => { mouse = null; });
   canvas.addEventListener("pointerup", (e) => {
@@ -2776,10 +2800,26 @@ function useRoom(key) {
     list.forEach((st) => { st.s = pos(st); });
     return list.sort((p, q) => p.s - q.s);
   }
-  function tourStart() { unlock(); hideRoomCard(true); tour.on = true; tour.only = null; tour.stops = []; tour.i = -1; goRoom("staden"); }
+  // sätt dig: glid till sittplatsen, sänk blicken till sitthöjd och vänd dig åt det håll platsen pekar
+  function sitDown(seat) {
+    if (sitting || tour.on || loading || !seat.opts.length) return;
+    const o = seat.opts.reduce((m, q) => Math.hypot(q.ox - player.x, q.oz - player.z) < Math.hypot(m.ox - player.x, m.oz - player.z) ? q : m);
+    let dy = o.yaw - player.yaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); walkTarget = null; hideRoomCard(true);
+    tour.anim = { t: 0, T: 1.3, look: false, noBreak: true, ctl: { x: (player.x + o.ox) / 2 * .5 + o.ox * .5, z: (player.z + o.oz) / 2 * .5 + o.oz * .5 },
+      from: { x: player.x, z: player.z, yaw: player.yaw, pitch: player.pitch, eyeOff: player.eyeOff }, to: { x: o.x, z: o.z, yaw: player.yaw + dy, pitch: -.03, eyeOff: o.eye - EYE } };
+    sitting = o; document.body.classList.add("sitting"); $("sitHint").textContent = isTouch ? "Du sitter · dra för att se dig omkring" : "Du sitter · W eller mellanslag reser dig"; $("sitBar").hidden = false; $("rooms").hidden = true;
+  }
+  function standUp(quiet) {
+    if (!sitting) return; const o = sitting; sitting = null; document.body.classList.remove("sitting"); $("sitBar").hidden = true; if (entered && !tour.on) $("rooms").hidden = false;
+    if (quiet) return;
+    tour.anim = { t: 0, T: .9, look: false, noBreak: true, ctl: { x: (player.x + o.ox) / 2, z: (player.z + o.oz) / 2 },
+      from: { x: player.x, z: player.z, yaw: player.yaw, pitch: player.pitch, eyeOff: player.eyeOff }, to: { x: o.ox, z: o.oz, yaw: player.yaw, pitch: -.02, eyeOff: 0 } };
+  }
+  $("standBtn").addEventListener("click", (e) => { e.currentTarget.blur(); standUp(); canvas.focus({ preventScroll: true }); });
+  function tourStart() { unlock(); hideRoomCard(true); standUp(true); tour.on = true; tour.only = null; tour.stops = []; tour.i = -1; goRoom("staden"); }
   function tourStop(quiet) { tour.on = false; tour.only = null; tour.anim = null; tourEl.hidden = true; if (entered) { $("where").hidden = false; $("rooms").hidden = false; } if (!quiet) syncRcOpen(); }
   // bara det här rummet: samma tur, men den slutar vid rummets sista bild
-  function roomTourStart() { if (loading || currentKey === "foajen") return; unlock(); hideRoomCard(true); tour.on = true; tour.only = currentKey; tourEnter(true); }
+  function roomTourStart() { if (loading || currentKey === "foajen") return; unlock(); hideRoomCard(true); standUp(true); tour.on = true; tour.only = currentKey; tourEnter(true); }
 
   /* ================= rumskortet: välj tur eller alla bilder när man kommer in i ett rum ================= */
   const rcEl = $("roomCard"); let rcStart = null;
@@ -2851,6 +2891,7 @@ function useRoom(key) {
   const dbg = /[?&]debug/.test(location.search) ? Object.assign(document.body.appendChild(document.createElement("div")), { style: "position:fixed;left:8px;top:40px;z-index:20;font:11px/1.4 monospace;color:#9fe;background:rgba(0,0,0,.6);padding:4px 6px;pointer-events:none;white-space:pre" }) : null;
   let dbgT = 0, dbgN = 0, gpuName = "?";
   if (dbg) { window.__scene = scene; window.__cam = camera; window.__pl = () => JSON.stringify({ x: +player.x.toFixed(2), z: +player.z.toFixed(2), yaw: +player.yaw.toFixed(2), pitch: +player.pitch.toFixed(2), eo: +player.eyeOff.toFixed(2), anim: !!tour.anim, locked }); window.__order = () => tourStops().map((st) => st.art.slot.key + "@" + st.v.x.toFixed(1) + "," + st.v.z.toFixed(1)); window.__dump = () => ({ key: currentKey, start: SPECS[currentKey].start, rects: walkRects(), arts: arts.filter((a) => PHOTOS[a.slot.key] && PHOTOS[a.slot.key].src).map((a) => ({ k: a.slot.key, C: a.slot.C.map((v) => +v.toFixed(2)), N: a.slot.N, w: +(a.w || 0).toFixed(2) })) }); }
+  if (dbg) { window.__sit = (i) => { sitDown(seats[i]); return seats.length; }; window.__stand = () => standUp(); }
   if (dbg) window.__setView = (v) => { player.x = v[0]; player.z = v[1]; player.yaw = v[2]; player.pitch = v[3] || 0; };
   try { const gl = renderer.getContext(), ext = gl.getExtension("WEBGL_debug_renderer_info"); if (ext) gpuName = gl.getParameter(ext.UNMASKED_RENDERER_WEBGL); } catch (e) {}
   function frame(now) {
@@ -2865,7 +2906,7 @@ function useRoom(key) {
       else if (frameEMA < 18 && quality < 1) { quality = Math.min(1, quality + .075); applyQuality(); } }
     if (roomReady) {
       if (entered && !loading) {
-        if (tour.anim && (walkTarget || ["KeyW", "KeyA", "KeyS", "KeyD", "ArrowUp", "ArrowDown"].some((k) => keys[k]))) tour.anim = null; // egen rörelse avbryter glidningen
+        if (tour.anim && !tour.anim.noBreak && (walkTarget || ["KeyW", "KeyA", "KeyS", "KeyD", "ArrowUp", "ArrowDown"].some((k) => keys[k]))) tour.anim = null; // egen rörelse avbryter glidningen
         if (tour.anim) { const A = tour.anim; A.t = Math.min(1, A.t + Math.min(.25, raw / 1000) / A.T); const t = A.t, e = t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
           const qa = (1 - e) * (1 - e), qb = 2 * e * (1 - e), qc = e * e;
           const nx = qa * A.from.x + qb * A.ctl.x + qc * A.to.x, nz = qa * A.from.z + qb * A.ctl.z + qc * A.to.z, mv = Math.hypot(nx - player.x, nz - player.z);
@@ -2885,13 +2926,14 @@ function useRoom(key) {
         let f = 0, s = 0;
         if (keys.KeyW || keys.ArrowUp) f += 1; if (keys.KeyS || keys.ArrowDown) f -= 1; if (keys.KeyD) s += 1; if (keys.KeyA) s -= 1;
         if (keys.ArrowLeft) player.yaw += 1.7 * dt; if (keys.ArrowRight) player.yaw -= 1.7 * dt;
+        if (sitting) { if (f || s || walkTarget) { walkTarget = null; standUp(); } f = 0; s = 0; } // går man, reser man sig först
         const sy = Math.sin(player.yaw), cy = Math.cos(player.yaw); let dx = 0, dz = 0, speed = keys.ShiftLeft || keys.ShiftRight ? 3.4 : 1.8;
         if (f || s) { walkTarget = null; const l = Math.hypot(f, s); f /= l; s /= l; dx = (-sy * f + cy * s) * speed * dt; dz = (-cy * f - sy * s) * speed * dt; }
         else if (walkTarget) { const tx = walkTarget.x - player.x, tz = walkTarget.z - player.z, d = Math.hypot(tx, tz); if (d < .08) walkTarget = null; else { const st = Math.min(d, 1.6 * dt); dx = tx / d * st; dz = tz / d * st; } }
         let moved = 0;
         if (dx && !blocked(player.x + dx, player.z)) { player.x += dx; moved += Math.abs(dx); } else if (dx && walkTarget) walkTarget = null;
         if (dz && !blocked(player.x, player.z + dz)) { player.z += dz; moved += Math.abs(dz); } else if (dz && walkTarget) walkTarget = null;
-        if (player.eyeOff && !tour.anim && (moved > 0 || !tour.on)) { player.eyeOff *= Math.exp(-dt * 3); if (Math.abs(player.eyeOff) < .005) player.eyeOff = 0; } // går man själv sjunker blicken tillbaka
+        if (player.eyeOff && !tour.anim && !sitting && (moved > 0 || !tour.on)) { player.eyeOff *= Math.exp(-dt * 3); if (Math.abs(player.eyeOff) < .005) player.eyeOff = 0; } // går man själv sjunker blicken tillbaka
         if (moved > 0) { bob += moved * 3.6; stepAcc += moved; if (stepAcc > 1.05) { stepAcc = 0; stepSide = -stepSide; Sound.step(stepSide); } }
         if (rcStart && Math.hypot(player.x - rcStart.x, player.z - rcStart.z) > 2.5) hideRoomCard();
         if (!tour.anim) for (const ex of exits) if (player.x > ex.x0 && player.x < ex.x1 && player.z > ex.z0 && player.z < ex.z1) { goRoom(ex.to); break; }
@@ -2913,10 +2955,10 @@ function useRoom(key) {
       if (entered && locked && !loading) {
         if (now - lastAim > 120) { lastAim = now;
           const a = pickNDC(0, 0);
-          if (a && ((a.art && a.dist < 9) || (a.exit && a.dist < 7) || (a.menu && a.dist < 7))) {
+          if (a && ((a.art && a.dist < 9) || (a.exit && a.dist < 7) || (a.menu && a.dist < 7) || (a.seat && a.dist < 7 && !sitting))) {
             aimEl.innerHTML = ""; const ex = a.exit && exits.find((e) => e.to === a.exit);
-            aimEl.append(a.art ? PHOTOS[a.art.slot.key].title : a.menu ? a.title : (ex ? ex.title : SPECS[a.exit].name));
-            const sm = document.createElement("small"); sm.textContent = a.exit ? "klicka för att gå in" : "klicka för att öppna"; aimEl.append(sm); aimEl.hidden = false;
+            aimEl.append(a.seat ? "Sätt dig" : a.art ? PHOTOS[a.art.slot.key].title : a.menu ? a.title : (ex ? ex.title : SPECS[a.exit].name));
+            const sm = document.createElement("small"); sm.textContent = a.seat ? "klicka för att sätta dig och chilla" : a.exit ? "klicka för att gå in" : "klicka för att öppna"; aimEl.append(sm); aimEl.hidden = false;
           } else aimEl.hidden = true; }
       } else aimEl.hidden = true;
     }

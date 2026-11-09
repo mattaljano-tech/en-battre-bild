@@ -466,6 +466,7 @@ function standSlots(room, size, o) {
    Hela östra långväggen är industriglas från taket ner till en låg betongbröstning, och utanför ligger staden i dagsljus.
    En neonskylt, CITYVIBE, står på golvet lutad mot glaset. En liten ståltrappa med fyra steg leder upp till en dörr vidare.
    x: tvärs (väggarna x=±6, glaset x=+6), z: längs (ingången z=0, bortre väggen z=-22), takhöjd 5,4 m. */
+const REGN = /[?&]regn/.test(location.search); // förhandsvisning: regnig dag utanför Staden
 const CV = { X: 6, L: 22, H: 5.4, PIL: [[-2.9, -7.3], [2.9, -7.3], [-2.9, -14.6], [2.9, -14.6]], PW: .56,
   WIN: { y0: 1.1, y1: 5.25, PZ: 1.1 }, ST: { x: 0, z0: -20.1, run: .3, rise: .18 }, DOOR: { x: 0, w: 1.05, h: 2.15 },
   NEON: { x: 5.55, z: -11, w: 3.4, h: .95 }, LAMPS: [-4.2, -17.6] };
@@ -486,9 +487,9 @@ function cvSunGate(px, py, pz) {
 }
 function stadenLights() {
   const inRoom = (x, y, z) => z < .05;
-  addSun(SUNC, 3.0, COL.sun, cvSunGate, CV.H, { k: 50, only: inRoom });
-  for (let i = 0; i < 6; i++) for (let j = 0; j < 2; j++) addPanel([CV.X - .05, 2.1 + j * 2.1, -1.8 - i * 3.7], [-1, 0, 0], 1.05, COL.sky, 24, inRoom);
-  for (let i = 0; i < 3; i++) { const z = -3.5 - i * 7.2, t = 3.2 / SUNC[1]; addFill([CV.X - SUNC[0] * t, .3, z - SUNC[2] * t], .5, COL.sun, inRoom); }
+  if (!REGN) addSun(SUNC, 3.0, COL.sun, cvSunGate, CV.H, { k: 50, only: inRoom });
+  for (let i = 0; i < 6; i++) for (let j = 0; j < 2; j++) addPanel([CV.X - .05, 2.1 + j * 2.1, -1.8 - i * 3.7], [-1, 0, 0], REGN ? 1.25 : 1.05, REGN ? [.78, .85, .95] : COL.sky, 24, inRoom); // regn: bara grått, svalt dagsljus
+  if (!REGN) for (let i = 0; i < 3; i++) { const z = -3.5 - i * 7.2, t = 3.2 / SUNC[1]; addFill([CV.X - SUNC[0] * t, .3, z - SUNC[2] * t], .5, COL.sun, inRoom); }
   for (const z of CV.LAMPS) addPoint([-1.6, 3.4, z], .5, [1, .74, .44], 7, .03);                 // två burlampor
   addPoint([CV.NEON.x + .3, (CV.WIN.y0 + CV.WIN.y1) / 2, CV.NEON.z], .45, [1, .62, .32], 3.5, .03);   // bakljuset bakom skylten
   addPoint([CV.DOOR.x, 1.9, -21.6], .45, [.8, .9, 1], 4, .02);                                  // ljus genom dörren på glänt
@@ -756,6 +757,7 @@ const SPECS = {
     look: { mirror: { mat: "garage", k: .24 }, fog: 0x0a0a09, density: .006, bg: 0x050505, exposure: 1.25, bloom: .4, thr: 1.6 }, step: 520, wet: .35,
     slots: foySlots() }
 };
+if (REGN) Object.assign(SPECS.staden.look, { fog: 0x8c949b, bg: 0x8c949b, density: .011, exposure: 1.08, bloom: .35, thr: 1.6 });
 const ROOM_ORDER = ["foajen", "staden", "naturen", "berattelser", "manniskorna"];
 function useRoom(key) {
   const S = SPECS[key]; OBJ = []; LIGHTS = []; SOLIDS = S.solids || []; SDF = S.sdf; AMBF = S.amb;
@@ -1851,6 +1853,32 @@ function useRoom(key) {
     if (base) { x.globalCompositeOperation = "multiply"; x.fillStyle = base; x.fillRect(0, 0, 512, 512); x.globalCompositeOperation = "source-over"; }
     return c;
   }
+  // regn: strängar som faller mellan glaset och husen, och droppar och rinnande stråk på rutorna
+  function buildRain(X, L, W) {
+    const N = 4200, base = new Float32Array(N * 6), kk = new Float32Array(N * 2), r = rng(91);
+    for (let i = 0; i < N; i++) { const x = X + .6 + Math.pow(r(), 1.6) * 40, y = r() * 30, z = 25 - r() * 70;
+      for (let v = 0; v < 2; v++) { base.set([x, y, z], i * 6 + v * 3); kk[i * 2 + v] = v; } }
+    const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.BufferAttribute(base, 3)); g.setAttribute("k", new THREE.BufferAttribute(kk, 1));
+    const u = { t: { value: 0 } };
+    const m = new THREE.ShaderMaterial({ uniforms: u, transparent: true, depthWrite: false,
+      vertexShader: "attribute float k; uniform float t; varying float a; void main(){ vec3 p = position; p.y = mod(position.y - t * 11.0, 30.0) - 9.0 - k * .55; p.x -= k * .05; p.z += k * .02;" +
+        " vec4 mv = modelViewMatrix * vec4(p, 1.); a = clamp(1. - (-mv.z - 4.) / 45., 0., 1.); gl_Position = projectionMatrix * mv; }",
+      fragmentShader: "varying float a; void main(){ gl_FragColor = vec4(.78, .82, .86, .32 * a); }" });
+    const lines = new THREE.LineSegments(g, m); lines.frustumCulled = false; lines.layers.set(1); scene.add(lines);
+    // dropparna på glaset: en stillastående textur och en som sakta rinner
+    const drops = (seed, streaks) => { const H = W.y1 - W.y0, cw = 4096, ch = Math.round(cw * H / L * 2), c = cnv(cw, ch), x = c.getContext("2d"), q = rng(seed), sx = cw / L, sy = ch / H / 2;
+      for (let i = 0; i < (streaks ? 320 : 11000); i++) { const px = q() * cw, py = q() * ch, rr = (streaks ? 1.8 + q() * 1.4 : .55 + Math.pow(q(), 4) * 2.6) * sx / 190;
+        if (streaks) { const len = (40 + q() * 160) * sy / 60; const gr = x.createLinearGradient(0, py - len, 0, py); gr.addColorStop(0, "rgba(220,228,236,0)"); gr.addColorStop(1, "rgba(220,228,236,.35)");
+          x.strokeStyle = gr; x.lineWidth = rr * .8; x.beginPath(); x.moveTo(px, py - len); x.bezierCurveTo(px + (q() - .5) * 6, py - len * .6, px + (q() - .5) * 6, py - len * .3, px, py); x.stroke(); }
+        x.fillStyle = "rgba(30,36,44,.2)"; x.beginPath(); x.ellipse(px, py + rr * .25, rr, rr * 1.15, 0, 0, 7); x.fill();   // mörk kant nertill
+        x.fillStyle = "rgba(225,232,240,.2)"; x.beginPath(); x.ellipse(px, py, rr * .82, rr * .95, 0, 0, 7); x.fill();       // droppen
+        x.fillStyle = "rgba(255,255,255,.42)"; x.beginPath(); x.arc(px - rr * .3, py - rr * .35, rr * .28, 0, 7); x.fill(); }  // glans
+      const t = T(c, true, true); t.repeat.set(1, .5); return t; };
+    const pane = (tex) => { const p = new THREE.Mesh(new THREE.PlaneGeometry(L, W.y1 - W.y0), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, side: THREE.DoubleSide }));
+      p.position.set(X - .015, (W.y0 + W.y1) / 2, -L / 2); p.rotation.y = -Math.PI / 2; scene.add(p); return p; };
+    pane(drops(5, false)); const run = drops(8, true); pane(run);
+    return (now) => { u.t.value = now / 1000; run.offset.y = (now / 1000 * .035) % 1; };
+  }
   function buildCity() {
     const r = rng(12), hx = (h, k) => { const c = new THREE.Color(h); k = k === undefined ? 1 : k; return [c.r * k, c.g * k, c.b * k]; }, mul = (c, k) => [c[0] * k, c[1] * k, c[2] * k];
     const lerp3 = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
@@ -1869,7 +1897,7 @@ function useRoom(key) {
     const SKYLO = hx(0x1f2731), SKYHI = hx(0x56677a);
     // stadens eget dis, oberoende av rummets: luftperspektiv utan att husen blir bleka
     const cityMat = (o) => { const m = new THREE.MeshBasicMaterial(o); m.customProgramCacheKey = () => "stadsdis";
-      m.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace("#include <fog_fragment>", "#ifdef USE_FOG\n float fogFactor = 1.0 - exp(-.000144 * fogDepth * fogDepth);\n gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor, fogFactor);\n#endif"); }; return m; };
+      m.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace("#include <fog_fragment>", "#ifdef USE_FOG\n float fogFactor = 1.0 - exp(-" + (REGN ? ".00055" : ".000144") + " * fogDepth * fogDepth);\n gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor, fogFactor);\n#endif"); }; return m; };
     // ett fönster i fasaden x0, mellan zB < zA och y0 < y1
     const win = (x0, zA, zB, y0, y1, o) => {
       const D = o.depth, xg = x0 + D, wc = o.wall;
@@ -2039,7 +2067,7 @@ function useRoom(key) {
       const street = new THREE.Mesh(new THREE.PlaneGeometry(80, 120), m(0x7d7b76)); street.rotation.x = -Math.PI / 2; street.position.set(46, -12, -10); scene.add(street); }
     // himlen: ljus dis vid horisonten, blå uppåt
     const sg = new THREE.SphereGeometry(66, 32, 16), pc = sg.attributes.position, cols = new Float32Array(pc.count * 3);
-    for (let i = 0; i < pc.count; i++) { const t = clamp(pc.getY(i) / 66, 0, 1), k = Math.pow(t, .6); cols[i * 3] = .84 * (1 - k) + .5 * k; cols[i * 3 + 1] = .87 * (1 - k) + .64 * k; cols[i * 3 + 2] = .9 * (1 - k) + .84 * k; }
+    for (let i = 0; i < pc.count; i++) { const t = clamp(pc.getY(i) / 66, 0, 1), k = Math.pow(t, .6); cols[i * 3] = REGN ? .62 - .16 * k : .84 * (1 - k) + .5 * k; cols[i * 3 + 1] = REGN ? .65 - .15 * k : .87 * (1 - k) + .64 * k; cols[i * 3 + 2] = REGN ? .69 - .13 * k : .9 * (1 - k) + .84 * k; }
     sg.setAttribute("color", new THREE.BufferAttribute(cols, 3));
     scene.add(new THREE.Mesh(sg, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, fog: false, depthWrite: false })));
     return (now) => { const t = now / 1000 * .09; // flocken drar en stor slinga långt bort, vingarna slår ibland
@@ -2085,7 +2113,8 @@ function useRoom(key) {
     for (let j = 0; j <= 5; j++) prop(new THREE.BoxGeometry(.07, j % 5 === 0 ? .12 : .045, L, 1, 1, 60), { color: steel }, new V3(X - .03, W.y0 + j * W.PY, -L / 2), null, { shadow: false });
     { const g = new THREE.Mesh(new THREE.PlaneGeometry(L, W.y1 - W.y0), new THREE.MeshBasicMaterial({ map: T(glassCanvas(L, W.y1 - W.y0, cols, 5), true, false), color: 0xffffff, transparent: true, depthWrite: false, side: THREE.DoubleSide }));
       g.position.set(X, (W.y0 + W.y1) / 2, -L / 2); g.rotation.y = -Math.PI / 2; scene.add(g); }
-    const cityTick = buildCity();
+    const cityTick0 = buildCity(), rain = REGN ? buildRain(X, L, W) : null;
+    const cityTick = (now, dt) => { cityTick0(now, dt); if (rain) rain(now, dt); };
     // ståltrappan: tre steg och ett vilplan (fyra steg upp) till en dörr på glänt
     { const S = CV.ST, sx = S.x, hw = .68, st = 0x1e2120, rust = (geo) => [worldUV(geo, 1.5), { color: 0x8a7a6c, map: MATTEX.rost.diff }];
       for (let k = 0; k < 3; k++) prop(...rust(new THREE.BoxGeometry(1.3, .045, S.run - .02, 4, 1, 2)), new V3(sx, (k + 1) * S.rise - .022, S.z0 - S.run * k - S.run / 2), null, { id: "trappa" });
@@ -2604,7 +2633,7 @@ function useRoom(key) {
 
   /* ================= ljud (syntetiserat, ett ljudlandskap per rum) ================= */
   let lbClosedAt = 0; // stängknappen i fotovyn ligger där ljudknappen ligger: ett klick får inte slå på ljudet
-  const MUSIC = { foajen: "musik/deep-bass-vibes.mp3", "*": "musik/rainy-city-night.mp3" }, MUSIC_VOL = .62; // låt per rum, * för resten
+  const MUSIC = { foajen: "musik/deep-bass-vibes.mp3", staden: "musik/staden.mp3", "*": "musik/rainy-city-night.mp3" }, MUSIC_VOL = .62; // låt per rum, * för resten
   addEventListener("scroll", () => { if (scrollX || scrollY) scrollTo(0, 0); }, { passive: true });
   const Sound = {
     ctx: null, on: false, tracks: {}, cur: null, master: null, wet: null, send: null, amb: null, timers: [], room: "staden", white: null, brown: null, chordI: 0,
@@ -2614,6 +2643,7 @@ function useRoom(key) {
       const conv = ctx.createConvolver(), len = ctx.sampleRate * 3.2, ir = ctx.createBuffer(2, len, ctx.sampleRate);
       for (let ch = 0; ch < 2; ch++) { const d = ir.getChannelData(ch); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3.2); }
       conv.buffer = ir; const wet = this.wet = ctx.createGain(); wet.gain.value = .55; conv.connect(wet); wet.connect(master); this.send = conv;
+      { const rb = ctx.createBuffer(1, ctx.sampleRate * 3, ctx.sampleRate), rd = rb.getChannelData(0); for (let i = 0; i < rd.length; i++) rd[i] = Math.random() * 2 - 1; this.rainBuf = rb; }
       const wn = ctx.createBuffer(1, ctx.sampleRate * .12, ctx.sampleRate), wd = wn.getChannelData(0); for (let i = 0; i < wd.length; i++) wd[i] = Math.random() * 2 - 1; this.white = wn;
       const nb = ctx.createBuffer(1, ctx.sampleRate * 4, ctx.sampleRate), nd = nb.getChannelData(0); let last = 0;
       for (let i = 0; i < nd.length; i++) { last = (last + .02 * (Math.random() * 2 - 1)) / 1.02; nd[i] = last * 3.2; } this.brown = nb;
@@ -2644,6 +2674,7 @@ function useRoom(key) {
         this.loop(this.brown, "lowpass", 260, .11);
         this.loop(this.brown, "bandpass", 520, .025, .5);
         this.every(this.bell, 30000, 60000);
+        if (REGN) { this.loop(this.rainBuf, "bandpass", 2600, .06, .4); this.loop(this.rainBuf, "lowpass", 900, .05); } // regn mot rutorna
       },
       naturen(ctx) {
         const air = this.loop(this.brown, "bandpass", 900, .1, .5); // vindsuset: svagt, fåglarna har kvar sin volym

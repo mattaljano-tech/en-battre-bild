@@ -3,280 +3,255 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="En bättre bild – fotografi. Gå runt i ett 3D-showroom med bilder från staden, naturen och berättelser.">
-<title>En bättre bild · Showroom</title>
-<meta name="claude:viewport-fit-sides" content="cover">
+<title>En bättre bild – fotograf i Stockholm</title>
+<meta name="description" content="En bättre bild – fotograf i Stockholm. Bilder från staden, naturen, människorna och berättelser. Se bilderna här eller gå runt i 3D-showroomet.">
+<meta property="og:title" content="En bättre bild – fotograf i Stockholm">
+<meta property="og:description" content="Bilder från staden, naturen, människorna och berättelser.">
+<meta property="og:image" content="img/taget.jpg">
+<meta property="og:type" content="website">
+<script>
+// gamla länkar som pekade rakt in i showroomet (t.ex. #staden eller ?direkt) skickas vidare dit
+(function () {
+  var rum = ["foajen", "staden", "naturen", "berattelser", "manniskorna"];
+  if (rum.indexOf(location.hash.slice(1)) >= 0 || /[?&](direkt|sol|debug|utangata|gata)\b/.test(location.search)) location.replace("showroom.html" + location.search + location.hash);
+})();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@500;700;800&family=Jost:wght@300;400&family=Archivo:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=Archivo:wght@400;500;600&display=swap">
 <style>
+/* Den vanliga sidan: bilder, om, priser och kontakt. Showroomet ligger i showroom.html. */
 *, *::before, *::after { box-sizing: border-box; }
-html, body { margin: 0; padding: 0; }
 [hidden] { display: none !important; }
-/* Layout: helskärms-3D. Text ligger som skyltar i hörnen; allt annat är rummet och fotona. */
 :root {
   --ink: #070909;
+  --ink2: #101413;
   --paper: #e9e6df;
-  --dim: #8f9693;
+  --dim: #9aa19e;
   --petrol: #4fb3a9;
-  --signal: #d23a2c;
   --sodium: #e3a33b;
   --line: rgba(233,230,223,.18);
-  --glass: rgba(7,9,9,.62);
   --font-display: "Big Shoulders Display", "Arial Narrow", "Helvetica Neue", sans-serif;
   --font-body: "Archivo", "Helvetica Neue", Arial, sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  --gutter: max(20px, 4vw);
   color-scheme: dark;
 }
-html, body { height: 100%; overflow: hidden; overflow: clip; overscroll-behavior: none; background: var(--ink); color: var(--paper); }
-body { font-family: var(--font-body); font-size: 15px; line-height: 1.5; }
-canvas#c { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; touch-action: none; outline: none; }
-.ui { position: fixed; z-index: 3; pointer-events: none; }
-.ui button { pointer-events: auto; }
-button { font: inherit; }
+html { scroll-behavior: smooth; scroll-padding-top: 72px; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body { margin: 0; background: var(--ink); color: var(--paper); font-family: var(--font-body); font-size: 17px; line-height: 1.55; -webkit-text-size-adjust: 100%; }
+img { display: block; max-width: 100%; }
+a { color: inherit; }
+h1, h2 { font-family: var(--font-display); font-weight: 800; text-transform: uppercase; margin: 0; letter-spacing: .005em; }
+h2 { font-size: clamp(44px, 8vw, 96px); line-height: .9; }
+p { margin: 0; }
+:focus-visible { outline: 2px solid var(--petrol); outline-offset: 3px; }
 
-/* laddning */
-.loader { position: fixed; inset: 0; z-index: 10; background: var(--ink); display: grid; place-items: center; transition: opacity .9s ease;
-  padding: 0 max(16px, env(safe-area-inset-right, 0px)) 0 max(16px, env(safe-area-inset-left, 0px)); }
-.loader.done { opacity: 0; pointer-events: none; }
-.loader .box { width: min(420px, 100%); display: grid; gap: 14px; }
-.loader .eyebrow { font-family: var(--font-mono); font-size: 11px; letter-spacing: .14em; color: var(--dim); text-transform: uppercase; }
-.loader h2 { margin: 0; font-family: var(--font-display); font-weight: 800; font-size: clamp(64px, 18vw, 120px); line-height: .82; letter-spacing: .01em; text-transform: uppercase; }
-.loader .bar { height: 2px; background: rgba(233,230,223,.12); }
-.loader .bar i { display: block; height: 100%; width: 0; background: var(--petrol); transition: width .2s linear; }
-.loader .step { font-family: var(--font-mono); font-size: 11px; color: var(--dim); font-variant-numeric: tabular-nums; }
+/* knappar */
+.btn { display: inline-block; font: inherit; font-weight: 600; font-size: 16px; line-height: 1.2; padding: 14px 20px; border: 1px solid var(--paper); background: var(--paper); color: var(--ink); text-decoration: none; cursor: pointer; }
+.btn:hover { background: var(--petrol); border-color: var(--petrol); }
+.btn.ghost { background: transparent; color: var(--paper); border-color: var(--line); }
+.btn.ghost:hover { border-color: var(--paper); background: transparent; }
+.btn.lamp { background: var(--sodium); border-color: var(--sodium); }
+.btn.lamp:hover { background: var(--paper); border-color: var(--paper); }
 
-/* intro */
-.intro { left: 0; right: 0; bottom: 0; z-index: 5;
-  padding: 140px max(16px, env(safe-area-inset-right, 0px)) calc(28px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
-  background: linear-gradient(to top, rgba(4,6,6,.88), rgba(4,6,6,0));
-  display: flex; align-items: flex-end; gap: 18px 36px; flex-wrap: wrap; transition: opacity .7s ease, transform .7s ease; }
-.intro.gone { opacity: 0; transform: translateY(24px); visibility: hidden; }
-.intro h1 { margin: 0; font-family: var(--font-display); font-weight: 800; font-size: clamp(72px, 19vw, 240px); line-height: .78; letter-spacing: .005em; text-transform: uppercase; }
-.intro .side { max-width: 38ch; min-width: 0; padding-bottom: .4em; display: grid; gap: 14px; }
-.intro .eyebrow { font-family: var(--font-mono); font-size: 11px; letter-spacing: .14em; color: var(--dim); text-transform: uppercase; }
-.intro p { margin: 0; font-size: 14px; color: #c9c7c0; }
-.intro .row { display: flex; gap: 10px; flex-wrap: wrap; }
-.btn { all: unset; cursor: pointer; pointer-events: auto; font-weight: 600; font-size: 14px; padding: 11px 16px; background: var(--paper); color: var(--ink); }
-.btn.ghost { background: transparent; color: var(--paper); border: 1px solid var(--line); }
-.btn:hover, .btn:focus-visible { background: var(--petrol); color: var(--ink); }
-.btn.ghost:hover, .btn.ghost:focus-visible { border-color: var(--petrol); background: transparent; color: var(--paper); }
+/* sidhuvud */
+.head { position: fixed; z-index: 5; top: 0; left: 0; right: 0; display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: calc(12px + env(safe-area-inset-top, 0px)) var(--gutter) 12px; transition: background .25s ease; }
+.head.solid { background: rgba(7,9,9,.92); border-bottom: 1px solid var(--line); }
+.head .brand { font-family: var(--font-display); font-weight: 800; font-size: 20px; letter-spacing: .08em; text-transform: uppercase; text-decoration: none; }
+.head nav { display: flex; align-items: center; gap: clamp(14px, 2.4vw, 30px); }
+.head nav a.l { font-size: 15px; font-weight: 500; text-decoration: none; padding: 6px 0; }
+.head nav a.l:hover { color: var(--petrol); }
+.head .btn { padding: 9px 14px; font-size: 14px; }
+@media (max-width: 640px) { .head nav a.l { display: none; } }
 
-.top { top: 0; left: 0; right: 0; display: flex; justify-content: space-between; align-items: center; gap: 12px;
-  padding: calc(14px + env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) 0 max(16px, env(safe-area-inset-left, 0px)); }
-.brand { font-family: var(--font-display); font-weight: 800; font-size: 18px; letter-spacing: .08em; text-transform: uppercase; }
-.chip { all: unset; cursor: pointer; pointer-events: auto; font-family: var(--font-mono); font-size: 12px; letter-spacing: .04em; padding: 8px 12px;
-  border: 1px solid var(--line); background: var(--glass); color: var(--paper); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); display: inline-flex; gap: 8px; align-items: center; }
-.chip:hover, .chip:focus-visible { border-color: var(--petrol); }
-.chip .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dim); }
-.chip[aria-pressed="true"] .dot { background: var(--petrol); box-shadow: 0 0 8px var(--petrol); }
+/* första skärmen: en bild, namnet och två vägar in */
+.hero { position: relative; min-height: 100vh; min-height: 100svh; display: flex; align-items: flex-end; padding: 120px var(--gutter) calc(40px + env(safe-area-inset-bottom, 0px)); overflow: hidden; }
+.hero > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 40%; }
+.hero::after { content: ""; position: absolute; inset: 0; background: linear-gradient(to top, rgba(7,9,9,.96) 0%, rgba(7,9,9,.55) 34%, rgba(7,9,9,.1) 62%, rgba(7,9,9,.45) 100%); }
+.hero .in { position: relative; z-index: 1; display: flex; flex-wrap: wrap; align-items: flex-end; gap: 20px 48px; width: 100%; }
+.hero h1 { font-size: clamp(64px, 13vw, 190px); line-height: .8; }
+.hero .side { max-width: 36ch; display: grid; gap: 18px; padding-bottom: .5em; }
+.hero .side p { color: #d6d3cc; }
+.hero .row { display: flex; flex-wrap: wrap; gap: 10px; }
 
-.where { left: 0; bottom: 0; padding: 0 0 calc(20px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
-  font-family: var(--font-mono); font-size: 11px; letter-spacing: .05em; color: var(--dim); max-width: calc(100vw - 32px); }
-.where .room { font-family: var(--font-display); font-weight: 800; font-size: 28px; line-height: 1; color: var(--paper); letter-spacing: .04em; text-transform: uppercase; margin-bottom: 6px; }
-.where .room span { color: var(--petrol); margin-right: 10px; }
-.where .room b { font-weight: inherit; }
-.rooms { right: 0; bottom: 0; padding: 0 max(16px, env(safe-area-inset-right, 0px)) calc(18px + env(safe-area-inset-bottom, 0px)) 0; display: flex; gap: 6px; }
-.rooms button { all: unset; cursor: pointer; pointer-events: auto; font-family: var(--font-mono); font-size: 11px; letter-spacing: .04em; padding: 7px 10px;
-  border: 1px solid var(--line); background: var(--glass); color: var(--dim); display: inline-flex; gap: 6px; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
-.rooms button b { font-weight: 400; color: var(--paper); }
-.rooms button:hover, .rooms button:focus-visible { border-color: var(--petrol); }
-.rooms button[aria-current="true"] { border-color: var(--petrol); color: var(--petrol); }
-.tourbar { left: 50%; bottom: 0; transform: translateX(-50%); width: min(560px, calc(100vw - 32px)); padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 10px; }
-.tourbar .tinfo { display: flex; align-items: baseline; gap: 4px 12px; flex-wrap: wrap; text-shadow: 0 1px 12px rgba(0,0,0,.95); }
-.tourbar .troom { font-family: var(--font-mono); font-size: 11px; letter-spacing: .14em; color: var(--petrol); text-transform: uppercase; }
-.tourbar b { font-family: var(--font-display); font-weight: 800; font-size: 26px; letter-spacing: .04em; text-transform: uppercase; line-height: 1; }
-.tourbar .tcount { font-family: var(--font-mono); font-size: 11px; color: var(--dim); margin-left: auto; }
-.tourbar .tbtns { display: flex; gap: 8px; }
-.tourbar .tbtns .btn { flex: 1; text-align: center; white-space: nowrap; }
-.tourbar .tbtns .chip { white-space: nowrap; }
-.tourbar .chip { justify-content: center; }
-.tourbar .chip:disabled { opacity: .35; cursor: default; }
-.roomcard { width: min(680px, calc(100vw - 32px)); padding-top: 14px; }
-/* toningen bakom kortet går över hela skärmens bredd, så att inga kanter syns */
-.roomcard::before { content: ""; position: absolute; z-index: -1; left: 50%; width: 100vw; transform: translateX(-50%); top: -60px; bottom: calc(-20px - env(safe-area-inset-bottom, 0px)); background: linear-gradient(to top, rgba(6,8,8,.82), rgba(6,8,8,.55) 55%, rgba(6,8,8,0)); pointer-events: none; }
-.roomcard .tbtns .chip { flex: 0 0 auto; }
-.roomcard kbd { font-family: var(--font-mono); font-size: 10px; opacity: .6; margin-left: 6px; }
-.where .rcopen { margin-top: 10px; }
-body.rc #where { visibility: hidden; }
-body.sitting #hint { visibility: hidden; }
-@media (max-width: 520px) { .roomcard .tbtns { flex-wrap: wrap; } .roomcard .tbtns .btn { flex: 1 1 100%; } .roomcard .tbtns .chip { flex: 1; } .roomcard kbd { display: none; } }
-.sitbar { left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); display: flex; gap: 12px; align-items: center; font-family: var(--font-mono); font-size: 12px; color: var(--paper); text-shadow: 0 1px 10px rgba(0,0,0,.9); white-space: nowrap; }
-.warm { position: fixed; inset: 0; z-index: 6; pointer-events: none; opacity: 0; background: radial-gradient(circle at 50% 55%, #fff3de, #ecc995 65%, #b98a52); }
-.warm.on { opacity: 1; }
-.intro.street h1 { font-size: clamp(44px, 9vw, 92px); }
-.skip { position: fixed; right: 16px; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); z-index: 11; }
-.rainbtn { position: fixed; right: 16px; bottom: calc(64px + env(safe-area-inset-bottom, 0px)); z-index: 11; }
-.loader.street { background: transparent; place-items: end start; padding: 0 0 calc(22px + env(safe-area-inset-bottom, 0px)) 20px; }
-.loader.street .box { width: min(300px, 62vw); gap: 8px; text-shadow: 0 1px 12px rgba(0,0,0,.9); }
-.loader.street h2 { font-size: 30px; }
-.fade { position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none; transition: opacity .28s; z-index: 4; }
-.fade.on { opacity: 1; }
-.cross { left: 50%; top: 50%; width: 5px; height: 5px; margin: -2.5px 0 0 -2.5px; border-radius: 50%; background: var(--paper); opacity: .75; }
-.aim { left: 50%; top: calc(50% + 18px); transform: translateX(-50%); text-align: center; font-family: var(--font-display); font-weight: 700; font-size: 18px; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; text-shadow: 0 1px 10px rgba(0,0,0,.9); }
-.aim small { display: block; font-family: var(--font-mono); font-weight: 400; font-size: 10px; letter-spacing: .06em; color: var(--dim); text-transform: none; }
-.toast { left: 50%; top: calc(64px + env(safe-area-inset-top, 0px)); transform: translateX(-50%); width: min(420px, calc(100vw - 32px)); padding: 11px 14px; font-size: 13px;
-  background: rgba(7,9,9,.9); border: 1px solid var(--line); opacity: 0; transition: opacity .4s; }
-.toast.on { opacity: 1; }
+/* bilderna */
+.sec { padding: clamp(64px, 10vw, 130px) var(--gutter) 0; }
+.sechead { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 18px 32px; margin-bottom: 28px; }
+.filter { display: flex; flex-wrap: wrap; gap: 6px; }
+.filter button { font: inherit; font-size: 15px; font-weight: 500; padding: 8px 14px; border: 1px solid var(--line); background: transparent; color: var(--paper); cursor: pointer; }
+.filter button:hover { border-color: var(--paper); }
+.filter button[aria-pressed="true"] { background: var(--paper); color: var(--ink); border-color: var(--paper); }
+.wall { columns: 4 300px; column-gap: 8px; }
+.wall button { display: block; position: relative; width: 100%; margin: 0 0 8px; padding: 0; border: 0; background: var(--ink2); cursor: zoom-in; break-inside: avoid; overflow: hidden; }
+.wall img { width: 100%; height: auto; min-height: 120px; }
+.wall span { position: absolute; left: 0; right: 0; bottom: 0; padding: 36px 12px 10px; text-align: left; font: 500 14px/1.3 var(--font-body); color: var(--paper);
+  background: linear-gradient(to top, rgba(7,9,9,.85), rgba(7,9,9,0)); opacity: 0; transition: opacity .2s ease; }
+.wall button:hover span, .wall button:focus-visible span { opacity: 1; }
+.wall button:focus-visible { outline-offset: -2px; }
+@media (max-width: 640px) { .wall { columns: 2; column-gap: 6px; } .wall button { margin-bottom: 6px; } .wall img { min-height: 80px; } }
 
-/* fotovy: mörk yta för nattbilder, ljus för naturbilder */
-.lightbox { position: fixed; inset: 0; z-index: 8; display: grid; place-items: center; background: #090a0a; color: var(--paper);
-  padding: calc(24px + env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) calc(84px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
-.lightbox.light { background: #e8e5de; color: #1b1c1a; }
-.lightbox figure { margin: 0; display: grid; gap: 14px; justify-items: start; max-width: 100%; }
-.lightbox { cursor: zoom-out; }
-.lightbox img { max-width: min(92vw, 1500px); max-height: 72vh; display: block; }
-.lightbox figcaption { display: flex; gap: 4px 18px; flex-wrap: wrap; align-items: baseline; }
-.lightbox .t { font-family: var(--font-display); font-weight: 800; font-size: 26px; letter-spacing: .04em; text-transform: uppercase; }
-.lightbox .e { font-family: var(--font-mono); font-size: 11px; letter-spacing: .06em; opacity: .65; }
-.lightbox .close { position: absolute; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%); min-height: 44px; padding-inline: 22px; }
-body.viewing #soundBtn { visibility: hidden; pointer-events: none; }
-.lightbox.light .close { background: rgba(255,255,255,.6); color: #1b1c1a; border-color: rgba(0,0,0,.2); }
+/* inbjudan till showroomet */
+.door { position: relative; margin-top: clamp(64px, 10vw, 130px); padding: clamp(80px, 14vw, 200px) var(--gutter); overflow: hidden; }
+.door > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.door::after { content: ""; position: absolute; inset: 0; background: linear-gradient(to right, rgba(7,9,9,.92) 0%, rgba(7,9,9,.72) 45%, rgba(7,9,9,.3) 100%); }
+.door .in { position: relative; z-index: 1; max-width: 46ch; display: grid; gap: 22px; justify-items: start; }
+.door p { color: #d6d3cc; }
 
-.panel { position: fixed; inset: 0; z-index: 7; overflow-y: auto; background: rgba(6,8,8,.95); color: var(--paper);
-  padding: calc(64px + env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) calc(40px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
-.panel .inner { max-width: 820px; margin: 0 auto; display: grid; gap: 14px; }
-.panel .eyebrow { font-family: var(--font-mono); font-size: 11px; letter-spacing: .14em; color: var(--dim); text-transform: uppercase; }
-.panel h2 { margin: 0; font-family: var(--font-display); font-weight: 800; font-size: clamp(48px, 10vw, 96px); line-height: .82; text-transform: uppercase; text-wrap: balance; }
-.panel .body { display: grid; gap: 12px; }
-.panel p { margin: 0; max-width: 62ch; color: #cfccc4; }
-.panel .placeholder { border: 1px dashed var(--line); padding: 12px 14px; color: var(--dim); font-size: 13px; }
-.panel .credit { margin-top: 18px; font-size: 11px; line-height: 1.5; color: var(--dim); }
-.panel .credit a { color: inherit; }
-.panel h3 { margin: 18px 0 0; font-family: var(--font-display); font-weight: 700; font-size: 24px; letter-spacing: .06em; text-transform: uppercase; }
-.panel .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
-.panel .grid button { all: unset; cursor: pointer; display: grid; gap: 6px; min-width: 0; }
-.panel .grid button:focus-visible img { outline: 2px solid var(--petrol); outline-offset: 2px; }
-.panel .grid img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; }
-.panel .grid span { font-size: 12px; color: var(--dim); }
-.panel .go { justify-self: start; }
-.panel .tourgo { justify-self: start; margin-top: 6px; }
-.panel .tour { display: grid; border-top: 1px solid var(--line); }
-.panel .tour button { all: unset; cursor: pointer; display: grid; grid-template-columns: 48px 1fr auto; align-items: center; gap: 14px; padding: 16px 6px; border-bottom: 1px solid var(--line); transition: background .2s; }
-.panel .tour button:hover, .panel .tour button:focus-visible { background: rgba(236,233,224,.05); }
-.panel .tour button:focus-visible { outline: 2px solid var(--petrol); outline-offset: -2px; }
-.panel .tour .n { font-family: var(--font-mono); font-size: 12px; letter-spacing: .14em; color: var(--dim); }
-.panel .tour .t { display: grid; gap: 2px; min-width: 0; }
-.panel .tour b { font-family: var(--font-display); font-weight: 700; font-size: clamp(24px, 5vw, 34px); letter-spacing: .04em; text-transform: uppercase; line-height: 1; }
-.panel .tour small { font-size: 13px; color: var(--dim); }
-.panel .tour .ar { font-size: 20px; color: var(--dim); }
-.panel .close { position: fixed; top: calc(14px + env(safe-area-inset-top, 0px)); right: max(16px, env(safe-area-inset-right, 0px)); z-index: 1; }
-@media (max-width: 640px) { .where .room { font-size: 22px; } .brand { font-size: 15px; } .rooms button b { display: none; } .where { padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px)); } }
-@media (prefers-reduced-motion: reduce) { .intro, .loader, .toast { transition: none; } }
+/* om, priser, kontakt */
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 48px clamp(28px, 5vw, 72px); }
+.facts section { display: grid; gap: 16px; align-content: start; border-top: 1px solid var(--line); padding-top: 22px; }
+.facts h2 { font-size: clamp(40px, 5vw, 64px); }
+.facts p { max-width: 44ch; color: #d6d3cc; }
+
+.foot { margin-top: clamp(64px, 10vw, 130px); padding: 26px var(--gutter) calc(26px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--line);
+  display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px 28px; font-size: 14px; color: var(--dim); }
+.foot a { text-underline-offset: 3px; }
+.foot a:hover { color: var(--paper); }
+
+/* en bild i full storlek */
+dialog.view { width: 100vw; height: 100vh; height: 100dvh; max-width: none; max-height: none; margin: 0; padding: 0; border: 0; background: rgba(4,5,5,.97); color: var(--paper); }
+dialog.view::backdrop { background: rgba(4,5,5,.97); }
+.view figure { margin: 0; height: 100%; display: grid; grid-template-rows: minmax(0, 1fr) auto; }
+.view .pic { min-height: 0; display: grid; place-items: center; padding: calc(56px + env(safe-area-inset-top, 0px)) 12px 8px; }
+.view .pic img { max-width: 100%; max-height: calc(100vh - 150px); max-height: calc(100dvh - 150px); object-fit: contain; }
+.view figcaption { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px var(--gutter) calc(14px + env(safe-area-inset-bottom, 0px)); }
+.view .t { font-weight: 600; }
+.view .e { color: var(--dim); font-size: 14px; }
+.view .nav { display: flex; gap: 6px; flex: none; }
+.view button { font: inherit; font-size: 15px; font-weight: 500; padding: 9px 14px; border: 1px solid var(--line); background: rgba(7,9,9,.7); color: var(--paper); cursor: pointer; }
+.view button:hover { border-color: var(--paper); }
+.view .close { position: absolute; top: calc(12px + env(safe-area-inset-top, 0px)); right: var(--gutter); }
 </style>
 </head>
 <body>
 
-<canvas id="c" tabindex="0" aria-label="En bättre bilds showroom: fyra rum med fotografier att gå runt i"></canvas>
-
-<div class="loader" id="loader">
-  <div class="box">
-    <div class="eyebrow" id="ldEyebrow">En bättre bild · Rum 01 av 4</div>
-    <h2 id="ldName">Staden</h2>
-    <div class="bar"><i id="barFill"></i></div>
-    <div class="step" id="step">Förbereder rummet…</div>
-  </div>
-</div>
-
-<header class="ui top" id="top">
-  <div class="brand">En bättre bild</div>
-  <button type="button" class="chip" id="soundBtn" aria-pressed="false"><span class="dot"></span><span id="soundLabel">Ljud av</span></button>
+<header class="head" id="head">
+  <a class="brand" href="#top">En bättre bild</a>
+  <nav aria-label="Sidans delar">
+    <a class="l" href="#bilder">Bilder</a>
+    <a class="l" href="#om">Om</a>
+    <a class="l" href="#priser">Priser</a>
+    <a class="l" href="#kontakt">Kontakt</a>
+    <a class="btn lamp" href="showroom.html">Showroom</a>
+  </nav>
 </header>
 
-<section class="ui intro" id="intro" hidden>
-  <h1 id="introName">Staden</h1>
-  <div class="side">
-    <div class="eyebrow" id="introEyebrow">Rum 01 · Betong, stål och kallt ljus</div>
-    <p id="introText"></p>
-    <div class="row">
-      <button type="button" class="btn" id="enterSound">Kliv in med ljud</button>
-      <button type="button" class="btn ghost" id="enterQuiet">Utan ljud</button>
+<main id="top">
+  <section class="hero">
+    <img src="img/taget.jpg" alt="Ett blått tunnelbanetåg rusar förbi en tom, blank perrong" fetchpriority="high">
+    <div class="in">
+      <h1>En bättre bild</h1>
+      <div class="side">
+        <p>Fotograf i Stockholm. Bilder från staden, naturen och människorna, och bilder som bär en berättelse.</p>
+        <div class="row">
+          <a class="btn" href="#bilder">Se bilderna</a>
+          <a class="btn lamp" href="showroom.html">Kliv in i showroomet</a>
+        </div>
+      </div>
     </div>
-  </div>
-</section>
+  </section>
 
-<div class="ui where" id="where" hidden>
-  <div class="room"><span id="roomNum">01</span><b id="roomName">Staden</b></div>
-  <div id="hint"></div>
-  <button type="button" class="chip rcopen" id="rcOpen" hidden>Bilderna i rummet</button>
-</div>
-<div class="ui cross" id="cross" hidden></div>
-<div class="ui aim" id="aim" hidden></div>
-<nav class="ui rooms" id="rooms" hidden aria-label="Rum">
-  <button type="button" data-room="foajen"><span>00</span><b>Foajén</b></button>
-  <button type="button" data-room="staden"><span>01</span><b>Staden</b></button>
-  <button type="button" data-room="naturen"><span>02</span><b>Naturen</b></button>
-  <button type="button" data-room="berattelser"><span>03</span><b>Berättelser</b></button>
-  <button type="button" data-room="manniskorna"><span>04</span><b>Människorna</b></button>
-</nav>
-<div class="ui tourbar" id="tour" hidden>
-  <div class="tinfo"><span class="troom" id="tourRoom">01  Staden</span><b id="tourTitle"></b><span class="tcount" id="tourCount"></span></div>
-  <div class="tbtns">
-    <button type="button" class="chip" id="tourPrev" aria-label="Föregående bild">←</button>
-    <button type="button" class="btn" id="tourNext">Nästa bild →</button>
-    <button type="button" class="chip" id="tourEnd">Avsluta ✕</button>
-  </div>
-</div>
-<div class="ui tourbar roomcard" id="roomCard" hidden role="region" aria-label="Välj hur du vill se rummet">
-  <div class="tinfo"><span class="troom" id="rcRoom"></span><b id="rcName"></b><span class="tcount" id="rcCount"></span></div>
-  <div class="tbtns">
-    <button type="button" class="btn" id="rcTour">Ta turen i rummet →<kbd>T</kbd></button>
-    <button type="button" class="chip" id="rcAll">Se alla bilder<kbd>B</kbd></button>
-    <button type="button" class="chip" id="rcClose">Gå själv ✕</button>
-  </div>
-</div>
-<div class="ui sitbar" id="sitBar" hidden><span id="sitHint">Du sitter · se dig omkring</span><button type="button" class="chip" id="standBtn">Res dig ↑</button></div>
-<div class="fade" id="fade"></div>
-<div class="warm" id="warm"></div>
-<button type="button" class="chip skip" id="skipBtn" hidden>Hoppa över ›</button>
-<button type="button" class="chip rainbtn" id="rainBtn" hidden>🔊 Slå på regnet</button>
-<div class="ui toast" id="toast" role="status"></div>
+  <section class="sec" id="bilder" aria-labelledby="bilderH">
+    <div class="sechead">
+      <h2 id="bilderH">Bilder</h2>
+      <div class="filter" id="filter" role="group" aria-label="Visa bilder från"></div>
+    </div>
+    <div class="wall" id="wall"></div>
+    <noscript><p>Bilderna visas med JavaScript. Slå på det i webbläsaren för att se galleriet.</p></noscript>
+  </section>
 
-<section class="panel" id="panel" hidden role="dialog" aria-modal="true" aria-labelledby="panelTitle">
-  <button type="button" class="chip close" id="panelClose">Stäng ✕</button>
-  <div class="inner">
-    <div class="eyebrow" id="panelEyebrow"></div>
-    <h2 id="panelTitle"></h2>
-    <div class="body" id="panelBody"></div>
-  </div>
-</section>
+  <section class="door" aria-labelledby="doorH">
+    <img src="img/tunneln.jpg" alt="" loading="lazy">
+    <div class="in">
+      <h2 id="doorH">Gå runt bland bilderna</h2>
+      <p>Showroomet är en utställning i 3D. Du kommer in från en regnig gata, genom foajén och vidare till fyra rum där bilderna hänger på väggarna. Ta en guidad tur eller gå runt själv, med eller utan ljud.</p>
+      <a class="btn lamp" href="showroom.html">Kliv in i showroomet</a>
+    </div>
+  </section>
 
-<div class="lightbox" id="lightbox" hidden>
-  <button type="button" class="chip close" id="lbClose">Stäng ✕</button>
+  <div class="sec facts">
+    <section id="om" aria-labelledby="omH">
+      <h2 id="omH">Om</h2>
+      <p>Fotografi i staden, i naturen och bilder som bär en berättelse.</p>
+      <p>En längre presentation kommer snart.</p>
+    </section>
+    <section id="priser" aria-labelledby="priserH">
+      <h2 id="priserH">Priser</h2>
+      <p>Priser och paket kommer snart.</p>
+    </section>
+    <section id="kontakt" aria-labelledby="kontaktH">
+      <h2 id="kontaktH">Kontakt</h2>
+      <p>Vill du boka en fotografering? Kontaktuppgifterna kommer här snart.</p>
+    </section>
+  </div>
+</main>
+
+<footer class="foot">
+  <span>© <span id="year">2026</span> En bättre bild</span>
+  <span style="display:flex;gap:20px"><a href="#bilder">Bilder</a><a href="showroom.html">Showroom</a></span>
+</footer>
+
+<dialog class="view" id="view" aria-label="Bild i full storlek">
+  <button type="button" class="close" id="viewClose">Stäng</button>
   <figure>
-    <img id="lbImg" alt="">
-    <figcaption><span class="t" id="lbTitle"></span><span class="e" id="lbMeta"></span></figcaption>
+    <div class="pic"><img id="viewImg" alt=""></div>
+    <figcaption>
+      <div><div class="t" id="viewTitle"></div><div class="e" id="viewMeta"></div></div>
+      <div class="nav">
+        <button type="button" id="viewPrev" aria-label="Föregående bild">←</button>
+        <button type="button" id="viewNext" aria-label="Nästa bild">→</button>
+      </div>
+    </figcaption>
   </figure>
-</div>
+</dialog>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 <script src="js/foton.js"></script>
-<script src="js/bakning.js"></script>
-<script src="js/start.js"></script>
-<script src="js/texturer.js"></script>
-<script src="js/motor.js"></script>
-<script src="js/rum-naturen.js"></script>
-<script src="js/oppningar.js"></script>
-<script src="js/rum-berattelser.js"></script>
-<script src="js/gata.js"></script>
-<script src="js/rum-foajen.js"></script>
-<script src="js/rum-staden.js"></script>
-<script src="js/inredning.js"></script>
-<script src="js/rum-manniskorna.js"></script>
-<script src="js/rumsladdning.js"></script>
-<script src="js/efterbehandling.js"></script>
-<script src="js/ljud.js"></script>
-<script src="js/styrning.js"></script>
-<script src="js/tur.js"></script>
-<script src="js/loop.js"></script>
-<script src="js/promenaden.js"></script>
-<script src="js/main.js"></script>
+<script>
+"use strict";
+// Galleriet byggs från samma lista som showroomet (js/foton.js). Ett nytt foto där syns på båda ställena.
+(function () {
+  const $ = (id) => document.getElementById(id);
+  $("year").textContent = new Date().getFullYear();
+  const head = $("head"), onScroll = () => head.classList.toggle("solid", scrollY > 40); addEventListener("scroll", onScroll, { passive: true }); onScroll();
+
+  const GROUPS = ["Staden", "Naturen", "Människorna", "Berättelser"]; // knapparna, i den här ordningen
+  const group = (p) => p.meta.split(" · ")[0];
+  const all = Object.keys(PHOTOS).map((key) => Object.assign({ key }, PHOTOS[key])).filter((p) => p.src);
+  // blanda rummen i "Alla", så att sidan inte börjar med trettio stadsbilder i rad
+  const mixed = []; { const piles = {}; all.forEach((p) => (piles[group(p)] = piles[group(p)] || []).push(p)); const ks = Object.keys(piles);
+    for (let i = 0; mixed.length < all.length; i++) for (const k of ks) if (piles[k][i]) mixed.push(piles[k][i]); }
+
+  const wall = $("wall"), filter = $("filter"), view = $("view");
+  let shown = [], at = 0;
+  function show(name) {
+    shown = name ? all.filter((p) => group(p) === name) : mixed;
+    wall.textContent = "";
+    shown.forEach((p, i) => {
+      const b = document.createElement("button"); b.type = "button";
+      const im = document.createElement("img"); im.src = p.src; im.alt = p.title; im.loading = i < 4 ? "eager" : "lazy"; im.decoding = "async";
+      im.addEventListener("error", () => { b.remove(); shown = shown.filter((q) => q !== p); }); // filen saknas: visa ingen tom ruta
+      const s = document.createElement("span"); s.textContent = p.title;
+      b.append(im, s); b.addEventListener("click", () => open(shown.indexOf(p))); wall.append(b);
+    });
+    filter.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.g === (name || ""))));
+  }
+  [""].concat(GROUPS).forEach((g) => { const b = document.createElement("button"); b.type = "button"; b.dataset.g = g; b.textContent = g || "Alla"; b.addEventListener("click", () => show(g)); filter.append(b); });
+  show("");
+
+  // en bild i full storlek, med bläddring
+  function paint() { const p = shown[at]; $("viewImg").src = p.src; $("viewImg").alt = p.title; $("viewTitle").textContent = p.title; $("viewMeta").textContent = group(p); }
+  function open(i) { if (i < 0) return; at = i; paint(); if (view.showModal) view.showModal(); else view.setAttribute("open", ""); }
+  function step(d) { at = (at + d + shown.length) % shown.length; paint(); }
+  $("viewClose").addEventListener("click", () => view.close());
+  $("viewPrev").addEventListener("click", () => step(-1));
+  $("viewNext").addEventListener("click", () => step(1));
+  view.addEventListener("keydown", (e) => { if (e.key === "ArrowLeft") step(-1); else if (e.key === "ArrowRight") step(1); });
+  view.addEventListener("click", (e) => { if (e.target === view || e.target.classList.contains("pic")) view.close(); });
+  let sx = null; // svep åt sidan på mobilen
+  view.addEventListener("touchstart", (e) => { sx = e.touches[0].clientX; }, { passive: true });
+  view.addEventListener("touchend", (e) => { if (sx === null) return; const dx = e.changedTouches[0].clientX - sx; sx = null; if (Math.abs(dx) > 50) step(dx < 0 ? 1 : -1); });
+})();
+</script>
 </body>
 </html>

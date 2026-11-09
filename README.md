@@ -1,9 +1,10 @@
 # En bättre bild – showroom
 
-3D-showroom för fotofirman En bättre bild. Three.js, utan byggsteg.
+Hemsida och 3D-showroom för fotofirman En bättre bild. Utan byggsteg.
 
-- `public/index.html` – sidans HTML och CSS, och listan över skriptfilerna
-- `public/js/` – koden, uppdelad i filer som laddas i ordning (se längst ner i `index.html`)
+- `public/index.html` – den vanliga sidan (startsidan): bilder, om, priser och kontakt, med knapp till showroomet
+- `public/showroom.html` – 3D-showroomet (Three.js): sidans HTML och CSS, och listan över skriptfilerna
+- `public/js/` – koden, uppdelad i filer som laddas i ordning (se längst ner i `showroom.html`)
   - `foton.js` – fotona på väggarna
   - `bakning.js` – ljusmotorn och rummens form, ljus och fotoplatser
   - `start.js`, `texturer.js`, `motor.js` – grunden: hjälpfunktioner, texturer, renderare och ytor
@@ -13,7 +14,7 @@
   - `main.js` – startar sidan, laddas sist
 - `public/img/` – fotona som hänger på väggarna
 
-Alla filer delar samma globala namn, så ordningen i `index.html` spelar roll: en fil får bara
+Alla filer delar samma globala namn, så ordningen i `showroom.html` spelar roll: en fil får bara
 använda saker från tidigare filer när den laddas (inuti funktioner går det bra att använda allt).
 
 ## Publicering
@@ -22,3 +23,4 @@ Andra grenar får en egen förhandsadress (`<gren>.en-battre-bild.pages.dev`) at
 
 ## Lägga till ett foto (tills personalrummet finns)
 Lägg bilden i `public/img/` och fyll i `src` och `title` för platsen i `PHOTOS` i `public/js/foton.js`.
+Bilden syns då både i showroomet och i galleriet på den vanliga sidan.

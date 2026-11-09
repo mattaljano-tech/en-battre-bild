@@ -2381,8 +2381,9 @@ function useRoom(key) {
 
   /* ================= ljud (syntetiserat, ett ljudlandskap per rum) ================= */
   let lbClosedAt = 0; // stängknappen i fotovyn ligger där ljudknappen ligger: ett klick får inte slå på ljudet
+  const MUSIC_SRC = "musik/soul.mp3", MUSIC_VOL = .32; // lägg låten här
   const Sound = {
-    ctx: null, on: false, master: null, wet: null, send: null, amb: null, timers: [], room: "staden", white: null, brown: null, chordI: 0,
+    ctx: null, on: false, music: null, musicGain: null, master: null, wet: null, send: null, amb: null, timers: [], room: "staden", white: null, brown: null, chordI: 0,
     init() {
       const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return false;
       const ctx = this.ctx = new AC(), master = this.master = ctx.createGain(); master.gain.value = 0; master.connect(ctx.destination);
@@ -2465,7 +2466,7 @@ function useRoom(key) {
       s.buffer = this.brown; bp.type = "bandpass"; bp.Q.value = 9; bp.frequency.setValueAtTime(260, t); bp.frequency.exponentialRampToValueAtTime(820, t + .7);
       g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.35, t + .15); g.gain.exponentialRampToValueAtTime(.0001, t + .9);
       s.connect(bp); bp.connect(g); this.out(g, Math.random() * 1.4 - .7, .8); s.start(t); s.stop(t + 1); },
-    chord() { const ctx = this.ctx, t = ctx.currentTime, vol = this.chordVol || .022, CH = [[50, 53, 57, 60, 64], [43, 53, 57, 59, 64], [48, 52, 55, 59, 62], [45, 49, 55, 58, 64]];
+    chord() { if (this.music) return; const ctx = this.ctx, t = ctx.currentTime, vol = this.chordVol || .022, CH = [[50, 53, 57, 60, 64], [43, 53, 57, 59, 64], [48, 52, 55, 59, 62], [45, 49, 55, 58, 64]];
       const notes = CH[this.chordI++ % CH.length], lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 1100; this.out(lp, 0, .4);
       notes.forEach((m, i) => { const f = 440 * Math.pow(2, (m - 69) / 12), o = ctx.createOscillator(), o2 = ctx.createOscillator(), g = ctx.createGain(), tt = t + i * .025;
         o.type = "triangle"; o.frequency.value = f; o2.type = "sine"; o2.frequency.value = f * 2.003;
@@ -2488,8 +2489,18 @@ function useRoom(key) {
       if (on && !this.ctx && !this.init()) { toast("Ljud stöds inte i den här webbläsaren."); return; }
       this.on = on; $("soundBtn").setAttribute("aria-pressed", String(on)); $("soundLabel").textContent = on ? "Ljud på" : "Ljud av";
       if (!this.ctx) return;
-      if (on) { this.ctx.resume(); this.master.gain.cancelScheduledValues(this.ctx.currentTime); this.master.gain.setTargetAtTime(.9, this.ctx.currentTime, .6); this.startAmb(); }
-      else { this.master.gain.setTargetAtTime(0, this.ctx.currentTime, .2); this.clearAmb(); }
+      if (on) { this.ctx.resume(); this.master.gain.cancelScheduledValues(this.ctx.currentTime); this.master.gain.setTargetAtTime(.9, this.ctx.currentTime, .6); this.startAmb(); this.playMusic(); }
+      else { this.master.gain.setTargetAtTime(0, this.ctx.currentTime, .2); this.clearAmb(); if (this.music) setTimeout(() => { if (!this.on) this.music.pause(); }, 900); }
+    },
+    // bakgrundsmusiken ligger ovanpå rummets ljud, utan rummets eko; finns ingen låt händer inget
+    playMusic() {
+      if (this.music) { this.music.play().catch(() => {}); return; }
+      if (this.musicTried) return; this.musicTried = true;
+      fetch(MUSIC_SRC, { method: "HEAD" }).then((r) => { if (!r.ok || !this.ctx) return;
+        const a = new Audio(MUSIC_SRC); a.loop = true; a.preload = "auto"; a.crossOrigin = "anonymous";
+        const g = this.musicGain = this.ctx.createGain(); g.gain.value = 0; this.ctx.createMediaElementSource(a).connect(g); g.connect(this.master);
+        this.music = a; if (this.on) a.play().then(() => g.gain.setTargetAtTime(MUSIC_VOL, this.ctx.currentTime, 2.5)).catch(() => {});
+      }).catch(() => {});
     }
   };
   $("soundBtn").addEventListener("click", (e) => { if (performance.now() - lbClosedAt < 900) return; Sound.set(!Sound.on); e.currentTarget.blur(); canvas.focus({ preventScroll: true }); });

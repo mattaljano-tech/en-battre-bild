@@ -1859,6 +1859,12 @@ function useRoom(key) {
     const mesh = (geo, mat, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x || 0, y || 0, z || 0); return add(m); };
     const box = (xa, xb, ya, yb, za, zb, mat) => mesh(new THREE.BoxGeometry(xb - xa, yb - ya, zb - za), mat, (xa + xb) / 2, (ya + yb) / 2, (za + zb) / 2);
     const col = (h, k) => { const c = new THREE.Color(h); return k === undefined ? c : c.multiplyScalar(k); };
+    // husets kropp bakom fasaden: tegel på gavlarna i stället för en slät grå låda (texturen skalad efter väggarnas mått)
+    let gavelM = null;
+    const brickBox = (xa, xb, ya, yb, za, zb) => { const w = xb - xa, h = yb - ya, d = zb - za, g = new THREE.BoxGeometry(w, h, d), na = g.attributes.normal, ua = g.attributes.uv, TL = 2.4;
+      for (let i = 0; i < ua.count; i++) { const ax = Math.abs(na.getX(i)), ay = Math.abs(na.getY(i)); ua.setXY(i, ua.getX(i) * (ax > .5 ? d : w) / TL, ua.getY(i) * (ay > .5 ? d : h) / TL); }
+      if (!gavelM) gavelM = sm({ map: tex("radtegel"), color: col(0x7a6a62, .42) });
+      const m = new THREE.Mesh(g, gavelM); m.position.set((xa + xb) / 2, (ya + yb) / 2, (za + zb) / 2); return add(m); };
     const tex = (k) => { const t = MATTEX[k].diff.clone(); t.needsUpdate = true; t.repeat.set(1, 1); t.offset.set(0, 0); t.wrapS = t.wrapT = THREE.RepeatWrapping; return t; };
     // plan med världsskalad textur: (u, v) = läget i meter delat med tile
     const quadUV = (P, uv, map, color, extra) => { const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(P.flat(), 3)); g.setAttribute("uv", new THREE.Float32BufferAttribute(uv.flat(), 2)); g.setIndex([0, 1, 2, 0, 2, 3]);
@@ -1992,7 +1998,7 @@ function useRoom(key) {
       const crb = KIT.crown_standard_standard_01 && KIT.crown_standard_standard_01.box, top = yb0 + 3 * nf;
       if (crb) for (let i = 0; i < n; i++) { const xs = side > 0 ? xa + i * cw : xa + (i + 1) * cw; kitAdd(KIT, "crown_standard_standard_01", at(xs, top, zf, side).multiply(S).multiply(new THREE.Matrix4().makeTranslation(-crb.min.x, -crb.min.y, 0)), tint, side); }
       // husets kropp bakom fasaden och taket, så att glappen och taklinjen blir hela
-      { const bm = box(xa, xb, yb0, top + .3, side > 0 ? zf - 12 : zf, side > 0 ? zf : zf + 12, sm({ color: col(0x24272a) })); if (kitXf) bm.applyMatrix4(kitXf); }
+      { const bm = brickBox(xa, xb, yb0, top + .3, side > 0 ? zf - 12 : zf, side > 0 ? zf : zf + 12); if (kitXf) bm.applyMatrix4(kitXf); }
       if (FEK && fe < 1 && side < 0 && nf >= 3 && xb - xa > 8 && r() < .7) { fe++; const xc = (xa + xb) / 2 + (r() - .5) * 3, ft = [.32, .32, .34];
         for (let f = 0; f < nf; f++) { const yb = yb0 + 3 * f;
           kitPlace(FEK, "modular_fire_escape_platform_middle", xc, yb - .72 + 3, zf + side * .68, ft, side); kitPlace(FEK, "modular_fire_escape_railing_middle", xc, yb + .03 + 3, zf + side * .7, ft, side);
@@ -2013,7 +2019,13 @@ function useRoom(key) {
       const l = Math.hypot(fx, fz); return l > 1e-3 ? [fx / l, fz / l] : [0, 1]; };
     const TH = groups(MODELS.tegelhus), BH = groups(MODELS.betonghus);
     const TV = Object.keys(TH).filter((k) => /^Building_[123]$/.test(k)).sort().map((k) => normalize(TH[k], frontOf(TH[k])));
-    const BV = Object.keys(BH).filter((k) => /^building_\d$/i.test(k)).sort().map((k) => normalize(BH[k], [0, 1]));
+    // betonghusen: framsidan är den sida av huvudmeshen (graffitifasaden) som har mest yta
+    const frontByArea = (parts) => { const A = { px: 0, nx: 0, pz: 0, nz: 0 }, a = new V3(), b = new V3(), c = new V3(), n = new V3();
+      parts.filter((p) => !/side|concrete/i.test(p.mn)).forEach((p) => { const pa = p.g.attributes.position; for (let i = 0; i + 2 < pa.count; i += 3) {
+        a.fromBufferAttribute(pa, i); b.fromBufferAttribute(pa, i + 1); c.fromBufferAttribute(pa, i + 2); n.subVectors(b, a).cross(c.clone().sub(a)); const ar = n.length() / 2; if (ar < 1e-9) continue; n.normalize();
+        if (Math.abs(n.x) > .8) A[n.x > 0 ? "px" : "nx"] += ar; else if (Math.abs(n.z) > .8) A[n.z > 0 ? "pz" : "nz"] += ar; } });
+      const k = Object.keys(A).reduce((m, q) => A[q] > A[m] ? q : m, "pz"); return { px: [1, 0], nx: [-1, 0], pz: [0, 1], nz: [0, -1] }[k]; };
+    const BV = Object.keys(BH).filter((k) => /^building_\d$/i.test(k)).sort().map((k) => normalize(BH[k], frontByArea(BH[k])));
     const placeV = (V, xa, zf, side, s, dark, xf) => { const M = (side > 0 ? new THREE.Matrix4().makeTranslation(xa, 0, zf) : new THREE.Matrix4().makeTranslation(xa + V.w * s, 0, zf).multiply(ROT[1])).multiply(new THREE.Matrix4().makeScale(s, s, s));
       const lit = r() < .45;
       for (const p of V.parts) { const g = p.g.clone().applyMatrix4(M), pa = g.attributes.position, na = g.attributes.normal, cc = new Float32Array(pa.count * 3), win = /window/i.test(p.mn);
@@ -2028,11 +2040,11 @@ function useRoom(key) {
       while (x < XR) { let w = Math.min(XR - x, 9 + 3 * ((r() * 3) | 0)); if (w < 3) break;
         if (BV.length && i % 4 === 2 && XR - x > 9) { // lågt betonghus med graffiti
           const V = BV[(i >> 2) % BV.length], s = 1; w = V.w * s; placeV(V, x, OPP + V.d * s, -1, s, .62);
-          box(x, x + w, 0, V.h * s, OPP + .05, OPP + V.d * s - .05, sm({ color: col(0x202326) })); x += w; i++; continue; }
+          brickBox(x + .1, x + w - .1, 0, V.h * s - .2, OPP + .8, OPP + V.d * s - .3); // inne i huset: fasaden sitter en bit in från framkanten x += w; i++; continue; }
         const xa = x, xb = x + w;
         if (TV.length) { const V = TV[i % TV.length], n = Math.max(1, Math.round(w / V.w)), s = w / (n * V.w), H = V.h * s; let anyLit = false;
           for (let j = 0; j < n; j++) anyLit = placeV(V, xa + j * V.w * s, OPP, -1, s, .58) || anyLit;
-          box(xa, xb, 0, H, OPP, OPP + 12, sm({ color: col(0x202326) }));
+          brickBox(xa, xb, 0, H, OPP, OPP + 12);
           if (anyLit) pool(w * .8, 3.4, 0x7a5330, (xa + xb) / 2, 0, OPP - 1.6, .4);
           box(xa, xb, H - .08, H + .14, OPP - .3, OPP, sm({ color: col(0x3e3c3a) }));
           kitHouse(xa, xb, -1, OPP, H + .14, (isTouch ? 2 : 2) + ((r() * 3) | 0), i + 2);
@@ -2056,7 +2068,7 @@ function useRoom(key) {
       while (x < half) { const w = Math.min(half - x, 9 + 3 * ((r() * 3) | 0)); if (w < 3) break; const xa = x, xb = x + w;
         if (TV.length) { const V = TV[(i + 1 + (sg > 0 ? 0 : 1)) % TV.length], n = Math.max(1, Math.round(w / V.w)), sc = w / (n * V.w), H = V.h * sc;
           for (let j = 0; j < n; j++) placeV(V, xa + j * V.w * sc, 0, -1, sc, .55, xf);
-          const bm = box(xa, xb, 0, H, 0, 12, sm({ color: col(0x202326) })); bm.applyMatrix4(xf);
+          const bm = brickBox(xa, xb, 0, H, 0, 12); bm.applyMatrix4(xf);
           kitHouse(xa, xb, -1, 0, H + .14, (isTouch ? 2 : 3) + ((r() * 3) | 0), i + 7);
         } else kitHouse(xa, xb, -1, 0, 0, 5, i + 7);
         x = xb; i++; }

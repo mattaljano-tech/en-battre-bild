@@ -140,6 +140,8 @@ body.viewing #soundBtn { visibility: hidden; pointer-events: none; }
 .panel .body { display: grid; gap: 12px; }
 .panel p { margin: 0; max-width: 62ch; color: #cfccc4; }
 .panel .placeholder { border: 1px dashed var(--line); padding: 12px 14px; color: var(--dim); font-size: 13px; }
+.panel .credit { margin-top: 18px; font-size: 11px; line-height: 1.5; color: var(--dim); }
+.panel .credit a { color: inherit; }
 .panel h3 { margin: 18px 0 0; font-family: var(--font-display); font-weight: 700; font-size: 24px; letter-spacing: .06em; text-transform: uppercase; }
 .panel .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
 .panel .grid button { all: unset; cursor: pointer; display: grid; gap: 6px; min-width: 0; }
@@ -931,8 +933,8 @@ function useRoom(key) {
     const tex = T(c); t.diff = tex;
   }
   /* ---------- 3D-modeller (Poly Haven, CC0): laddas en gång, ljuset bakas in som för övriga föremål ---------- */
-  const MODELS = {}, MODEL_FILES = { bord: "industrial_coffee_table", bur: "caged_hanging_light", vagg: "industrial_wall_sconce", pall: "metal_stool_03", vaxt1: "potted_plant_01", vaxt2: "potted_plant_02", fasad: "modular_urban_apartments_facade", ac: "exterior_aircon_unit", brandtrappa: "modular_fire_escape", ror: "modular_industrial_pipes_01", hylla: "worn_metal_rack", fatolj: "mid_century_lounge_chair", pendel: "modern_ceiling_lamp_01" };
-  const ROOM_MODELS = { staden: ["bur", "fasad", "ac", "brandtrappa"], berattelser: ["hylla", "ror"], naturen: ["vaxt1", "vaxt2"], foajen: GATA ? ["vaxt1", "vaxt2", "fasad", "ac", "brandtrappa"] : ["vaxt1", "vaxt2"], manniskorna: ["bord", "vagg", "pall", "fatolj", "pendel"] };
+  const MODELS = {}, MODEL_FILES = { bord: "industrial_coffee_table", bur: "caged_hanging_light", vagg: "industrial_wall_sconce", pall: "metal_stool_03", vaxt1: "potted_plant_01", vaxt2: "potted_plant_02", fasad: "modular_urban_apartments_facade", ac: "exterior_aircon_unit", brandtrappa: "modular_fire_escape", ror: "modular_industrial_pipes_01", hylla: "worn_metal_rack", fatolj: "mid_century_lounge_chair", pendel: "modern_ceiling_lamp_01", bilar: "bilar" };
+  const ROOM_MODELS = { staden: ["bur", "fasad", "ac", "brandtrappa"], berattelser: ["hylla", "ror"], naturen: ["vaxt1", "vaxt2"], foajen: GATA ? ["vaxt1", "vaxt2", "fasad", "ac", "brandtrappa", "bilar"] : ["vaxt1", "vaxt2"], manniskorna: ["bord", "vagg", "pall", "fatolj", "pendel"] };
   function loadModels(keys) {
     if (!THREE.GLTFLoader) return Promise.resolve(); const L = new THREE.GLTFLoader();
     return Promise.all(keys.filter((k) => !MODELS[k]).map((k) => new Promise((res) => { const f = MODEL_FILES[k];
@@ -1999,6 +2001,51 @@ function useRoom(key) {
       const m = glassM ? sm({ vertexColors: true, side: THREE.DoubleSide }) : blend ? sm({ vertexColors: true, color: 0x3a3c3e, alphaMap: src.map || null, alphaTest: .5, side: THREE.DoubleSide })
         : sm({ map: src.map || null, vertexColors: true, side: THREE.DoubleSide });
       add(new THREE.Mesh(g, m)); }
+    // ---------- parkerade bilar (Generic passenger car pack av Comrade1280, CC BY 4.0) ----------
+    // paketet står i en ring: varje kaross får sina närmaste hjul, vrids så att längden ligger längs x och lackas om i mörka kulörer
+    const CARS = (() => { const root = MODELS.bilar; if (!root) return null; root.updateMatrixWorld(true); const bodies = {}, wheels = [];
+      root.traverse((o) => { if (!o.isMesh) return; const pn = o.parent ? o.parent.name : "", g = (o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone()).applyMatrix4(o.matrixWorld);
+        if (!g.attributes.normal) g.computeVertexNormals(); g.computeBoundingBox(); const c = g.boundingBox.getCenter(new V3()), mn = o.material.name || "";
+        const kind = /glass/i.test(mn) ? "glass" : /optic/i.test(mn) ? "optics" : /whee/i.test(mn) || /^wheel/i.test(pn) ? "wheel" : "body";
+        if (/body/i.test(pn)) { const bk = pn.toLowerCase().replace(/[_ ]?body.*$/, ""); (bodies[bk] = bodies[bk] || []).push({ g, mat: o.material, kind, c }); }
+        else if (kind === "wheel") wheels.push({ g, mat: o.material, kind, c }); });
+      const out = {};
+      for (const k in bodies) { const P = bodies[k], b = P.find((p) => p.kind === "body"); if (!b) continue;
+        const pa = b.g.attributes.position; let mx = 0, mz = 0; for (let i = 0; i < pa.count; i++) { mx += pa.getX(i); mz += pa.getZ(i); } mx /= pa.count; mz /= pa.count;
+        let sxx = 0, szz = 0, sxz = 0; for (let i = 0; i < pa.count; i++) { const dx = pa.getX(i) - mx, dz = pa.getZ(i) - mz; sxx += dx * dx; szz += dz * dz; sxz += dx * dz; }
+        const th = .5 * Math.atan2(2 * sxz, sxx - szz); // längdaxelns riktning
+        const parts = P.concat(wheels.filter((w) => Math.hypot(w.c.x - mx, w.c.z - mz) < 2.6));
+        const M = new THREE.Matrix4().makeRotationY(th).multiply(new THREE.Matrix4().makeTranslation(-mx, 0, -mz)), bb = new THREE.Box3();
+        const gs = parts.map((p) => { const g = p.g.clone().applyMatrix4(M); g.computeBoundingBox(); bb.union(g.boundingBox); return { g, mat: p.mat, kind: p.kind }; });
+        gs.forEach((p) => p.g.translate(0, -bb.min.y, 0)); out[k] = { parts: gs, len: bb.max.x - bb.min.x }; }
+      return out; })();
+    const grayTex = (() => { const cache = new Map(); return (map) => { if (!map || !map.image) return null; if (cache.has(map)) return cache.get(map);
+      const im = map.image, w = Math.min(512, im.width || 512), h = Math.min(512, im.height || 512), c = cnv(w, h), x = c.getContext("2d"); x.drawImage(im, 0, 0, w, h);
+      const d = x.getImageData(0, 0, w, h), a = d.data; let sum = 0; for (let i = 0; i < a.length; i += 4) sum += .3 * a[i] + .59 * a[i + 1] + .11 * a[i + 2];
+      const k = 205 / Math.max(1, sum / (a.length / 4)); for (let i = 0; i < a.length; i += 4) { const l = Math.min(255, (.3 * a[i] + .59 * a[i + 1] + .11 * a[i + 2]) * k); a[i] = a[i + 1] = a[i + 2] = l; }
+      x.putImageData(d, 0, 0); const t = T(c, true, false); t.flipY = map.flipY; cache.set(map, t); return t; }; })();
+    const shTex = T(radial([[0, "rgba(0,0,0,.85)"], [.55, "rgba(0,0,0,.55)"], [1, "rgba(0,0,0,0)"]], 128), false, false);
+    const car = (key, x, z, yaw, paint, len) => { const C = CARS && CARS[key]; if (!C) return; const sc = len / C.len, y0 = RY;
+      const M = new THREE.Matrix4().makeTranslation(x, y0, z).multiply(new THREE.Matrix4().makeRotationY(yaw)).multiply(new THREE.Matrix4().makeScale(sc, sc, sc));
+      for (const p of C.parts) { const g = p.g.clone().applyMatrix4(M), na = g.attributes.normal, n = na.count, cc = new Float32Array(n * 3);
+        for (let i = 0; i < n; i++) { const ny = na.getY(i), side = Math.abs(na.getX(i) * Math.sin(yaw) + na.getZ(i) * Math.cos(yaw));
+          const k = p.kind === "glass" ? .55 + .5 * Math.max(0, ny) : (.3 + .55 * Math.max(0, ny) + .2 * side) * (p.kind === "wheel" ? .55 : 1); cc[i * 3] = cc[i * 3 + 1] = cc[i * 3 + 2] = k; }
+        g.setAttribute("color", new THREE.BufferAttribute(cc, 3));
+        const m = p.kind === "body" ? sm({ map: grayTex(p.mat.map), color: paint, vertexColors: true })
+          : p.kind === "glass" ? sm({ color: col(0x161b22), vertexColors: true })
+          : p.kind === "optics" ? sm({ map: p.mat.map || null, color: col(0x8a8680), vertexColors: true })
+          : sm({ map: p.mat.map || null, color: col(0x9a9a9a), vertexColors: true });
+        m.side = THREE.DoubleSide; add(new THREE.Mesh(g, m)); }
+      const s = mesh(new THREE.PlaneGeometry(len * 1.12, len * .5), new THREE.MeshBasicMaterial({ map: shTex, transparent: true, depthWrite: false, opacity: .8 }), x, y0 + .006, z); s.rotation.set(-Math.PI / 2, 0, yaw, "YXZ");
+      pool(len * .9, 1.2, 0x2a3036, x, y0 + .01, z + (z < (CURB + R1) / 2 ? 1.4 : -1.4), .35); }; // blank plåt speglas i det våta
+    if (CARS) {
+      const lane = CURB + 1.05, lane2 = R1 - 1.05;
+      car("sedan", -11.5, lane, 0, col(0x1b2a44, .62), 4.6);
+      car("wagon", 10.8, lane, Math.PI, col(0x3a1e22, .7), 4.8);
+      car("minivan", -2.5, lane2, Math.PI, col(0x2a2d30, .7), 4.9);
+      car("suv", 16, lane2, 0, col(0x15171a, .8), 4.9);
+      if (!isTouch) { car("hatchback", -24, lane, 0, col(0x4a4a46, .6), 4.2); car("compact", 26, lane2, Math.PI, col(0x2f3a30, .65), 3.9); }
+    }
     // ---------- gatlyktor vid kantstenen och lampor i vajrar över gatan ----------
     const poleM = sm({ color: col(0x1a1c1e) }), lampC = 0xffd6a0;
     for (const lx of [-22, -7.5, 7.5, 22, 36, -36]) { if (Math.abs(lx) > XR - 1) continue; const lz = CURB - .45;
@@ -2829,7 +2876,7 @@ function useRoom(key) {
           "#include <packing>",
           "uniform sampler2D tDiffuse; uniform sampler2D tDepth; uniform float focus, aperture, maxblur, near, far, asp; varying vec2 vUv;",
           "float dist(vec2 uv){ return -perspectiveDepthToViewZ(unpackRGBAToDepth(texture2D(tDepth, uv)), near, far); }",
-          "float coc(float z){ return min(abs(z - focus) / max(z, .01) * aperture, maxblur); }",
+          "float coc(float z){ float k = z > focus ? (z - focus) / max(z, .01) : (focus - z) / max(z, .01) * .25; return min(k * aperture, maxblur); }",
           "void main(){",
           "  float c = coc(dist(vUv)); vec4 base = texture2D(tDiffuse, vUv);",
           "  if (c < .0004) { gl_FragColor = base; return; }",
@@ -3156,6 +3203,11 @@ function useRoom(key) {
     } else if (kind === "om") {
       head("Foajén · Om", "En bättre bild"); para("Fotografi i staden, i naturen och bilder som bär en berättelse.");
       para("Här kommer din presentation: vem du är, hur du arbetar och vad du helst fotograferar. Skicka texten så lägger jag in den.", "placeholder");
+      { const e = document.createElement("p"); e.className = "credit"; e.append("3D-modeller: material och möbler från Poly Haven (CC0). Bilarna på gatan: ");
+        const a = document.createElement("a"); a.href = "https://sketchfab.com/3d-models/generic-passenger-car-pack-20f9af9b8a404d5cb022ac6fe87f21f5"; a.target = "_blank"; a.rel = "noopener"; a.textContent = "Generic passenger car pack";
+        const u = document.createElement("a"); u.href = "https://sketchfab.com/comrade1280"; u.target = "_blank"; u.rel = "noopener"; u.textContent = "Comrade1280";
+        const l = document.createElement("a"); l.href = "http://creativecommons.org/licenses/by/4.0/"; l.target = "_blank"; l.rel = "noopener"; l.textContent = "CC BY 4.0";
+        e.append(a, " av ", u, ", licensierad under ", l, "."); b.append(e); }
     } else if (kind === "priser") {
       head("Foajén · Priser", "Priser"); para("Priser och paket kommer snart.");
       para("Skicka dina paket och priser, så blir det här en tydlig prislista.", "placeholder");
@@ -3338,7 +3390,7 @@ function useRoom(key) {
     renderer.setRenderTarget(dofRT); renderer.setClearColor(0xffffff, 1); renderer.clear(); renderer.render(scene, camera);
     scene.overrideMaterial = null; scene.background = bg; camera.layers.mask = mask; renderer.setClearColor(cc, ca); renderer.setRenderTarget(null);
     const U = dofPass.uniforms; U.tDepth.value = dofRT.texture; U.focus.value = D.focus; U.aperture.value = D.ap; U.near.value = camera.near; U.far.value = camera.far; U.asp.value = dofTmp.x / dofTmp.y;
-    U.maxblur.value = isTouch ? .005 : .009;
+    U.maxblur.value = isTouch ? .0028 : .0042;
   }
   function frame(now) {
     const raw = now - last, dt = Math.min(.05, raw / 1000); last = now;
@@ -3440,7 +3492,7 @@ function useRoom(key) {
       y += reduceMotion ? 0 : Math.sin(walked * 3.6) * .016 * bobA;
       camera.position.set(x, y, z); camera.rotation.set(pitch, yaw, 0);
       // skärpan ligger på butiken och dörren; gatan bakom och marken närmast blir mjuk. Inne i foajén blir allt skarpt igen
-      const fd = clamp(Math.hypot(x, y - 2.1, z - .3), 2.4, 30), A0 = isTouch ? .011 : .018, ap = ST.phase === "enter" ? A0 * (1 - ease(clamp((ST.enterT - 1.6) / 2.2, 0, 1))) : A0;
+      const fd = clamp(Math.hypot(x, y - 2.1, z - .3), 2.4, 30), A0 = isTouch ? .0045 : .0065, ap = ST.phase === "enter" ? A0 * (1 - ease(clamp((ST.enterT - 1.6) / 2.2, 0, 1))) : A0;
       ST.dof.focus += (fd - ST.dof.focus) * .12; ST.dof.ap = ap;
     }
     function tick(now, dt) {

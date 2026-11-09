@@ -499,9 +499,9 @@ function stadenSlots() {
   const out = [], H = CV.H, o = { ly: H - .55, a: .42, T: 1.9 };
   [["perrongen", -1.7], ["telefonen", -3.9], ["trappan", -7.3], ["vantan", -9.7], ["rulltrappan", -13.3], ["grottan", -15.7], ["spetsen", -19.75]]
     .forEach(([k, z]) => out.push(wslot(k, [-6, 1.65, z], [1, 0, 0], 1.25, o)));
-  // rummets mittpunkt: Norrtull, natt stort på en fristående betongmonolit mellan pelarna, vänd mot ingången
-  out.push({ key: "norrtull-natt", C: [0, 2.2, -10.83], U: [1, 0, 0], N: [0, 0, 1], h: 2.9, labelBelow: true,
-    spots: [-.75, .75].map((dx) => ({ p: [dx, H - .45, -7.6], t: [dx * .4, 2.2, -10.83], a: .3, T: 2.1 })) });
+  // Norrtull, natt stort på bortre väggen till vänster om dörren, som en spegling av järnvägstunneln: slutpunkten man ser genom hela rummet
+  out.push({ key: "norrtull-natt", C: [-3.35, 2.2, -22], U: [1, 0, 0], N: [0, 0, 1], h: 3.3,
+    spots: [-.7, .7].map((dx) => ({ p: [-3.35 + dx, H - .55, -19.6], t: [-3.35 + dx * .5, 2.2, -22], a: .4, T: 1.7 })) });
   // järnvägstunneln stor på bortre väggen, till höger om dörren, med två spotlights
   out.push({ key: "tunneln", C: [3.35, 2.0, -22], U: [1, 0, 0], N: [0, 0, 1], w: 4.0, spots: [-1.1, 1.1].map((dx) => ({ p: [3.35 + dx, H - .55, -19.6], t: [3.35 + dx, 2.0, -22], a: .44, T: 1.6 })) });
   out.push(wslot("skyline-dis", [-3.5, 1.65, 0], [0, 0, -1], 1.25, o), wslot("vagnen", [3.5, 1.65, 0], [0, 0, -1], 1.25, o));
@@ -2150,7 +2150,6 @@ function useRoom(key) {
     // burlampor, en bänk i betong och lite skräp som blivit kvar
     for (const z of CV.LAMPS) { const b = placeModel("bur", [-1.6, 3.95, z], 0, { h: .75, hang: true, emisCol: [4, 2.6, 1.3] }); if (b) rodProp([-1.6, b.top, z], [-1.6, H, z], .01, 0x111111); else cageLamp(-1.6, 3.4, z, H); }
     buildStands("staden", 0x52504c, 0x1b1d1d);
-    prop(worldUV(new THREE.BoxGeometry(2.7, 4.3, .4, 6, 8, 2), 2), { color: 0xb4b4ae, map: MATTEX.betong.diff }, new V3(0, 2.15, -11.03), null, { id: "monolit", collide: true }); // monoliten för Norrtull, natt
     prop(worldUV(new THREE.BoxGeometry(.62, .44, 2.2, 2, 2, 8), 2), { color: 0xc0c0ba, map: MATTEX.betong.diff }, new V3(3.9, .22, -11), null, { id: "cbench", collide: true }); benchSeats(3.9, -11, 2.2, .62, .44, false); // vid glaset, man sitter och ser ut på regnet
     opening({ C: [0, 0, 0], N: [0, 0, -1], U: [-1, 0, 0], w: 1.4, h: 2.5, to: "foajen", sign: ["00  FOAJÉN", "TILLBAKA"], glow: new THREE.Color(1.1, .82, .55) });
     return { noDust: true, update: cityTick };

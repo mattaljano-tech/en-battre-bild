@@ -1534,7 +1534,7 @@ function useRoom(key) {
       "void main(){ vec2 tuv = vW.xz / norScale; vec3 n = texture2D(tNor, tuv).xyz * 2. - 1.; float rough = texture2D(tArm, tuv).g;",
       "vec4 p = vUv; p.xy += n.xy * .012 * vUv.w; float b = .007 * vUv.w * (.4 + rough * 1.6);",
       "vec3 c = texture2DProj(tDiffuse, p).rgb * .4 + (texture2DProj(tDiffuse, p + vec4(b, 0., 0., 0.)).rgb + texture2DProj(tDiffuse, p - vec4(b, 0., 0., 0.)).rgb + texture2DProj(tDiffuse, p + vec4(0., b, 0., 0.)).rgb + texture2DProj(tDiffuse, p - vec4(0., b, 0., 0.)).rgb) * .15;",
-      "vec3 V = normalize(cameraPosition - vW); float fr = .45 + .55 * pow(1. - max(V.y, 0.), 3.);",
+      "vec3 V = normalize(cameraPosition - vW); float fr = .02 + .98 * pow(1. - max(V.y, 0.), 5.);", // som på riktigt: ingen spegling rakt ner, tydlig först i flackt motljus långt bort
       "float fog = exp(-length(cameraPosition - vW) * .05);",
       "vec2 q = vUv.xy / vUv.w; float edge = vUv.w > 0. ? smoothstep(0., .1, q.x) * smoothstep(1., .9, q.x) * smoothstep(0., .1, q.y) * smoothstep(1., .9, q.y) : 0.;", "c = min(c, vec3(1.3)); gl_FragColor = vec4(c * strength * fr * (1. - rough * .5) * fog * edge, 1.); }"].join("\n") };
   let mirrorRT = null, mirrorCam = null; const mirrorTM = new THREE.Matrix4(), mirrorBias = new THREE.Matrix4().set(.5, 0, 0, .5, 0, .5, 0, .5, 0, 0, .5, .5, 0, 0, 0, 1), mirrorClip = [new THREE.Plane(new V3(0, 1, 0), -.012)];

@@ -1417,13 +1417,13 @@ function useRoom(key) {
   function plant(x, z, h, seed) {
     const k = h >= 2.05 ? "vaxt1" : "vaxt2"; // den stora (100 000 blad-trianglar) bara på ett ställe per rum
     if (MODELS[k]) { // krukväxt från Poly Haven: ljuset mäts nere vid krukan och uppe i bladen
-      const hh = k === "vaxt1" ? 1.55 : 1.05, sh = (y) => shade(x, y, z, 0, 1, 0, null), lo = sh(.3), hi = sh(hh);
-      placeModel(k, [x, 0, z], seed * 1.7, { h: hh, flat: { y0: .1, y1: hh, lo, hi }, flatOnly: /leaves|stem/, shadow: true });
+      const hh = k === "vaxt1" ? 1.95 : 1.32, sh = (y) => shade(x, y, z, 0, 1, 0, null), lo = sh(.3), hi = sh(hh);
+      placeModel(k, [x, 0, z], seed * 1.7, { h: hh, flat: { y0: .1, y1: hh, lo, hi }, flatOnly: /leaves|stem/ }); // ingen lådskugga i bakningen: bara den runda skuggan nedan
       { // mjuk kontaktskugga under krukan
         if (!plantShadowTex) plantShadowTex = T(radial([[0, "rgba(0,0,0,.62)"], [.45, "rgba(0,0,0,.38)"], [1, "rgba(0,0,0,0)"]], 128), false, false);
-        const sm = new THREE.Mesh(new THREE.PlaneGeometry(1.15, 1.15), new THREE.MeshBasicMaterial({ map: plantShadowTex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 }));
+        const sm = new THREE.Mesh(new THREE.PlaneGeometry(1.35, 1.35), new THREE.MeshBasicMaterial({ map: plantShadowTex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 }));
         sm.rotation.x = -Math.PI / 2; sm.position.set(x, .004, z); scene.add(sm); }
-      colliders.push({ x0: x - .3, x1: x + .3, z0: z - .3, z1: z + .3 }); return; }
+      colliders.push({ x0: x - .35, x1: x + .35, z0: z - .35, z1: z + .35 }); return; }
     if (!leafTexC) leafTexC = T(leafCanvas(), true, false);
     prop(new THREE.CylinderGeometry(.3, .24, .55, 28, 2), { color: 0x8f8b84 }, new V3(x, .275, z), null, { collide: true });
     const pr = rng(seed);
@@ -1720,7 +1720,7 @@ function useRoom(key) {
         placePart("ror", R + "pipe06", M4(x, y - .18, zEnd, 0, -Math.PI / 2, 0), { id: "ror" });          // T-rör där ledningen vänder nedåt
         const yt = y - .18, yb = 1.12, n = Math.ceil((yt - yb) / seg), l = (yt - yb) / n;
         for (let i = 0; i < n; i++) placePart("ror", R + "pipe02", M4(x, yb + i * l, zEnd), { sy: l / seg, id: "ror" });
-        placePart("ror", R + "pipe08", M4(x, .74, zEnd, 0, -Math.PI / 2, 0), { id: "ror" });               // ventilen med rött ratt
+        placePart("ror", R + "pipe08", M4(x, .74, zEnd, 0, -.55, 0), { id: "ror" }); // ratten vänd ut mot rummet               // ventilen med rött ratt
         placePart("ror", R + "pipe01", M4(x, 0, zEnd), { sy: .74 / .86, id: "ror" });
         for (let zz = zEnd + 2; zz < -1; zz += 2.6) prop(new THREE.BoxGeometry(.14, .05, .06), { color: 0x2a2b2b }, new V3(X - .07, y - .13, zz), null, { shadow: false }); // fästen i väggen
       } }

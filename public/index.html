@@ -1181,7 +1181,7 @@ function useRoom(key) {
   renderer.toneMapping = POST ? THREE.NoToneMapping : THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.18;
   const scene = new THREE.Scene(); scene.background = new THREE.Color(0x020303);
   scene.fog = new THREE.FogExp2(0x050808, .021);
-  const camera = new THREE.PerspectiveCamera(64, 1, .05, 70); camera.rotation.order = "YXZ"; camera.layers.enable(1); // lager 1: saker som inte syns i golvspeglingen
+  const camera = new THREE.PerspectiveCamera(64, 1, .05, 70); camera.rotation.order = "YXZ"; camera.layers.enable(1); camera.layers.enable(2); // lager 1: saker som inte syns i golvspeglingen
 
   const LMAX = 6; // ljuskartor lagrar 0…LMAX
   const RES = isTouch ? 9 : 16;  // texlar per meter i ljuskartorna
@@ -1823,13 +1823,13 @@ function useRoom(key) {
     const gm = new THREE.MeshBasicMaterial({ map: T(gc, false, false), color: new THREE.Color(.5, .56, .58), transparent: true, opacity: .16, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
     for (let i = 0; i < XS.length - 1; i++) for (const [ya, yb] of [[0, DH], [DH, EH]]) {
       if (ya === 0 && (i === 2 || i === 3)) continue; // dörrbladen har eget glas
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(XS[i + 1] - XS[i] - PW, yb - ya - PW), gm); m.position.set((XS[i] + XS[i + 1]) / 2, (ya + yb) / 2, .08); scene.add(m); }
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(XS[i + 1] - XS[i] - PW, yb - ya - PW), gm); m.position.set((XS[i] + XS[i + 1]) / 2, (ya + yb) / 2, .08); m.layers.set(2); scene.add(m); }
     // dörrbladen: gångjärn vid posterna x = ±1, svänger inåt
     const WL = 1 - PW / 2, leaves = [-1, 1].map((s) => { const g = new THREE.Group(); g.position.set(s * WL, 0, .09); scene.add(g);
       const lx = (u) => -s * u;
       box(.08, DH - .06, .16, steelM, lx(.04), (DH - .06) / 2, 0, g); box(.08, DH - .06, .16, steelM, lx(WL - .04), (DH - .06) / 2, 0, g);
       box(WL, .08, .16, steelM, lx(WL / 2), DH - .1, 0, g); box(WL, .28, .16, steelM, lx(WL / 2), .16, 0, g);
-      const gl = new THREE.Mesh(new THREE.PlaneGeometry(WL - .16, DH - .44), gm); gl.position.set(lx(WL / 2), (.3 + DH - .14) / 2, 0); g.add(gl);
+      const gl = new THREE.Mesh(new THREE.PlaneGeometry(WL - .16, DH - .44), gm); gl.position.set(lx(WL / 2), (.3 + DH - .14) / 2, 0); gl.layers.set(2); g.add(gl);
       const hx = lx(WL - .14), hg = new THREE.Mesh(new THREE.CylinderGeometry(.018, .018, 1.4, 10), hdlM);
       for (const dz of [-.12, .12]) { const h = hg.clone(); h.position.set(hx, 1.35, dz); g.add(h); for (const dy of [-.6, .6]) box(.02, .02, .1, hdlM, hx, 1.35 + dy, dz / 2, g); }
       return { g, s }; });
@@ -1863,7 +1863,7 @@ function useRoom(key) {
     const wall = (xa, xb, ya, yb, z, map, tile, color, face) => { const P = [[xa, ya, z], [xb, ya, z], [xb, yb, z], [xa, yb, z]]; if (face < 0) P.reverse();
       const uv = P.map(([x, y]) => [x / tile, y / tile]); return quadUV(P, uv, map, color); };
     const glowTex = T(radial([[0, "rgba(255,255,255,1)"], [.3, "rgba(255,255,255,.4)"], [1, "rgba(255,255,255,0)"]], 128), false, false);
-    const glow = (w, h, c, x, y, z, rx, ry, a) => { const m = mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: glowTex, color: col(c), transparent: true, opacity: a === undefined ? 1 : a, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }), x, y, z); m.rotation.set(rx || 0, ry || 0, 0, "YXZ"); return m; };
+    const glow = (w, h, c, x, y, z, rx, ry, a) => { const m = mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: glowTex, color: col(c), transparent: true, opacity: a === undefined ? 1 : a, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }), x, y, z); m.rotation.set(rx || 0, ry || 0, 0, "YXZ"); m.layers.set(2); return m; };
     const pool = (w, h, c, x, y, z, a) => glow(w, h, c, x, y + .012, z, -Math.PI / 2, 0, a);
     // himlen: skymning, ljusare nere vid taken; följer kameran
     const sky = (() => { const g = new THREE.SphereGeometry(60, 24, 12), p = g.attributes.position, c = new Float32Array(p.count * 3);
@@ -2005,7 +2005,7 @@ function useRoom(key) {
       mesh(new THREE.CylinderGeometry(.06, .09, 5.2, 10), poleM, lx, 2.6, lz); box(lx - .05, lx + .05, 5.1, 5.18, lz, lz + 1.0, poleM);
       box(lx - .18, lx + .18, 4.94, 5.14, lz + .8, lz + 1.25, sm({ color: col(0x202224) }));
       mesh(new THREE.PlaneGeometry(.3, .38), new THREE.MeshBasicMaterial({ color: col(lampC, 1.6), fog: false }), lx, 4.93, lz + 1.02).rotation.x = Math.PI / 2;
-      const h = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: col(lampC), transparent: true, opacity: .5, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })); h.scale.set(1.2, 1.2, 1); h.position.set(lx, 4.85, lz + 1.02); add(h);
+      const h = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: col(lampC), transparent: true, opacity: .5, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })); h.scale.set(1.2, 1.2, 1); h.position.set(lx, 4.85, lz + 1.02); add(h).layers.set(2);
       pool(5.5, 5, 0x8a6a44, lx, 0, lz - .6, .75); pool(5, 4.5, 0x7a5c3a, lx, RY, lz + 2.2, .6); pool(1.3, 7.5, 0x6a5234, lx, RY, lz + 5.5, .55); }
     { const wireM = new THREE.LineBasicMaterial({ color: col(0x0c0d0e) });
       for (const wx of [-14, 0.0, 14, 28, -28]) { if (Math.abs(wx) > XR - 2) continue; const pts = [], yA = 7.6, sag = .55, za = FZ + .2, zb = OPP - .2, zm = (CURB + R1) / 2;
@@ -2013,7 +2013,7 @@ function useRoom(key) {
         add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), wireM));
         const ly = yA - sag; mesh(new THREE.CylinderGeometry(.03, .03, .35, 6), poleM, wx, ly - .17, zm);
         mesh(new THREE.ConeGeometry(.32, .22, 18, 1, true), sm({ color: col(0x1e2022), side: THREE.DoubleSide }), wx, ly - .4, zm);
-        const h = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: col(0xffe0b0), transparent: true, opacity: .55, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })); h.scale.set(1.4, 1.4, 1); h.position.set(wx, ly - .5, zm); add(h);
+        const h = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: col(0xffe0b0), transparent: true, opacity: .55, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })); h.scale.set(1.4, 1.4, 1); h.position.set(wx, ly - .5, zm); add(h).layers.set(2);
         pool(7, 7, 0x6e5434, wx, RY, zm, .55); } }
     // ---------- regnet ----------
     const rainU = { t: { value: 0 } };
@@ -2024,7 +2024,7 @@ function useRoom(key) {
         vertexShader: "attribute float k; uniform float t; varying float a; void main(){ vec3 p = position; p.y = mod(position.y - t * 10.0, 18.0) - 1.0 - k * .5; p.x -= k * .04;" +
           " vec4 mv = modelViewMatrix * vec4(p, 1.); a = clamp(1. - (-mv.z - 1.) / 30., 0., 1.); gl_Position = projectionMatrix * mv; }",
         fragmentShader: "varying float a; void main(){ gl_FragColor = vec4(.62, .67, .74, .26 * a); }" });
-      const l = new THREE.LineSegments(g, m); l.frustumCulled = false; add(l); }
+      const l = new THREE.LineSegments(g, m); l.frustumCulled = false; add(l).layers.set(2); }
     return {
       update(now) { rainU.t.value = now / 1000; sky.position.copy(camera.position); const fl = 1 + Math.sin(now / 900) * .012 + (Math.sin(now / 137) > .995 ? -.08 : 0); signMat.color.setRGB(1.5 * fl, 1.42 * fl, 1.32 * fl); }
     };
@@ -2811,7 +2811,7 @@ function useRoom(key) {
   }
 
   /* ================= efterbehandling ================= */
-  let composer = null, finalPass = null, bloomPass = null;
+  let composer = null, finalPass = null, bloomPass = null, dofPass = null, dofRT = null, dofDepthMat = null;
   function setupPost() {
     if (!POST) return;
     try {
@@ -2820,6 +2820,27 @@ function useRoom(key) {
       if (rt.samples !== undefined) rt.samples = 2;
       composer = new THREE.EffectComposer(renderer, rt);
       composer.addPass(new THREE.RenderPass(scene, camera));
+      // skärpedjup för gatan: oskärpa efter avståndet från fokus, mätt i en djupbild (lager 2 – regn, sken och glas – räknas inte)
+      dofPass = new THREE.ShaderPass({
+        uniforms: { tDiffuse: { value: null }, tDepth: { value: null }, focus: { value: 5 }, aperture: { value: 0 }, maxblur: { value: .009 }, near: { value: .05 }, far: { value: 70 }, asp: { value: 1 } },
+        vertexShader: "varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
+        defines: { NT: isTouch ? 16 : 28 },
+        fragmentShader: [
+          "#include <packing>",
+          "uniform sampler2D tDiffuse; uniform sampler2D tDepth; uniform float focus, aperture, maxblur, near, far, asp; varying vec2 vUv;",
+          "float dist(vec2 uv){ return -perspectiveDepthToViewZ(unpackRGBAToDepth(texture2D(tDepth, uv)), near, far); }",
+          "float coc(float z){ return min(abs(z - focus) / max(z, .01) * aperture, maxblur); }",
+          "void main(){",
+          "  float c = coc(dist(vUv)); vec4 base = texture2D(tDiffuse, vUv);",
+          "  if (c < .0004) { gl_FragColor = base; return; }",
+          "  vec3 acc = base.rgb; float wsum = 1.0;",
+          "  for (int i = 1; i < NT; i++) { float fi = float(i), r = sqrt(fi / float(NT - 1)) * c, a = fi * 2.39996;",
+          "    vec2 uv = vUv + vec2(cos(a) * r / asp, sin(a) * r); float sc = coc(dist(uv));",
+          "    float w = mix(.12, 1.0, smoothstep(r * .4, r * .9, sc)); acc += texture2D(tDiffuse, uv).rgb * w; wsum += w; }",
+          "  gl_FragColor = vec4(acc / wsum, base.a);",
+          "}"].join("\n") });
+      dofPass.enabled = false; composer.addPass(dofPass);
+      dofDepthMat = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking }); dofDepthMat.blending = THREE.NoBlending;
       if (!isTouch && THREE.UnrealBloomPass) { bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), .62, .55, 1.15); composer.addPass(bloomPass); }
       finalPass = new THREE.ShaderPass({
         uniforms: { tDiffuse: { value: null }, exposure: { value: 1.18 }, time: { value: 0 }, res: { value: new THREE.Vector2(1, 1) } },
@@ -3157,7 +3178,7 @@ function useRoom(key) {
   function enter(withSound) {
     if (STREET && STREET.on) { // kliv in från gatan: dörrarna går upp, man går in, vänder sig om när de går igen och sedan in i foajén
       if (STREET.going || !roomReady) return; STREET.going = true; if (withSound) Sound.set(true); $("intro").classList.add("gone"); $("skipBtn").hidden = true;
-      STREET.enter(() => { const z = STREET.endZ; STREET.on = false; STREET = null;
+      STREET.enter(() => { const z = STREET.endZ; STREET.on = false; STREET = null; if (dofPass) dofPass.enabled = false;
         Object.assign(player, { x: 0, z, yaw: 0, pitch: -.02, eyeOff: 0 }); bob = 0; lookDX = lookDY = 0; enter(false); });
       return; }
     entered = true; $("intro").classList.add("gone"); $("where").hidden = false; $("rooms").hidden = false; updateHint(); if (roomReady && !loading) showRoomCard();
@@ -3306,10 +3327,23 @@ function useRoom(key) {
   if (dbg) { window.__sit = (i) => { sitDown(seats[i]); return seats.length; }; window.__stand = () => standUp(); }
   if (dbg) window.__setView = (v) => { player.x = v[0]; player.z = v[1]; player.yaw = v[2]; player.pitch = v[3] || 0; };
   try { const gl = renderer.getContext(), ext = gl.getExtension("WEBGL_debug_renderer_info"); if (ext) gpuName = gl.getParameter(ext.UNMASKED_RENDERER_WEBGL); } catch (e) {}
+  // djupbilden till skärpedjupet: rummet och gatan (lager 0 och 1) i halv upplösning
+  const dofTmp = new THREE.Vector2();
+  function streetDof() {
+    if (!dofPass) return; const D = STREET && STREET.on && STREET.dof; dofPass.enabled = !!(D && D.ap > .0005); if (!dofPass.enabled) return;
+    renderer.getDrawingBufferSize(dofTmp); const w = Math.max(2, dofTmp.x >> 1), h = Math.max(2, dofTmp.y >> 1);
+    if (!dofRT || dofRT.width !== w || dofRT.height !== h) { if (dofRT) dofRT.dispose(); dofRT = new THREE.WebGLRenderTarget(w, h, { minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter }); }
+    const mask = camera.layers.mask, bg = scene.background, cc = renderer.getClearColor(new THREE.Color()), ca = renderer.getClearAlpha();
+    camera.layers.set(0); camera.layers.enable(1); scene.overrideMaterial = dofDepthMat; scene.background = null;
+    renderer.setRenderTarget(dofRT); renderer.setClearColor(0xffffff, 1); renderer.clear(); renderer.render(scene, camera);
+    scene.overrideMaterial = null; scene.background = bg; camera.layers.mask = mask; renderer.setClearColor(cc, ca); renderer.setRenderTarget(null);
+    const U = dofPass.uniforms; U.tDepth.value = dofRT.texture; U.focus.value = D.focus; U.aperture.value = D.ap; U.near.value = camera.near; U.far.value = camera.far; U.asp.value = dofTmp.x / dofTmp.y;
+    U.maxblur.value = isTouch ? .005 : .009;
+  }
   function frame(now) {
     const raw = now - last, dt = Math.min(.05, raw / 1000); last = now;
     if (STREET && STREET.on) { // entrén på gatan: kameran styrs av promenaden, foajén byggs under tiden
-      if (STREET.ready) { STREET.tick(now, dt); renderMirror(); if (composer) { finalPass.uniforms.time.value = now / 1000; composer.render(); } else renderer.render(scene, camera); }
+      if (STREET.ready) { STREET.tick(now, dt); renderMirror(); streetDof(); if (composer) { finalPass.uniforms.time.value = now / 1000; composer.render(); } else renderer.render(scene, camera); }
       requestAnimationFrame(frame); return; }
     // håll bildfrekvensen jämn: sänk upplösningen om det går tungt, höj igen när det finns marginal
     if (raw < 120) frameEMA = frameEMA * .94 + raw * .06;
@@ -3384,7 +3418,7 @@ function useRoom(key) {
      Man går längs den regniga gatan utanför foajén medan den byggs, stannar under skylten EN BÄTTRE BILD,
      rullgardinen går upp när foajén är klar, och "Kliv in" går in genom dörrarna, vänder sig om när de går igen och sedan in i rummet. */
   function streetIntro() {
-    const ST = { on: true, ready: false, phase: "walk", t: 0, enterT: 0, onDoor: null, done: null, lift: 0, ext: null, step: 0, side: 1, endZ: -2.3 };
+    const ST = { dof: { focus: 8, ap: 0 }, on: true, ready: false, phase: "walk", t: 0, enterT: 0, onDoor: null, done: null, lift: 0, ext: null, step: 0, side: 1, endZ: -2.3 };
     const X0 = -15, ZW = 2.7, ZD = 4.3, WALK = 11.5, ease = (t) => t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2, PU = .2;
     const bez = (u) => { const a = (1 - u) * (1 - u), b = 2 * u * (1 - u), c = u * u; return [a * X0 + b * -2.5 + c * 0, a * ZW + b * ZW + c * ZD]; };
     let px = X0, pz = ZW, walked = 0;
@@ -3405,6 +3439,9 @@ function useRoom(key) {
       if (d > 0 && bobA > .3) { ST.step += d; if (ST.step > 1.05) { ST.step = 0; ST.side = -ST.side; try { Sound.step(ST.side); } catch (e) {} } }
       y += reduceMotion ? 0 : Math.sin(walked * 3.6) * .016 * bobA;
       camera.position.set(x, y, z); camera.rotation.set(pitch, yaw, 0);
+      // skärpan ligger på butiken och dörren; gatan bakom och marken närmast blir mjuk. Inne i foajén blir allt skarpt igen
+      const fd = clamp(Math.hypot(x, y - 2.1, z - .3), 2.4, 30), A0 = isTouch ? .011 : .018, ap = ST.phase === "enter" ? A0 * (1 - ease(clamp((ST.enterT - 1.6) / 2.2, 0, 1))) : A0;
+      ST.dof.focus += (fd - ST.dof.focus) * .12; ST.dof.ap = ap;
     }
     function tick(now, dt) {
       ST.t += dt;

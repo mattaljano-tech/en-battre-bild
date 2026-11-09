@@ -2497,9 +2497,9 @@ function useRoom(key) {
         this.every(this.bell, 30000, 60000);
       },
       naturen(ctx) {
-        const air = this.loop(this.brown, "bandpass", 900, .32, .5);
-        const lfo = ctx.createOscillator(), lg = ctx.createGain(); lfo.frequency.value = .07; lg.gain.value = .14; lfo.connect(lg); lg.connect(air.gain); lfo.start(); this.amb._src.push(lfo);
-        this.loop(this.brown, "lowpass", 220, .18);
+        const air = this.loop(this.brown, "bandpass", 900, .1, .5); // vindsuset: svagt, fåglarna har kvar sin volym
+        const lfo = ctx.createOscillator(), lg = ctx.createGain(); lfo.frequency.value = .07; lg.gain.value = .045; lfo.connect(lg); lg.connect(air.gain); lfo.start(); this.amb._src.push(lfo);
+        this.loop(this.brown, "lowpass", 220, .06);
         this.every(this.bird, 1800, 6500);
       },
       berattelser(ctx) {

@@ -660,7 +660,7 @@ function manSDF(x, y, z) {
   return d;
 }
 const MAN_SOFT = [[-1.9, 2.05, -13.2], [1.9, 2.05, -13.2]], MAN_STOOL = [0, 1.2, -14.3];
-const MAN_LOUNGE = { x: 0, z: -6.6, lampY: 2.75 }, MAN_PENDANTS = [0, 1, 2].map((i) => { const a = Math.PI / 2 + i * 2 * Math.PI / 3; return [Math.cos(a) * .27, Math.sin(a) * .27, [1.32, 1.5, 1.68][i]]; }); // lägre än stående ögon, men ovanför siktlinjen när man sitter // tre i en cirkel: [x, z, underkant på glaskupan] // soffgruppen mitt i rummet
+const MAN_LOUNGE = { x: 0, z: -6.6, lampY: 2.75 }, MAN_PENDANTS = [0, 1, 2].map((i) => { const a = Math.PI / 2 + i * 2 * Math.PI / 3; return [Math.cos(a) * .27, Math.sin(a) * .27, [1.42, 1.78, 2.12][i]]; }); // höjden på glaskupornas underkant // tre i en cirkel: [x, z, underkant på glaskupan] // soffgruppen mitt i rummet
 const SUNM = (() => { const v = [-.82, .62, .22], l = Math.hypot(...v); return v.map((c) => c / l); })(); // mot solen, utanför västra fönstren
 function manSunGate(px, py, pz) {
   if (pz > 0 || px <= -MAN.X + .01) return 0;

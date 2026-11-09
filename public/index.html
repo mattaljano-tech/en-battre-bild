@@ -2971,6 +2971,7 @@ function useRoom(key) {
     try { const off = []; scene.traverse((o) => { if (o.frustumCulled) { o.frustumCulled = false; off.push(o); } });
       camera.position.set(player.x, EYE, player.z); camera.rotation.set(0, player.yaw, 0); camera.updateMatrixWorld();
       renderer.compile(scene, camera); if (composer) composer.render(); else renderer.render(scene, camera);
+      renderMirror(); // spegelns shadervarianter (med klipplan) kompileras nu, inte när man börjar gå
       off.forEach((o) => { o.frustumCulled = true; }); } catch (e) { console.warn(e); }
     $("roomNum").textContent = S.num; $("roomName").textContent = S.name;
     document.querySelectorAll("#rooms button").forEach((b) => b.setAttribute("aria-current", b.dataset.room === key ? "true" : "false"));
@@ -3528,7 +3529,7 @@ function useRoom(key) {
   function frame(now) {
     const raw = now - last, dt = Math.min(.05, raw / 1000); last = now;
     if (STREET && STREET.on) { // entrén på gatan: kameran styrs av promenaden, foajén byggs under tiden
-      if (STREET.ready) { STREET.tick(now, dt); renderMirror(); streetDof(); if (composer) { finalPass.uniforms.time.value = now / 1000; composer.render(); } else renderer.render(scene, camera); }
+      if (STREET.ready) { const S0 = STREET; S0.tick(now, dt); if (S0.phase === "enter" && S0.enterT > 1.2) renderMirror(); streetDof(); if (composer) { finalPass.uniforms.time.value = now / 1000; composer.render(); } else renderer.render(scene, camera); }
       requestAnimationFrame(frame); return; }
     // håll bildfrekvensen jämn: sänk upplösningen om det går tungt, höj igen när det finns marginal
     if (raw < 120) frameEMA = frameEMA * .94 + raw * .06;
@@ -3645,7 +3646,8 @@ function useRoom(key) {
     }
     Object.assign(ST, {
       tick,
-      attach: (ext) => { ST.ext = ext; ST.ready = true; ST.t = 0; ext.gate.lift(0); applyLook(SPECS.foajen); loader.classList.add("street"); ST.umb = ext.umbrella || null; },
+      attach: (ext) => { ST.ext = ext; ST.ready = true; ST.t = 0; ext.gate.lift(0); applyLook(SPECS.foajen); loader.classList.add("street"); ST.umb = ext.umbrella || null;
+        try { renderer.compile(scene, camera); } catch (e) {} }, // gatans alla shaders på en gång, inte en i taget när de syns
       atDoor: (f) => { if (ST.phase !== "walk") f(); else ST.onDoor = f; },
       skip: () => { if (ST.phase === "walk") ST.t = Math.max(ST.t, WALK - 1.2); },
       enter: (f) => { ST.phase = "enter"; ST.enterT = 0; ST.done = f; if (ST.lift < 1) { ST.lift = 1; ST.ext.gate.lift(1); } }

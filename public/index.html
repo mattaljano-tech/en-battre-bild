@@ -2579,14 +2579,22 @@ function useRoom(key) {
     const eo = eyeFor(C); // rakt framifrån: ögat i bildens höjd, blicken vågrät
     return { x: best.x, z: best.z, yaw: Math.atan2(-dx, -dz), pitch: clamp(Math.atan2(C[1] - EYE - eo, h), -.5, .5), eyeOff: eo };
   }
-  // ordningen: närmaste bild härnäst, men helst utan att behöva gå genom en vägg
+  // ordningen: ett varv som på museum. Från dörren åt vänster, längs vänster vägg in, kortväggen längst in,
+  // tillbaka längs höger vägg och sist väggen till höger om dörren. Skärmar mitt i rummet tas när man går förbi dem.
   function tourStops() {
-    const list = arts.filter((a) => PHOTOS[a.slot.key] && PHOTOS[a.slot.key].src).map((a) => ({ art: a, v: viewFor(a) })), out = [];
-    let cx = player.x, cz = player.z;
-    while (list.length) { let bi = 0, bd = 1e9;
-      list.forEach((st, i) => { const d = Math.hypot(st.v.x - cx, st.v.z - cz) + (segClear(cx, cz, st.v.x, st.v.z) ? 0 : 25); if (d < bd) { bd = d; bi = i; } });
-      const st = list.splice(bi, 1)[0]; out.push(st); cx = st.v.x; cz = st.v.z; }
-    return out;
+    const list = arts.filter((a) => PHOTOS[a.slot.key] && PHOTOS[a.slot.key].src).map((a) => ({ art: a, v: viewFor(a) }));
+    const R = walkRects().reduce((m, r) => (r.x1 - r.x0) * (r.z1 - r.z0) > (m.x1 - m.x0) * (m.z1 - m.z0) ? r : m);
+    const L = R.z1 - R.z0, W = R.x1 - R.x0, cx = (R.x0 + R.x1) / 2, near = .7;
+    const pos = (st) => { const C = st.art.slot.C, N = st.art.slot.N, v = st.v;
+      if (C[2] > R.z1 + .3 && v.z > R.z1) return -1000 + C[0];                 // i gången in: vänster sida först
+      if (N[0] > .5 && C[0] < R.x0 + near) return R.z1 - C[2];                  // vänster vägg, inåt
+      if (N[2] > .5 && C[2] < R.z0 + near) return L + (C[0] - R.x0);            // kortväggen längst in, vänster till höger
+      if (N[0] < -.5 && C[0] > R.x1 - near) return L + W + (C[2] - R.z0);       // höger vägg, utåt
+      if (N[2] < -.5 && C[2] > R.z1 - near) return C[0] < cx ? -(C[0] - R.x0) - 1 : 2 * L + W + (R.x1 - C[0]); // dörrväggen
+      return v.x < cx ? R.z1 - v.z : L + W + (v.z - R.z0);                      // fristående: efter var man står och tittar
+    };
+    list.forEach((st) => { st.s = pos(st); });
+    return list.sort((p, q) => p.s - q.s);
   }
   function tourStart() { unlock(); hideRoomCard(true); tour.on = true; tour.only = null; tour.stops = []; tour.i = -1; goRoom("staden"); }
   function tourStop(quiet) { tour.on = false; tour.only = null; tour.anim = null; tourEl.hidden = true; if (entered) { $("where").hidden = false; $("rooms").hidden = false; } if (!quiet) syncRcOpen(); }
@@ -2650,7 +2658,7 @@ function useRoom(key) {
   // ?debug visar bildfrekvens, upplösning och grafikkort
   const dbg = /[?&]debug/.test(location.search) ? Object.assign(document.body.appendChild(document.createElement("div")), { style: "position:fixed;left:8px;top:40px;z-index:20;font:11px/1.4 monospace;color:#9fe;background:rgba(0,0,0,.6);padding:4px 6px;pointer-events:none;white-space:pre" }) : null;
   let dbgT = 0, dbgN = 0, gpuName = "?";
-  if (dbg) { window.__scene = scene; window.__cam = camera; }
+  if (dbg) { window.__scene = scene; window.__cam = camera; window.__order = () => tourStops().map((st) => st.art.slot.key + "@" + st.v.x.toFixed(1) + "," + st.v.z.toFixed(1)); window.__dump = () => ({ key: currentKey, start: SPECS[currentKey].start, rects: walkRects(), arts: arts.filter((a) => PHOTOS[a.slot.key] && PHOTOS[a.slot.key].src).map((a) => ({ k: a.slot.key, C: a.slot.C.map((v) => +v.toFixed(2)), N: a.slot.N, w: +(a.w || 0).toFixed(2) })) }); }
   if (dbg) window.__setView = (v) => { player.x = v[0]; player.z = v[1]; player.yaw = v[2]; player.pitch = v[3] || 0; };
   try { const gl = renderer.getContext(), ext = gl.getExtension("WEBGL_debug_renderer_info"); if (ext) gpuName = gl.getParameter(ext.UNMASKED_RENDERER_WEBGL); } catch (e) {}
   function frame(now) {

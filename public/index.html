@@ -750,7 +750,7 @@ const SPECS = {
     intro: "Välkommen till En bättre bild. Gå in genom den stora öppningen längst in för att komma till vernissagen. På väggarna hittar du galleriet, priser och kontakt.",
     sdf: foySDF, solids: [], lights: foyLights, amb: () => [.075, .07, .064], ceil: () => FOY.H,
     start: { x: 0, z: -1.6, yaw: 0 }, walk: [{ x0: -5.6, x1: 5.6, z0: -11.6, z1: -.45 }],
-    look: { mirror: { mat: "betonggolv", k: .28 }, fog: 0x0a0a09, density: .01, bg: 0x050505, exposure: 1.25, bloom: .4, thr: 1.6 }, step: 520, wet: .35,
+    look: { mirror: { mat: "garage", k: .24 }, fog: 0x0a0a09, density: .01, bg: 0x050505, exposure: 1.25, bloom: .4, thr: 1.6 }, step: 520, wet: .35,
     slots: foySlots() }
 };
 const ROOM_ORDER = ["foajen", "staden", "naturen", "berattelser", "manniskorna"];
@@ -1701,7 +1701,7 @@ function useRoom(key) {
   function buildFoajen() {
     const X = FOY.X, L = FOY.L, H = FOY.H;
     const FL = +(new URLSearchParams(location.search).get("foyljus") || 1.7); // texturen är mörk: förstärk den
-    const tx = { wall: mat("betong6", { color: new THREE.Color(FL * .97, FL * .99, FL * 1.03) }), floor: new URLSearchParams(location.search).get("foygolv") === "garage" ? mat("garage", { color: 0xa8b4c4 }) : mat("betonggolv", { color: 0x8aa0bc }), ceil: mat("betong", { color: 0x4a4944, relief: .5 }) };
+    const tx = { wall: mat("betong6", { color: new THREE.Color(FL * .97, FL * .99, FL * 1.03) }), floor: mat("garage", { color: 0xa8b4c4 }), ceil: mat("betong", { color: 0x4a4944, relief: .5 }) };
     planar({ name: "golv", floor: true, O: [-X, 0, 0], U: [1, 0, 0], V: [0, 0, -1], lu: 2 * X, lv: L, map: tx.floor, tu: 3, tv: 3, color: 0x8e8a82 });
     planar({ O: [-X, 0, 0], U: [0, 0, -1], V: [0, 1, 0], lu: L, lv: H, map: tx.wall, tu: 4, tv: 3.2 });
     planar({ O: [X, 0, -L], U: [0, 0, 1], V: [0, 1, 0], lu: L, lv: H, map: tx.wall, tu: 4, tv: 3.2 });

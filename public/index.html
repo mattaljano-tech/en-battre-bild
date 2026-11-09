@@ -1128,7 +1128,7 @@ function useRoom(key) {
   renderer.toneMapping = POST ? THREE.NoToneMapping : THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.18;
   const scene = new THREE.Scene(); scene.background = new THREE.Color(0x020303);
   scene.fog = new THREE.FogExp2(0x050808, .021);
-  const camera = new THREE.PerspectiveCamera(64, 1, .05, 70); camera.rotation.order = "YXZ";
+  const camera = new THREE.PerspectiveCamera(64, 1, .05, 70); camera.rotation.order = "YXZ"; camera.layers.enable(1); // lager 1: saker som inte syns i golvspeglingen
 
   const LMAX = 6; // ljuskartor lagrar 0…LMAX
   const RES = isTouch ? 9 : 16;  // texlar per meter i ljuskartorna
@@ -1554,7 +1554,7 @@ function useRoom(key) {
   // rita scenen sedd underifrån (kameran speglad i golvet) till en textur som golvet sedan visar
   function renderMirror() {
     if (!floorMirror) return;
-    mirrorCam.copy(camera); mirrorCam.position.y = -camera.position.y; mirrorCam.rotation.set(-camera.rotation.x, camera.rotation.y, 0, "YXZ"); mirrorCam.updateMatrixWorld();
+    mirrorCam.copy(camera); mirrorCam.layers.set(0); mirrorCam.position.y = -camera.position.y; mirrorCam.rotation.set(-camera.rotation.x, camera.rotation.y, 0, "YXZ"); mirrorCam.updateMatrixWorld();
     floorMirror.visible = false; const old = renderer.getRenderTarget();
     renderer.setRenderTarget(mirrorRT); renderer.clippingPlanes = mirrorClip; renderer.clear(); renderer.render(scene, mirrorCam);
     renderer.clippingPlanes = []; renderer.setRenderTarget(old); floorMirror.visible = true;
@@ -1854,7 +1854,7 @@ function useRoom(key) {
       for (let i = 0; i < fp.count; i++) { const u = fp.getX(i), v = fp.getY(i), k = (.74 + .26 * clamp((v - bot) / (top - bot) * 1.4, 0, 1)) * tone;
         fp.setXYZ(i, x0, v, z0 - u); fu.setXY(i, u / 3.2, v / 3.2); fcol[i * 3] = fcol[i * 3 + 1] = fcol[i * 3 + 2] = k; }
       fg.setAttribute("color", new THREE.BufferAttribute(fcol, 3)); fg.computeBoundingSphere();
-      scene.add(new THREE.Mesh(fg, cityMat({ map: tex[ti], vertexColors: true, color: 0xe6e2da, side: THREE.DoubleSide })));
+      { const fm = new THREE.Mesh(fg, cityMat({ map: tex[ti], vertexColors: true, color: 0xe6e2da, side: THREE.DoubleSide })); fm.layers.set(1); scene.add(fm); }
       // taket
       const rc = hx(roofCols[(r() * roofCols.length) | 0]);
       if (style !== "modern") box(x0 - .38, x0 + .06, top - .55, top - .1, z0 - w, z0, hx(ty.wall, 1.1)); // takgesims
@@ -1882,11 +1882,11 @@ function useRoom(key) {
       let z = 30; while (z > -60) { const w = 7 + r() * 8; house(xa + r() * (xb - xa), z, w, 10 + r() * 6, tmin + r() * (tmax - tmin), rough); z -= w + (r() < .3 ? 2 + r() * 3 : 0); }
     }
     { const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(P, 3)); g.setAttribute("color", new THREE.Float32BufferAttribute(C, 3)); g.computeBoundingSphere();
-      scene.add(new THREE.Mesh(g, cityMat({ vertexColors: true, side: THREE.DoubleSide }))); }
+      const cm = new THREE.Mesh(g, cityMat({ vertexColors: true, side: THREE.DoubleSide })); cm.layers.set(1); scene.add(cm); }
     // några fåglar som glider runt över taken
     const birds = [], bm = new THREE.MeshBasicMaterial({ color: 0x2b2e31, side: THREE.DoubleSide });
     for (let i = 0; i < 7; i++) { const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute([0, 0, 0, -.12, .02, .32, .05, 0, 0, 0, 0, 0, .05, 0, 0, -.12, .02, -.32], 3));
-      const b = new THREE.Mesh(g, bm); scene.add(b); birds.push({ m: b, ph: r() * 6.28, o: [r() * 3 - 1.5, r() * 2 - 1, r() * 3 - 1.5], sp: .8 + r() * .4 }); }
+      const b = new THREE.Mesh(g, bm); b.layers.set(1); scene.add(b); birds.push({ m: b, ph: r() * 6.28, o: [r() * 3 - 1.5, r() * 2 - 1, r() * 3 - 1.5], sp: .8 + r() * .4 }); }
     // kyrkspira och en byggkran långt bort
     { const m = (c) => new THREE.MeshBasicMaterial({ color: c });
       const tw = new THREE.Mesh(new THREE.BoxGeometry(4, 34, 4), m(0x8f8a80)); tw.position.set(44, 5, -26); scene.add(tw);
@@ -2379,6 +2379,8 @@ function useRoom(key) {
     document.querySelectorAll("#rooms button").forEach((b) => b.setAttribute("aria-current", b.dataset.room === key ? "true" : "false"));
     if (location.hash.slice(1) !== key) { try { location.hash = key; } catch (e) {} }
     Sound.setRoom(key);
+    // varje rum får börja om med full kvalitet: ett tungt rum ska inte göra de andra suddiga
+    quality = 1; lowTier = false; frameEMA = 16; if (bloomPass && !isTouch) bloomPass.enabled = true; applyQuality();
     roomReady = true; loading = false;
     setTimeout(() => loader.classList.add("done"), 200);
     if (tour.on) tourEnter(); else if (entered) showRoomCard();
@@ -2423,7 +2425,7 @@ function useRoom(key) {
     } catch (e) { composer = null; renderer.toneMapping = THREE.ACESFilmicToneMapping; }
   }
   let quality = 1;
-  const basePR = () => { const dpr = devicePixelRatio || 1; if (isTouch) return Math.min(dpr, 1.6); return Math.max(.75, Math.min(dpr, 1.25, 2400 / innerWidth, 1400 / innerHeight)); };
+  const basePR = () => { const dpr = devicePixelRatio || 1; if (isTouch) return Math.min(dpr, 1.6); return Math.max(.85, Math.min(dpr, 1.25, 3000 / innerWidth, 1700 / innerHeight)); };
   function applyQuality() {
     const pr = basePR() * quality; renderer.setPixelRatio(pr); renderer.setSize(innerWidth, innerHeight, false);
     if (composer) { composer.setPixelRatio(pr); composer.setSize(innerWidth, innerHeight); finalPass.uniforms.res.value.set(innerWidth * pr, innerHeight * pr); }
@@ -2857,7 +2859,7 @@ function useRoom(key) {
     if (raw < 120) frameEMA = frameEMA * .94 + raw * .06;
     if (dbg) { dbgN++; if (now - dbgT > 500) { const c = renderer.domElement; dbg.textContent = (dbgN * 1000 / (now - dbgT)).toFixed(0) + " fps · " + c.width + "×" + c.height + " · kvalitet " + quality.toFixed(2) + (lowTier ? " · låg nivå" : "") + "\n" + gpuName; dbgT = now; dbgN = 0; } }
     if (roomReady && !loading && now - lastQ > 1800) { lastQ = now;
-      const minQ = lowTier ? .65 : isTouch ? .8 : .85;
+      const minQ = lowTier ? .75 : isTouch ? .8 : .88;
       if (!lowTier && !isTouch && frameEMA > 24 && quality <= minQ + .001) { lowTier = true; if (bloomPass) bloomPass.enabled = false; }
       if (frameEMA > 26 && quality > minQ) { quality = Math.max(minQ, quality - .075); applyQuality(); }
       else if (frameEMA < 18 && quality < 1) { quality = Math.min(1, quality + .075); applyQuality(); } }

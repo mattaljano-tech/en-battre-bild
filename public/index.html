@@ -106,6 +106,7 @@ body.sitting #hint { visibility: hidden; }
 .warm.on { opacity: 1; }
 .intro.street h1 { font-size: clamp(44px, 9vw, 92px); }
 .skip { position: fixed; right: 16px; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); z-index: 11; }
+.rainbtn { position: fixed; right: 16px; bottom: calc(64px + env(safe-area-inset-bottom, 0px)); z-index: 11; }
 .loader.street { background: transparent; place-items: end start; padding: 0 0 calc(22px + env(safe-area-inset-bottom, 0px)) 20px; }
 .loader.street .box { width: min(300px, 62vw); gap: 8px; text-shadow: 0 1px 12px rgba(0,0,0,.9); }
 .loader.street h2 { font-size: 30px; }
@@ -228,6 +229,7 @@ body.viewing #soundBtn { visibility: hidden; pointer-events: none; }
 <div class="fade" id="fade"></div>
 <div class="warm" id="warm"></div>
 <button type="button" class="chip skip" id="skipBtn" hidden>Hoppa över ›</button>
+<button type="button" class="chip rainbtn" id="rainBtn" hidden>🔊 Slå på regnet</button>
 <div class="ui toast" id="toast" role="status"></div>
 
 <section class="panel" id="panel" hidden role="dialog" aria-modal="true" aria-labelledby="panelTitle">
@@ -2976,7 +2978,7 @@ function useRoom(key) {
     $("roomNum").textContent = S.num; $("roomName").textContent = S.name;
     document.querySelectorAll("#rooms button").forEach((b) => b.setAttribute("aria-current", b.dataset.room === key ? "true" : "false"));
     if (location.hash.slice(1) !== key) { try { location.hash = key; } catch (e) {} }
-    Sound.setRoom(key);
+    Sound.setRoom(STREET && STREET.on ? "gata" : key);
     // varje rum får börja om med full kvalitet: ett tungt rum ska inte göra de andra suddiga
     quality = 1; lowTier = false; frameEMA = 16; if (bloomPass && !isTouch) bloomPass.enabled = true; applyQuality();
     roomReady = true; loading = false;
@@ -3087,7 +3089,7 @@ function useRoom(key) {
     startAmb() {
       if (!this.ctx || !this.on) return; this.clearAmb();
       const ctx = this.ctx, amb = ctx.createGain(); amb.gain.value = 0; amb.gain.setTargetAtTime(1, ctx.currentTime, .9); amb.connect(this.master); amb._src = []; this.amb = amb; this.chordVol = 0;
-      const S = SPECS[this.room]; this.wet.gain.setTargetAtTime(S.wet, ctx.currentTime, .5);
+      const S = SPECS[this.room] || { wet: .3 }; this.wet.gain.setTargetAtTime(S.wet, ctx.currentTime, .5);
       this.profiles[this.room].call(this, ctx);
     },
     profiles: {
@@ -3114,11 +3116,36 @@ function useRoom(key) {
         this.loop(this.brown, "bandpass", 420, .05, .4);
         this.every(this.creak, 9000, 20000); this.chordVol = .008; this.every(this.chord, 9000, 14000);
       },
+      gata(ctx) { // ute på gatan: regnet som smattrar på paraplyet och asfalten, staden som mullrar, bilar som väser förbi i vattnet
+        this.loop(this.rainBuf, "bandpass", 2400, .05, .45); this.loop(this.rainBuf, "lowpass", 800, .045);
+        const tap = this.loop(this.rainBuf, "highpass", 5200, .012); // dropparna mot paraplyduken
+        const lfo = ctx.createOscillator(), lg = ctx.createGain(); lfo.frequency.value = .13; lg.gain.value = .005; lfo.connect(lg); lg.connect(tap.gain); lfo.start(); this.amb._src.push(lfo);
+        this.loop(this.brown, "lowpass", 150, .13); this.loop(this.brown, "bandpass", 420, .02, .5);
+        this.every(this.car, 5500, 13000); this.every(this.honk, 9000, 24000); this.every(this.drip, 2500, 6000); this.every(this.bell, 45000, 80000);
+      },
       foajen(ctx) {
         this.loop(this.brown, "lowpass", 180, .14);
         this.chordVol = .011; this.every(this.chord, 5800, 6200);
       }
     },
+    car() { // en bil som kör förbi i det våta: däcken väser, motorn mullrar och tonen sjunker när den passerar
+      const ctx = this.ctx, t = ctx.currentTime, T = 4.5 + Math.random() * 2, dir = Math.random() < .5 ? -1 : 1, far = Math.random() < .35 ? .45 : 1;
+      const out = ctx.createGain(); out.gain.setValueAtTime(0, t); out.gain.linearRampToValueAtTime(far, t + T * .5); out.gain.linearRampToValueAtTime(0, t + T);
+      let n = out; if (ctx.createStereoPanner) { const p = ctx.createStereoPanner(); p.pan.setValueAtTime(-.9 * dir, t); p.pan.linearRampToValueAtTime(.9 * dir, t + T); out.connect(p); n = p; }
+      n.connect(this.amb); const sg = ctx.createGain(); sg.gain.value = .5; n.connect(sg); sg.connect(this.send);
+      const s = ctx.createBufferSource(), bp = ctx.createBiquadFilter(), hg = ctx.createGain(); s.buffer = this.rainBuf; s.loop = true; bp.type = "bandpass"; bp.Q.value = .8;
+      bp.frequency.setValueAtTime(1500, t); bp.frequency.linearRampToValueAtTime(2300, t + T * .5); bp.frequency.linearRampToValueAtTime(1100, t + T); hg.gain.value = .085;
+      s.connect(bp); bp.connect(hg); hg.connect(out); s.start(t); s.stop(t + T + .1);
+      const o = ctx.createOscillator(), lp = ctx.createBiquadFilter(), og = ctx.createGain(), f0 = 52 + Math.random() * 18; o.type = "sawtooth"; lp.type = "lowpass"; lp.frequency.value = 240; og.gain.value = .05;
+      o.frequency.setValueAtTime(f0 * 1.06, t); o.frequency.setValueAtTime(f0 * 1.06, t + T * .45); o.frequency.linearRampToValueAtTime(f0 * .92, t + T * .6);
+      o.connect(lp); lp.connect(og); og.connect(out); o.start(t); o.stop(t + T + .1); },
+    honk() { // en bil som tutar någonstans i kvarteren: två toner, en eller två korta stötar, ibland en lång irriterad signal
+      const ctx = this.ctx, t0 = ctx.currentTime, far = .35 + Math.random() * .65, pan = Math.random() * 1.6 - .8, base = 340 + Math.random() * 120, kind = Math.random();
+      const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 1300 + far * 1200; const g0 = ctx.createGain(); g0.gain.value = .022 * far; lp.connect(g0); this.out(g0, pan, 1.4 - far * .6);
+      const blasts = kind < .45 ? [[0, .16], [.24, .16]] : kind < .8 ? [[0, .32]] : [[0, .9]];
+      for (const [d, len] of blasts) for (const r of [1, 1.26]) { const o = ctx.createOscillator(), g = ctx.createGain(), t = t0 + d; o.type = "square"; o.frequency.value = base * r;
+        g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(1, t + .02); g.gain.setValueAtTime(1, t + len - .03); g.gain.linearRampToValueAtTime(0, t + len);
+        o.connect(g); g.connect(lp); o.start(t); o.stop(t + len + .05); } },
     pigeon() { const ctx = this.ctx, t0 = ctx.currentTime, pan = Math.random() * 1.6 - .8, n = 2 + (Math.random() * 2 | 0);
       for (let k = 0; k < n; k++) { const t = t0 + k * .55, o = ctx.createOscillator(), g = ctx.createGain(), lfo = ctx.createOscillator(), lg = ctx.createGain(), f = 380 + Math.random() * 60;
         o.frequency.setValueAtTime(f * 1.12, t); o.frequency.exponentialRampToValueAtTime(f, t + .35); lfo.frequency.value = 22; lg.gain.value = 12; lfo.connect(lg); lg.connect(o.frequency);
@@ -3152,7 +3179,7 @@ function useRoom(key) {
       [2900, 4350, 6100].forEach((f, i) => { const o = ctx.createOscillator(), g = ctx.createGain(); o.frequency.value = f * (1 + Math.random() * .02);
         g.gain.setValueAtTime(.03 / (i + 1), t); g.gain.exponentialRampToValueAtTime(.0001, t + .45); o.connect(g); this.out(g, pan, .5); o.start(t); o.stop(t + .5); }); },
     step(side) {
-      if (!this.on || !this.ctx) return; const ctx = this.ctx, t = ctx.currentTime, s = ctx.createBufferSource(), bp = ctx.createBiquadFilter(), g = ctx.createGain(), base = SPECS[this.room].step;
+      if (!this.on || !this.ctx) return; const ctx = this.ctx, t = ctx.currentTime, s = ctx.createBufferSource(), bp = ctx.createBiquadFilter(), g = ctx.createGain(), base = (SPECS[this.room] || { step: 620 }).step;
       s.buffer = this.white; bp.type = "bandpass"; bp.frequency.value = base * (.85 + Math.random() * .4); bp.Q.value = 1.4;
       g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.42, t + .005); g.gain.exponentialRampToValueAtTime(.0001, t + .1);
       s.connect(bp); bp.connect(g);
@@ -3163,7 +3190,7 @@ function useRoom(key) {
     setRoom(key) { this.room = key; if (this.on) { this.startAmb(); this.playMusic(); } },
     set(on) {
       if (on && !this.ctx && !this.init()) { toast("Ljud stöds inte i den här webbläsaren."); return; }
-      this.on = on; $("soundBtn").setAttribute("aria-pressed", String(on)); $("soundLabel").textContent = on ? "Ljud på" : "Ljud av";
+      this.on = on; if (on) $("rainBtn").hidden = true; $("soundBtn").setAttribute("aria-pressed", String(on)); $("soundLabel").textContent = on ? "Ljud på" : "Ljud av";
       if (!this.ctx) return;
       if (on) { this.ctx.resume(); this.master.gain.cancelScheduledValues(this.ctx.currentTime); this.master.gain.setTargetAtTime(.9, this.ctx.currentTime, .6); this.startAmb(); this.playMusic(); }
       else { this.master.gain.setTargetAtTime(0, this.ctx.currentTime, .2); this.clearAmb(); setTimeout(() => { if (!this.on) for (const k in this.tracks) this.tracks[k].a.pause(); }, 900); }
@@ -3177,11 +3204,11 @@ function useRoom(key) {
     },
     playMusic() {
       if (!this.ctx || !this.on) return;
-      const src = MUSIC[this.room] || MUSIC["*"], now = this.ctx.currentTime;
+      const src = this.room === "gata" ? null : MUSIC[this.room] || MUSIC["*"], now = this.ctx.currentTime; // ute på gatan: bara regnet, musiken börjar inne
       // första gången, medan knapptrycket fortfarande räknas: väck alla låtar så att mobilen tillåter att de spelas senare
       if (!this.primed) { this.primed = true; new Set(Object.values(MUSIC)).forEach((s2) => { if (s2 !== src) { const P = this.track(s2); P.a.play().then(() => { if (this.cur !== s2) P.a.pause(); }).catch(() => {}); } }); }
       for (const k in this.tracks) if (k !== src) { const O = this.tracks[k]; O.g.gain.setTargetAtTime(0, now, 1.1); clearTimeout(O.stop); O.stop = setTimeout(() => { if (this.cur !== k) O.a.pause(); }, 6000); }
-      this.cur = src; const T = this.track(src); clearTimeout(T.stop);
+      this.cur = src; if (!src) return; const T = this.track(src); clearTimeout(T.stop);
       T.a.play().then(() => { if (this.cur === src && this.on) T.g.gain.setTargetAtTime(MUSIC_VOL, this.ctx.currentTime, 1.4); }).catch(() => {});
     }
   };
@@ -3641,16 +3668,18 @@ function useRoom(key) {
       if (roomReady && ST.lift < 1) { ST.lift = Math.min(1, ST.lift + dt / 1.8); ST.ext.gate.lift(ease(ST.lift)); }
       if (ST.phase === "enter") { ST.enterT += dt; const e = ST.enterT;
         ST.ext.gate.door(1.35 * ease(clamp((e - .1) / 1.1, 0, 1)) * (1 - ease(clamp((e - 3.6) / 1.5, 0, 1))));
+        if (e > 4.4 && !ST.sndIn) { ST.sndIn = true; Sound.setRoom("foajen"); } // dörrarna går igen: regnet tystnar, foajén och musiken tar över
         if (e > 6.9 && ST.done) { const f = ST.done; ST.done = null; f(); } }
       ST.ext.update(now); pose(now);
     }
     Object.assign(ST, {
       tick,
       attach: (ext) => { ST.ext = ext; ST.ready = true; ST.t = 0; ext.gate.lift(0); applyLook(SPECS.foajen); loader.classList.add("street"); ST.umb = ext.umbrella || null;
+        if (!Sound.on) { Sound.room = "gata"; $("rainBtn").hidden = false; } else Sound.setRoom("gata");
         try { renderer.compile(scene, camera); } catch (e) {} }, // gatans alla shaders på en gång, inte en i taget när de syns
       atDoor: (f) => { if (ST.phase !== "walk") f(); else ST.onDoor = f; },
       skip: () => { if (ST.phase === "walk") ST.t = Math.max(ST.t, WALK - 1.2); },
-      enter: (f) => { ST.phase = "enter"; ST.enterT = 0; ST.done = f; if (ST.lift < 1) { ST.lift = 1; ST.ext.gate.lift(1); } }
+      enter: (f) => { ST.phase = "enter"; ST.enterT = 0; ST.done = f; $("rainBtn").hidden = true; if (ST.lift < 1) { ST.lift = 1; ST.ext.gate.lift(1); } }
     });
     return ST;
   }
@@ -3669,6 +3698,7 @@ function useRoom(key) {
     $("introName").textContent = S.name; $("introEyebrow").textContent = (S.num === "00" ? "Entré" : "Rum " + S.num) + " · " + S.sub; $("introText").textContent = S.intro;
     setTimeout(() => { $("intro").hidden = false; }, 250);
   }).catch((e) => { console.error(e); });
+  $("rainBtn").addEventListener("click", (e) => { Sound.room = "gata"; Sound.set(true); e.currentTarget.hidden = true; e.currentTarget.blur(); });
   $("skipBtn").addEventListener("click", () => { if (STREET) STREET.skip(); $("skipBtn").hidden = true; });
 })();
 

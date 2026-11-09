@@ -1699,7 +1699,7 @@ function useRoom(key) {
   }
   function buildFoajen() {
     const X = FOY.X, L = FOY.L, H = FOY.H;
-    const tx = { wall: mat("betong", { color: 0x9a968e }), floor: mat("betonggolv", { color: 0x8aa0bc }), ceil: mat("betong", { color: 0x4a4944, relief: .5 }) };
+    const tx = { wall: mat("element", { color: 0x8a867e }), floor: mat("betonggolv", { color: 0x8aa0bc }), ceil: mat("betong", { color: 0x4a4944, relief: .5 }) };
     planar({ name: "golv", floor: true, O: [-X, 0, 0], U: [1, 0, 0], V: [0, 0, -1], lu: 2 * X, lv: L, map: tx.floor, tu: 3, tv: 3, color: 0x8e8a82 });
     planar({ O: [-X, 0, 0], U: [0, 0, -1], V: [0, 1, 0], lu: L, lv: H, map: tx.wall, tu: 4, tv: 3.2 });
     planar({ O: [X, 0, -L], U: [0, 0, 1], V: [0, 1, 0], lu: L, lv: H, map: tx.wall, tu: 4, tv: 3.2 });

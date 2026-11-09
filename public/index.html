@@ -964,7 +964,12 @@ function useRoom(key) {
   // placera en del: nederkant och mitt i origo, sedan skala sy i sin längdriktning och matrisen M
   function placePart(k, name, M, o) {
     o = o || {}; const P = partGeo(k, name); if (!P) return; const g = P.geo; g.computeBoundingBox(); const b = g.boundingBox;
-    g.translate(-(b.min.x + b.max.x) / 2, -b.min.y, -(b.min.z + b.max.z) / 2); if (o.sy) g.scale(1, o.sy, 1); g.applyMatrix4(M);
+    // rörets mittlinje: mitten av flänsen längst ner, inte hela delens mitt (ratt och manometer sticker ut åt sidan)
+    let cx = (b.min.x + b.max.x) / 2, cz = (b.min.z + b.max.z) / 2;
+    { const pa = g.attributes.position; let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9, n = 0;
+      for (let i = 0; i < pa.count; i++) if (pa.getY(i) < b.min.y + .012) { n++; x0 = Math.min(x0, pa.getX(i)); x1 = Math.max(x1, pa.getX(i)); z0 = Math.min(z0, pa.getZ(i)); z1 = Math.max(z1, pa.getZ(i)); }
+      if (n > 8) { cx = (x0 + x1) / 2; cz = (z0 + z1) / 2; } }
+    g.translate(-cx, -b.min.y, -cz); if (o.sy) g.scale(1, o.sy, 1); g.applyMatrix4(M);
     prop(g, { map: P.mat.map || null, color: o.tint || 0xffffff, side: THREE.DoubleSide }, new V3(0, 0, 0), null, { id: o.id || "part-" + k, shadow: false, cache: true });
   }
   const M4 = (x, y, z, rx, ry, rz) => new THREE.Matrix4().compose(new V3(x, y, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(rx || 0, ry || 0, rz || 0, "YXZ")), new V3(1, 1, 1));

@@ -20,17 +20,18 @@ function buildHall() {
     planar({ O: [k.x1, H, k.z1], U: [-1, 0, 0], V: [0, 1, 0], lu: w, lv: dh, map: tx.ceil, tu: 4, tv: 4, res: 8 });
     planar({ O: [k.x0, H, k.z1], U: [0, 0, -1], V: [0, 1, 0], lu: d, lv: dh, map: tx.ceil, tu: 4, tv: 4, res: 8 });
     planar({ O: [k.x1, H, k.z0], U: [0, 0, 1], V: [0, 1, 0], lu: d, lv: dh, map: tx.ceil, tu: 4, tv: 4, res: 8 });
-    const glass = new THREE.Mesh(new THREE.PlaneGeometry(w, d), new THREE.MeshBasicMaterial({ color: new THREE.Color(2.0, 2.2, 2.5) })); glass.rotation.x = Math.PI / 2; glass.position.set((k.x0 + k.x1) / 2, HAL.TOP, (k.z0 + k.z1) / 2); scene.add(glass);
+    const glass = new THREE.Mesh(new THREE.PlaneGeometry(w, d), new THREE.MeshBasicMaterial({ color: REGN ? new THREE.Color(1.4, 1.5, 1.65) : new THREE.Color(2.0, 2.2, 2.5) })); glass.rotation.x = Math.PI / 2; glass.position.set((k.x0 + k.x1) / 2, HAL.TOP, (k.z0 + k.z1) / 2); scene.add(glass);
     for (let z = k.z0 + 1.1; z < k.z1 - .1; z += 1.1) prop(new THREE.BoxGeometry(w, .08, .07, 2, 1, 1), { color: steel }, new V3((k.x0 + k.x1) / 2, HAL.TOP - .05, z), null, { shadow: false });
   });
   // fabriksfönster med spröjs och solstrålar genom dammet
   HAL.WIN.forEach((w) => {
     const wz = w.z1 - w.z0, wy = w.y1 - w.y0;
-    const gl = new THREE.Mesh(new THREE.PlaneGeometry(wz, wy), new THREE.MeshBasicMaterial({ map: T(winCanvas(w), true, false), color: new THREE.Color(2.0, 2.1, 2.3) }));
+    const gl = new THREE.Mesh(new THREE.PlaneGeometry(wz, wy), new THREE.MeshBasicMaterial({ map: T(winCanvas(w), true, false), color: REGN ? new THREE.Color(1.35, 1.45, 1.6) : new THREE.Color(2.0, 2.1, 2.3) }));
     gl.rotation.y = Math.PI / 2; gl.position.set(HAL.WX - .03, (w.y0 + w.y1) / 2, (w.z0 + w.z1) / 2); scene.add(gl);
     for (let k = 0; k <= 4; k++) prop(new THREE.BoxGeometry(.07, wy, .06, 1, 4, 1), { color: steel }, new V3(HAL.WX + .03, (w.y0 + w.y1) / 2, w.z0 + k * HAL.PZ), null, { shadow: false });
     for (let k = 0; k <= 6; k++) prop(new THREE.BoxGeometry(.07, .06, wz, 1, 1, 4), { color: steel }, new V3(HAL.WX + .03, w.y0 + k * HAL.PY, (w.z0 + w.z1) / 2), null, { shadow: false });
     prop(new THREE.BoxGeometry(.3, .08, wz + .2, 1, 1, 4), { color: 0x6a6a64 }, new V3(HAL.WX + .15, w.y0 - .04, (w.z0 + w.z1) / 2), null, { shadow: false });
+    if (REGN) return; // mulet: inga solstrålar
     const corners = [[HAL.WX, w.y0, w.z0], [HAL.WX, w.y0, w.z1], [HAL.WX, w.y1, w.z1], [HAL.WX, w.y1, w.z0]];
     const floorP = corners.map((p) => { const t = p[1] / SUNH[1]; return [p[0] - SUNH[0] * t, .02, p[2] - SUNH[2] * t]; });
     const pos = [], col = [], idx = [];
@@ -97,5 +98,8 @@ function buildHall() {
   buildStands("berattelser", 0x56534f, 0x161717);
   opening({ C: [4, 0, CL], N: [0, 0, -1], U: [-1, 0, 0], w: 1.2, h: 2.3, to: "naturen", sign: ["02  NATUREN", "TILLBAKA"], glow: new THREE.Color(1.15, 1.2, 1.3) });
   opening({ C: [X, 0, -19], N: [-1, 0, 0], U: [0, 0, 1], w: 1.6, h: 2.8, to: "manniskorna", sign: ["04  MÄNNISKORNA", "GÅ VIDARE"], glow: new THREE.Color(1.2, .9, .6) });
-  return { dust: shaftPts };
+  // regn på fabriksfönstren: droppar och stråk som rinner, men inte på de igenspikade rutorna
+  const rain = REGN ? rainPanes(HAL.WIN.map((w) => ({ w: w.z1 - w.z0, h: w.y1 - w.y0, pos: [HAL.WX - .015, (w.y0 + w.y1) / 2, (w.z0 + w.z1) / 2], rot: [0, Math.PI / 2, 0], seed: 71 + w.id * 10, run: true,
+    keep: (u, v) => !HAL.boarded.has(w.id + ":" + Math.min(5, Math.floor((1 - v) * 6)) + ":" + Math.min(3, Math.floor((1 - u) * 4))) }))) : null;
+  return { dust: shaftPts, update: rain };
 }

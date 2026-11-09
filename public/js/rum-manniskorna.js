@@ -24,11 +24,12 @@ function buildManniskorna() {
     const wz = w.z1 - w.z0, wy = w.y1 - w.y0, c = cnv(256, 320), x = c.getContext("2d"), r = rng(41 + wi);
     const g = x.createLinearGradient(0, 0, 0, 320); g.addColorStop(0, "#f2f4f5"); g.addColorStop(1, "#d5d9d6"); x.fillStyle = g; x.fillRect(0, 0, 256, 320);
     for (let i = 0; i < 20; i++) { x.fillStyle = `rgba(150,160,155,${r() * .15})`; x.fillRect((i % 4) * 64, (i / 4 | 0) * 64, 64, 64); }
-    const gl = new THREE.Mesh(new THREE.PlaneGeometry(wz, wy), new THREE.MeshBasicMaterial({ map: T(c, true, false), color: new THREE.Color(2.1, 2.05, 1.95) }));
+    const gl = new THREE.Mesh(new THREE.PlaneGeometry(wz, wy), new THREE.MeshBasicMaterial({ map: T(c, true, false), color: REGN ? new THREE.Color(1.45, 1.5, 1.58) : new THREE.Color(2.1, 2.05, 1.95) }));
     gl.rotation.y = Math.PI / 2; gl.position.set(-X - .03, (w.y0 + w.y1) / 2, (w.z0 + w.z1) / 2); scene.add(gl);
     for (let k = 0; k <= 4; k++) prop(new THREE.BoxGeometry(.07, wy, .06, 1, 4, 1), { color: steel }, new V3(-X + .03, (w.y0 + w.y1) / 2, w.z0 + k * wz / 4), null, { shadow: false });
     for (let k = 0; k <= 5; k++) prop(new THREE.BoxGeometry(.07, .06, wz, 1, 1, 4), { color: steel }, new V3(-X + .03, w.y0 + k * wy / 5, (w.z0 + w.z1) / 2), null, { shadow: false });
     prop(new THREE.BoxGeometry(.3, .07, wz + .2, 1, 1, 4), { color: 0x6b5a48 }, new V3(-X + .15, w.y0 - .035, (w.z0 + w.z1) / 2), null, { shadow: false }); // fönsterbänk i trä
+    if (REGN) return; // mulet: inget solsken på golvet
     const corners = [[-X, w.y0, w.z0], [-X, w.y0, w.z1], [-X, w.y1, w.z1], [-X, w.y1, w.z0]], pos = [], col = [], idx = [];
     corners.concat(corners.map((p) => { const t2 = p[1] / SUNM[1]; return [p[0] - SUNM[0] * t2, .02, p[2] - SUNM[2] * t2]; })).forEach((p, i) => { pos.push(...p); const k = i < 4 ? .9 : .05; col.push(k, k * .9, k * .74); });
     for (let i = 0; i < 4; i++) { const i2 = (i + 1) % 4; idx.push(i, i2, i2 + 4, i, i2 + 4, i + 4); }
@@ -76,7 +77,9 @@ function buildManniskorna() {
   // ett gammalt arbetsbord och en växt vid fönstren
   for (const sx of [-1.6, 1.6]) placeModel("vagg", [sx, 2.2, -.13], Math.PI, { h: .34, glow: /bulb/, glowCol: [4.5, 3.2, 1.7] });
   buildLounge();
-  return {};
+  // regn på fönstren mot norr: droppar och stråk på det frostade glaset
+  const rain = REGN ? rainPanes(MAN.WIN.map((w, i) => ({ w: w.z1 - w.z0, h: w.y1 - w.y0, pos: [-X - .015, (w.y0 + w.y1) / 2, (w.z0 + w.z1) / 2], rot: [0, Math.PI / 2, 0], seed: 91 + i * 10, run: true }))) : null;
+  return { update: rain };
 }
 // gammalt läder: konjaksbrunt med mörkare veck och slitna, ljusare partier
 function leatherTex(seed) {

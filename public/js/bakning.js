@@ -81,7 +81,7 @@ function shade(px, py, pz, nx, ny, nz, ex) {
   return [r, g, b];
 }
 const COL = { spot: [1, .93, .82], petrol: [.22, .78, .72], sodium: [1, .58, .18], red: [1, .06, .04], warm: [1, .72, .42],
-  sky: [.66, .78, 1], sun: [1, .9, .74], day: [.92, .94, .98], tung: [1, .6, .28], amber: [1, .5, .2] };
+  sky: [.66, .78, 1], sun: [1, .9, .74], rain: [.78, .85, .95], day: [.92, .94, .98], tung: [1, .6, .28], amber: [1, .5, .2] };
 
 /* ================= tavelplatser ================= */
 // en tavla på en vägg: C = mitten, N = väggens normal, size = höjd (eller bredd med wide), spotlight snett ovanför
@@ -120,7 +120,9 @@ function standSlots(room, size, o) {
    En liten ståltrappa med fyra steg leder upp till en dörr vidare.
    x: tvärs (väggarna x=±6, glaset x=+6), z: längs (ingången z=0, bortre väggen z=-22), takhöjd 5,4 m. */
 const GATA = !/[?&]utangata/.test(location.search); // gatan utanför foajén och entrén från gatan (?utangata visar den gamla dagsljusfoajén)
-const REGN = !/[?&]sol/.test(location.search); // det regnar utanför Staden (?sol visar soligt väder)
+const REGN = !/[?&]sol/.test(location.search); // det regnar utanför alla fönster (?sol visar soligt väder)
+// mulet regnväder: hur starkt himlaljuset in genom fönstren är i varje rum (ersätter solen)
+const MULEN = { naturen: 1.7, berattelser: 1.6, manniskorna: 1.35 };
 const CV = { X: 6, L: 22, H: 5.4, PIL: [[-2.9, -7.3], [2.9, -7.3], [-2.9, -14.6], [2.9, -14.6]], PW: .56,
   WIN: { y0: 1.1, y1: 5.25, PZ: 1.1 }, ST: { x: 0, z0: -20.1, run: .3, rise: .18 }, DOOR: { x: 0, w: 1.05, h: 2.15 },
   NEON: { x: 5.55, z: -11, w: 3.4, h: .95 }, LAMPS: [-4.2, -17.6] };
@@ -199,10 +201,11 @@ function sunGate(px, py, pz) {
 }
 function naturenLights() {
   const inRoom = (x, y, z) => z < .05;
-  addSun(SUN, 3.0, COL.sun, sunGate, NAT.H, { only: inRoom, k: 60 });
+  if (!REGN) addSun(SUN, 3.0, COL.sun, sunGate, NAT.H, { only: inRoom, k: 60 });
   for (const s of NAT.SK) {
-    for (let i = 0; i < 4; i++) for (let j = 0; j < 3; j++) addSky([s.x0 + (i + .5) * (s.x1 - s.x0) / 4, NAT.TOP - .15, s.z0 + (j + .5) * (s.z1 - s.z0) / 3], .8, COL.sky, 18, inRoom);
-    const k = NAT.H / SUN[1]; addFill([(s.x0 + s.x1) / 2 - SUN[0] * k, .3, (s.z0 + s.z1) / 2 - SUN[2] * k], .6, COL.sun, inRoom);
+    for (let i = 0; i < 4; i++) for (let j = 0; j < 3; j++) addSky([s.x0 + (i + .5) * (s.x1 - s.x0) / 4, NAT.TOP - .15, s.z0 + (j + .5) * (s.z1 - s.z0) / 3], REGN ? .8 * MULEN.naturen : .8, REGN ? COL.rain : COL.sky, REGN ? 22 : 18, inRoom);
+    if (REGN) addFill([(s.x0 + s.x1) / 2, .3, (s.z0 + s.z1) / 2], .3, COL.rain, inRoom); // mjukt återkast från golvet under takfönstret
+    else { const k = NAT.H / SUN[1]; addFill([(s.x0 + s.x1) / 2 - SUN[0] * k, .3, (s.z0 + s.z1) / 2 - SUN[2] * k], .6, COL.sun, inRoom); }
   }
   addTube([0, 2.68, 3.6], 1.0, .6, COL.petrol, { only: (x, y, z) => z > -.3 });
   addSpot([0, 2.5, -1.4], [0, 0, 2.4], .6, .3, COL.day, { hard: false, shadow: false, bounce: .04, fx: "none", noDust: true, only: (x, y, z) => z > -.2 });
@@ -256,13 +259,15 @@ function halSunGate(px, py, pz) {
 }
 function halLights() {
   const inRoom = (x, y, z) => z < .05, inCorr = (x, y, z) => z > -.2;
-  addSun(SUNH, 3.2, COL.sun, halSunGate, HAL.H, { k: 60, only: inRoom });
+  if (!REGN) addSun(SUNH, 3.2, COL.sun, halSunGate, HAL.H, { k: 60, only: inRoom });
+  const skyI = REGN ? MULEN.berattelser : 1, skyC = REGN ? COL.rain : COL.sky;
   for (const bz of HAL.BENCH) for (const lx of [-1.4, 1.4]) addPoint([lx, HAL.LAMPY - .1, bz], .7, [1, .86, .7], 7, .03, { only: inRoom });
   for (const w of HAL.WIN) {
-    for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) addPanel([HAL.WX + .05, w.y0 + (j + .5) * (w.y1 - w.y0) / 3, w.z0 + (i + .5) * (w.z1 - w.z0) / 3], [1, 0, 0], 1.15, COL.sky, 26, inRoom);
-    const yc = (w.y0 + w.y1) / 2, t = yc / SUNH[1]; addFill([HAL.WX - SUNH[0] * t, .3, (w.z0 + w.z1) / 2 - SUNH[2] * t], .6, COL.sun, inRoom);
+    for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) addPanel([HAL.WX + .05, w.y0 + (j + .5) * (w.y1 - w.y0) / 3, w.z0 + (i + .5) * (w.z1 - w.z0) / 3], [1, 0, 0], 1.15 * skyI, skyC, 26, inRoom);
+    if (REGN) addFill([HAL.WX + 2, .3, (w.z0 + w.z1) / 2], .25, COL.rain, inRoom); // mjukt återkast från golvet innanför fönstret
+    else { const yc = (w.y0 + w.y1) / 2, t = yc / SUNH[1]; addFill([HAL.WX - SUNH[0] * t, .3, (w.z0 + w.z1) / 2 - SUNH[2] * t], .6, COL.sun, inRoom); }
   }
-  for (const s of HAL.SKY) for (let j = 0; j < 3; j++) addPanel([(s.x0 + s.x1) / 2, HAL.TOP - .1, s.z0 + (j + .5) * (s.z1 - s.z0) / 3], [0, -1, 0], 1.4, COL.sky, 22, inRoom);
+  for (const s of HAL.SKY) for (let j = 0; j < 3; j++) addPanel([(s.x0 + s.x1) / 2, HAL.TOP - .1, s.z0 + (j + .5) * (s.z1 - s.z0) / 3], [0, -1, 0], 1.4 * skyI, skyC, 22, inRoom);
   addTube([4, 2.94, 2.6], 3.0, .8, [1, .8, .58], { only: inCorr });
   addPoint([4, 2.0, 4.75], .4, [.75, .95, 1], 4, .02, { only: inCorr });
 }
@@ -334,8 +339,8 @@ function manSunGate(px, py, pz) {
 function manLights() {
   // dagsljus från norr genom de stora fönstren: mjukt, inga solfläckar
   for (const w of MAN.WIN) for (let i = 0; i < 2; i++) for (let j = 0; j < 2; j++)
-    addPanel([-MAN.X + .05, w.y0 + (j + .5) * (w.y1 - w.y0) / 2, w.z0 + (i + .5) * (w.z1 - w.z0) / 2], [1, 0, 0], .9, COL.sky, 16, inMR);
-  addSun(SUNM, 2.6, COL.sun, manSunGate, MAN.H, { k: 40, only: inMR });
+    addPanel([-MAN.X + .05, w.y0 + (j + .5) * (w.y1 - w.y0) / 2, w.z0 + (i + .5) * (w.z1 - w.z0) / 2], [1, 0, 0], REGN ? .9 * MULEN.manniskorna : .9, REGN ? COL.rain : COL.sky, REGN ? 18 : 16, inMR);
+  if (!REGN) addSun(SUNM, 2.6, COL.sun, manSunGate, MAN.H, { k: 40, only: inMR });
   // glödlampor i emaljskärmar
   for (const z of [-4, -11]) addPoint([0, 4.6, z], .7, [1, .9, .8], 10, .04, { only: inMR }); // mjukt fyllnadsljus
   // softboxarna i fotohörnan

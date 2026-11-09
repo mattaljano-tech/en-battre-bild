@@ -50,17 +50,20 @@ const Sound = {
       const lfo = ctx.createOscillator(), lg = ctx.createGain(); lfo.frequency.value = .07; lg.gain.value = .045; lfo.connect(lg); lg.connect(air.gain); lfo.start(); this.amb._src.push(lfo);
       this.loop(this.brown, "lowpass", 220, .06);
       this.every(this.bird, 1800, 6500);
+      if (REGN) { this.loop(this.rainBuf, "bandpass", 2200, .012, .4); this.loop(this.rainBuf, "lowpass", 700, .012); } // regnet mot takfönstren
     },
     berattelser(ctx) {
       const wind = this.loop(this.brown, "bandpass", 520, .035, .6); // vinden genom hallen: svag, duvor, dropp och knarr har kvar sin volym
       const lfo = ctx.createOscillator(), lg = ctx.createGain(); lfo.frequency.value = .05; lg.gain.value = .02; lfo.connect(lg); lg.connect(wind.gain); lfo.start(); this.amb._src.push(lfo);
       this.loop(this.brown, "lowpass", 90, .03);
       this.every(this.pigeon, 9000, 20000); this.every(this.drip, 6000, 14000); this.every(this.creak, 18000, 35000);
+      if (REGN) { this.loop(this.rainBuf, "bandpass", 1800, .014, .4); this.loop(this.rainBuf, "lowpass", 600, .014); } // regnet mot plåttaket och fönstren
     },
     manniskorna(ctx) { // stilla ateljé: stad långt borta, något som knarrar ibland
       this.loop(this.brown, "lowpass", 140, .2);
       this.loop(this.brown, "bandpass", 420, .05, .4);
       this.every(this.creak, 9000, 20000); this.chordVol = .008; this.every(this.chord, 9000, 14000);
+      if (REGN) { this.loop(this.rainBuf, "bandpass", 2600, .008, .4); this.loop(this.rainBuf, "lowpass", 900, .007); } // regn mot rutorna, svagt
     },
     gata(ctx) { // ute på gatan: regnet som smattrar på paraplyet och asfalten, staden som mullrar, bilar som väser förbi i vattnet
       this.loop(this.rainBuf, "bandpass", 2400, .05, .45); this.loop(this.rainBuf, "lowpass", 800, .045);

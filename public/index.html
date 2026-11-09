@@ -938,9 +938,12 @@ function useRoom(key) {
       const src = m.material;
       if (o.glass && o.glass.test(src.name)) { scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: new THREE.Color(...(o.glassCol || [1, .95, .85])), transparent: true, opacity: .32, depthWrite: false, side: THREE.DoubleSide }))); return; }
       if (o.glow && o.glow.test(src.name)) { scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: new THREE.Color(...o.glowCol), map: src.map || null }))); return; }
-      if (o.flat) { // tunga modeller (växtblad): ljuset mäts på några punkter i stället för i varje hörn
-        const L = o.flat, pa = geo.attributes.position, na = geo.attributes.normal, c = new Float32Array(pa.count * 3);
-        for (let i = 0; i < pa.count; i++) { const t = clamp((pa.getY(i) - L.y0) / (L.y1 - L.y0), 0, 1), k = .62 + .38 * Math.max(0, na.getY(i)) + .08 * Math.abs(na.getX(i));
+      if (o.flat && (!o.flatOnly || o.flatOnly.test(src.name))) { // tunga modeller (växtblad): ljuset mäts på några punkter i stället för i varje hörn
+        const L = o.flat, pa = geo.attributes.position, na = geo.attributes.normal, c = new Float32Array(pa.count * 3); geo.computeBoundingBox();
+        const bb = geo.boundingBox, mx = (bb.min.x + bb.max.x) / 2, mz = (bb.min.z + bb.max.z) / 2, R = Math.max(bb.max.x - bb.min.x, bb.max.z - bb.min.z) / 2 || 1;
+        for (let i = 0; i < pa.count; i++) { const t = clamp((pa.getY(i) - L.y0) / (L.y1 - L.y0), 0, 1), rr = clamp(Math.hypot(pa.getX(i) - mx, pa.getZ(i) - mz) / R, 0, 1),
+            ty = clamp((pa.getY(i) - bb.min.y) / (bb.max.y - bb.min.y || 1), 0, 1), ao = (.38 + .62 * Math.pow(rr, .7)) * (.6 + .4 * ty), // inre och nedre blad i skugga av de andra
+            k = (.55 + .45 * Math.max(0, na.getY(i)) + .1 * Math.abs(na.getX(i))) * ao;
           for (let j = 0; j < 3; j++) c[i * 3 + j] = (L.lo[j] + (L.hi[j] - L.lo[j]) * t) * k; }
         geo.setAttribute("color", new THREE.BufferAttribute(c, 3));
         scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: src.map || null, vertexColors: true, color: o.tint === undefined ? 0xffffff : o.tint, side: THREE.DoubleSide, alphaTest: src.alphaTest || 0 })));
@@ -1405,11 +1408,16 @@ function useRoom(key) {
     prop(new THREE.TorusGeometry(R * .985, .008, 6, 40), { color: 0x2a2d2c }, new V3(lx, ly - .02 + R * .78 * Math.cos(Math.PI * .46), lz), [Math.PI / 2, 0, 0], { shadow: false });
     const b = new THREE.Mesh(new THREE.SphereGeometry(.075 * sc, 18, 12), new THREE.MeshBasicMaterial({ color: new THREE.Color(5, 3.3, 1.5) })); b.scale.set(.85, 1, .85); b.position.set(lx, ly + .15 * sc, lz); scene.add(b);
   }
+  let plantShadowTex = null;
   function plant(x, z, h, seed) {
     const k = h >= 2.05 ? "vaxt1" : "vaxt2"; // den stora (100 000 blad-trianglar) bara på ett ställe per rum
     if (MODELS[k]) { // krukväxt från Poly Haven: ljuset mäts nere vid krukan och uppe i bladen
       const hh = k === "vaxt1" ? 1.55 : 1.05, sh = (y) => shade(x, y, z, 0, 1, 0, null), lo = sh(.3), hi = sh(hh);
-      placeModel(k, [x, 0, z], seed * 1.7, { h: hh, flat: { y0: .1, y1: hh, lo, hi } });
+      placeModel(k, [x, 0, z], seed * 1.7, { h: hh, flat: { y0: .1, y1: hh, lo, hi }, flatOnly: /leaves|stem/, shadow: true });
+      { // mjuk kontaktskugga under krukan
+        if (!plantShadowTex) plantShadowTex = T(radial([[0, "rgba(0,0,0,.62)"], [.45, "rgba(0,0,0,.38)"], [1, "rgba(0,0,0,0)"]], 128), false, false);
+        const sm = new THREE.Mesh(new THREE.PlaneGeometry(1.15, 1.15), new THREE.MeshBasicMaterial({ map: plantShadowTex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 }));
+        sm.rotation.x = -Math.PI / 2; sm.position.set(x, .004, z); scene.add(sm); }
       colliders.push({ x0: x - .3, x1: x + .3, z0: z - .3, z1: z + .3 }); return; }
     if (!leafTexC) leafTexC = T(leafCanvas(), true, false);
     prop(new THREE.CylinderGeometry(.3, .24, .55, 28, 2), { color: 0x8f8b84 }, new V3(x, .275, z), null, { collide: true });
@@ -1701,7 +1709,7 @@ function useRoom(key) {
     placeModel("hylla", [-6.65, 0, -16.4], Math.PI / 2, { h: 1.9, shadow: true, collide: true });
     // industrirör: två ledningar högt längs högra väggen ovanför tavlorna, som går ner till golvet längst in med en ventil
     if (MODELS.ror) { const R = "modular_industrial_pipes_01_", seg = 1.95;
-      for (const [y, zEnd, off] of [[5.5, -21.4, .16], [5.05, -20.6, .44]]) {
+      for (const [y, zEnd, off] of [[5.5, -21.78, .16], [5.05, -21.78, .45]]) { // båda går ner i hörnet, en bit från dörren till Människorna
         const x = X - off; let z = zEnd + .16;
         while (z < -.5) { const len = Math.min(seg, -.5 - z); placePart("ror", R + "pipe02", M4(x, y, z, Math.PI / 2, 0, 0), { sy: len / seg, id: "ror" }); z += len; }
         placePart("ror", R + "pipe06", M4(x, y - .18, zEnd, 0, -Math.PI / 2, 0), { id: "ror" });          // T-rör där ledningen vänder nedåt
@@ -2451,7 +2459,7 @@ function useRoom(key) {
     while (scene.children.length) scene.remove(scene.children[0]);
     floorMirror = null;
     [surfaces, props, occluders, photoMeshes, colliders, decals, exits, arts, tubeMats, seats].forEach((a) => { a.length = 0; });
-    dust = null; dustBase = null; dustPh = null; dustMat = null; floorGlowTex = null; flickerDark = null; marker = null; glowTexC = null; leafTexC = null; RT = null;
+    dust = null; dustBase = null; dustPh = null; dustMat = null; floorGlowTex = null; flickerDark = null; marker = null; glowTexC = null; leafTexC = null; plantShadowTex = null; RT = null;
   }
   async function buildRoom(key) {
     if (!fontsReady) {

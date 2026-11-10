@@ -21,7 +21,7 @@
   const K = .085;     // bländaren: större tal ger mer oskärpa
   const HOLD = .3;    // hur stor del av scrollen kring varje bild som bilden står kvar i skärpa (0 = inte alls, .5 = hela)
   const URVAL = ["gloden", "klippan", "azizam", "taggen"]; // bilderna i Sökaren, i den här ordningen (namnen i foton.js). Alla bilder finns i galleriet längre ner.
-  const HERO = "perrongen"; // bilden bakom rubriken på första skärmen
+  const HERO = "lisboa"; // bilden bakom rubriken på första skärmen
   const MAXT = touch ? 1024 : 1440; // största sidan på en bild i grafikminnet
   const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
   const sstep = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
@@ -106,8 +106,10 @@
     im.onload = () => { if (q.state !== 1) return; const k = Math.min(1, MAXT / Math.max(im.naturalWidth, im.naturalHeight)), w = Math.max(1, Math.round(im.naturalWidth * k)), h = Math.max(1, Math.round(im.naturalHeight * k));
       scratch.width = w; scratch.height = h; scratch.getContext("2d").drawImage(im, 0, 0, w, h);
       q.tex = upload(scratch, w, h); q.ar = w / h; q.state = 2; layout(); };
-    im.onerror = () => { q.state = 3; };
-    im.src = q.src;
+    // mobilen hämtar den mindre versionen (img/1200). Saknas den tas originalet.
+    const lite = touch ? q.src.replace(/^img\/([^/]+)\.\w+$/, "img/1200/$1.webp") : q.src;
+    im.onerror = () => { if (im.src.indexOf("/1200/") >= 0) im.src = q.src; else q.state = 3; };
+    im.src = lite;
   }
   function unload(q) { if (q.state === 2 && q.tex) gl.deleteTexture(q.tex.t); if (q.state !== 3) { q.tex = null; q.state = 0; } }
   function textTex(text) {
@@ -124,7 +126,7 @@
     else if (s.kind === "room") { const q = { i, z: -i * S, kind: "room", ar: 3, state: 0, tex: null, text: s.name.toUpperCase() }; s.q = q; quads.push(q); }
   });
   // bilden bakom rubriken: ligger en bit bakom skärpan och löses upp när man börjar scrolla
-  const hero = { i: 0, z: -1.5, kind: "hero", src: (PHOTOS[HERO] || {}).src || "", ar: AR[HERO] || .8, state: PHOTOS[HERO] ? 0 : 3, tex: null, tint: [.05, .05, .05] }; quads.push(hero);
+  const hero = { i: 0, z: -1.5, kind: "hero", dim: (PHOTOS[HERO] || {}).tone === "light" ? .4 : .62, src: (PHOTOS[HERO] || {}).src || "", ar: AR[HERO] || .8, state: PHOTOS[HERO] ? 0 : 3, tex: null, tint: [.05, .05, .05] }; quads.push(hero);
   const makeText = () => quads.forEach((q) => { if (q.kind === "room") { if (q.tex) gl.deleteTexture(q.tex.t); q.tex = textTex(q.text); q.state = 2; } });
   makeText(); if (document.fonts && document.fonts.load) document.fonts.load('800 100px "Big Shoulders Display"').then(makeText, () => {});
 
@@ -241,7 +243,7 @@
 
     // texten: vilket stopp, och är det skarpt?
     const near = clamp(Math.round(tS), 0, N - 1), off = Math.abs(tS - near), lock = 1 - sstep(.04, .22, off), s = stops[near];
-    if (near !== cur) { const before = cur; cur = near; caption(near); if (before >= 0 && s.kind === "room") fire(); }
+    if (near !== cur) { const before = cur; cur = near; caption(near); if (before >= 0 && s.kind !== "intro") fire(); } // slutaren går mellan bilderna
     const isLock = lock > .6 && (s.kind === "photo" || s.kind === "room");
     if (isLock !== wasLock || reticle.dataset.k !== s.kind) { wasLock = isLock; reticle.dataset.k = s.kind; reticle.classList.toggle("lock", isLock && s.kind === "photo"); reticle.classList.toggle("off", s.kind !== "photo");
       stage.classList.toggle("sharp", isLock && s.kind === "photo"); }
@@ -269,7 +271,7 @@
         if (prog !== P_QUAD) { prog = P_QUAD; gl.useProgram(prog.p); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); gl.uniform2f(U.uF, fx, fy); gl.uniform1i(U.uT, 0); }
         const sh = q.h / (2 * dist * TAN) * H, sw = sh * q.w / q.h, blur = coc > .6 ? coc : 0, has = q.state === 2 && q.tex;
         let alpha = sstep(1.5, 3., dist) * (1 - sstep(D + 2.6 * S, D + 3.2 * S, dist)), dim = Math.exp(-Math.max(0, dist - D) * .11);
-        if (q.kind === "hero") { alpha *= 1 - sstep(.15, .8, tS); dim *= .62; }
+        if (q.kind === "hero") { alpha *= 1 - sstep(.15, .8, tS); dim *= q.dim; }
         if (q.kind === "room") alpha *= .96;
         if (alpha <= .003) continue;
         gl.uniform3f(U.uC, q.x - cx, q.y - cy, -dist); gl.uniform2f(U.uSize, q.w, q.h); gl.uniform2f(U.uR, blur / sw, blur / sh); gl.uniform2f(U.uPx, 1 / sw, 1 / sh);

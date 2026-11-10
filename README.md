@@ -24,4 +24,5 @@ Andra grenar får en egen förhandsadress (`<gren>.en-battre-bild.pages.dev`) at
 
 ## Lägga till ett foto (tills personalrummet finns)
 Lägg bilden i `public/img/` och fyll i `src` och `title` för platsen i `PHOTOS` i `public/js/foton.js`.
-Bilden syns då både i showroomet och i galleriet på den vanliga sidan.
+Bilden syns då både i showroomet och i galleriet på startsidan.
+Kör sedan `python3 tools/sma-bilder.py` (kräver Pillow), som gör de mindre versionerna i `public/img/640/` och `public/img/1200/` som galleriet laddar. Utan dem används originalet.

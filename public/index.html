@@ -20,7 +20,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=Archivo:wght@400;500;600&display=swap">
 <style>
-/* Den vanliga sidan: bilder, om, priser och kontakt. Showroomet ligger i showroom.html. */
+/* Startsidan: Sökaren överst, sedan bilder, om, priser och kontakt. Showroomet ligger i showroom.html. */
 *, *::before, *::after { box-sizing: border-box; }
 [hidden] { display: none !important; }
 :root {
@@ -65,15 +65,63 @@ p { margin: 0; }
 .head .btn { padding: 9px 14px; font-size: 14px; }
 @media (max-width: 640px) { .head nav a.l { display: none; } }
 
-/* första skärmen: en bild, namnet och två vägar in */
-.hero { position: relative; min-height: 100vh; min-height: 100svh; display: flex; align-items: flex-end; padding: 120px var(--gutter) calc(40px + env(safe-area-inset-bottom, 0px)); overflow: hidden; }
-.hero > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 52%; }
-.hero::after { content: ""; position: absolute; inset: 0; background: linear-gradient(to top, rgba(7,9,9,.97) 0%, rgba(7,9,9,.72) 30%, rgba(7,9,9,.12) 62%, rgba(7,9,9,.45) 100%); }
-.hero .in { position: relative; z-index: 1; display: flex; flex-wrap: wrap; align-items: flex-end; gap: 20px 48px; width: 100%; }
-.hero h1 { font-size: clamp(64px, 13vw, 190px); line-height: .8; }
-.hero .side { max-width: 36ch; display: grid; gap: 18px; padding-bottom: .5em; }
-.hero .side p { color: #d6d3cc; }
-.hero .row { display: flex; flex-wrap: wrap; gap: 10px; }
+/* första skärmen: Sökaren (js/sokaren.js). Bilderna hänger på olika djup och scrollen ställer skärpan.
+   Scenen står still (sticky) medan man scrollar genom ett tomt avsnitt per bild, och rullar sedan bort.
+   Utan WebGL2 visas bara Perrongen bakom rubriken. */
+.sok { position: relative; }
+.sok-stage { position: sticky; z-index: 0; top: 0; height: 100vh; height: 100svh; overflow: hidden; background: var(--ink); }
+.sok-stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: none; }
+.sok.gl .sok-stage canvas { display: block; }
+.sok.gl .sok-stage.sharp canvas { cursor: zoom-in; }
+.sok-fallback { position: absolute; inset: 0; }
+.sok-fallback img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 52%; }
+.sok-fallback::after { content: ""; position: absolute; inset: 0; background: linear-gradient(to top, rgba(7,9,9,.97) 0%, rgba(7,9,9,.72) 30%, rgba(7,9,9,.12) 62%, rgba(7,9,9,.45) 100%); }
+.sok.gl .sok-fallback, .sok:not(.gl) .gl-only { display: none; }
+.sok section { position: relative; z-index: 1; height: 100vh; height: 100svh; scroll-snap-align: start; scroll-snap-stop: always; pointer-events: none; }
+.sok .intro { margin-top: -100vh; margin-top: -100svh; display: flex; align-items: flex-end; padding: 120px var(--gutter) calc(40px + env(safe-area-inset-bottom, 0px)); }
+.sok .intro .in { pointer-events: auto; display: flex; flex-wrap: wrap; align-items: flex-end; gap: 20px 48px; width: 100%; }
+.sok .intro h1 { font-size: clamp(64px, 13vw, 190px); line-height: .8; text-shadow: 0 4px 40px rgba(0,0,0,.5); }
+.sok .intro .side { max-width: 36ch; display: grid; gap: 18px; padding-bottom: .5em; }
+.sok .intro .side p { color: #dedbd4; text-shadow: 0 1px 12px rgba(0,0,0,.8); }
+.sok .intro .row { display: flex; flex-wrap: wrap; gap: 10px; }
+.sok .hint { display: flex; align-items: center; gap: 12px; font-weight: 600; color: var(--paper); }
+.sok .hint::before { content: ""; width: 1px; height: 38px; background: var(--paper); animation: dra 1.8s ease-in-out infinite; transform-origin: top; }
+@keyframes dra { 0%, 100% { transform: scaleY(.25); } 50% { transform: scaleY(1); } }
+html.sok-snap { scroll-snap-type: y mandatory; scroll-padding-top: 0; }
+.sok + .sec { scroll-snap-align: start; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* sökarens ram: fyra hörn, och en skärpemarkering i mitten som slår om när bilden är skarp */
+.corners { position: absolute; z-index: 3; inset: calc(64px + env(safe-area-inset-top, 0px)) 14px calc(14px + env(safe-area-inset-bottom, 0px)); pointer-events: none; }
+.corners i { position: absolute; width: 26px; height: 26px; border: 0 solid var(--line); }
+.corners i:nth-child(1) { top: 0; left: 0; border-top-width: 1px; border-left-width: 1px; }
+.corners i:nth-child(2) { top: 0; right: 0; border-top-width: 1px; border-right-width: 1px; }
+.corners i:nth-child(3) { bottom: 0; left: 0; border-bottom-width: 1px; border-left-width: 1px; }
+.corners i:nth-child(4) { bottom: 0; right: 0; border-bottom-width: 1px; border-right-width: 1px; }
+.reticle { position: absolute; z-index: 3; left: 50%; top: 50%; width: 76px; height: 54px; margin: -27px 0 0 -38px; pointer-events: none; color: var(--paper); opacity: .55; transition: color .15s ease, opacity .15s ease, transform .2s ease; }
+.reticle::before, .reticle::after { content: ""; position: absolute; top: 0; bottom: 0; width: 12px; border: 1.5px solid currentColor; }
+.reticle::before { left: 0; border-right: 0; }
+.reticle::after { right: 0; border-left: 0; }
+.reticle.lock { color: var(--petrol); opacity: 1; transform: scale(.86); }
+.reticle.off { opacity: 0; }
+.cap { position: absolute; z-index: 4; left: var(--gutter); right: 64px; bottom: calc(30px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 4px; justify-items: start; pointer-events: none; transition: opacity .2s ease; }
+.cap .t { font-family: var(--font-display); font-weight: 800; font-size: clamp(28px, 4.4vw, 52px); line-height: .95; text-transform: uppercase; text-shadow: 0 2px 18px rgba(0,0,0,.6); }
+.cap .e { font-size: 15px; color: #d6d3cc; text-shadow: 0 1px 10px rgba(0,0,0,.8); }
+.cap a, .cap button { pointer-events: auto; margin-top: 10px; padding: 10px 14px; font-size: 14px; }
+.scale { position: absolute; z-index: 4; right: 14px; top: 50%; transform: translateY(-50%); height: min(56vh, 460px); width: 22px; }
+.scale .tick { position: absolute; right: 0; width: 7px; height: 1px; background: var(--line); }
+.scale button { position: absolute; right: 0; transform: translateY(-50%); display: flex; align-items: center; gap: 8px; padding: 6px 0 6px 10px; border: 0; background: none; color: var(--dim); font: 500 13px/1 var(--font-body); cursor: pointer; white-space: nowrap; }
+.scale button::after { content: ""; width: 14px; height: 1px; background: currentColor; }
+.scale button:hover, .scale button.on { color: var(--paper); }
+.scale .mark { position: absolute; right: -4px; width: 22px; height: 2px; margin-top: -1px; background: var(--petrol); }
+@media (max-width: 640px) { .scale button span { display: none; } .scale { right: 8px; } }
+.shutter { position: absolute; z-index: 5; inset: 0; pointer-events: none; }
+.shutter i { position: absolute; left: 0; right: 0; height: 51%; background: #000; }
+.shutter i:first-child { top: 0; transform: translateY(-101%); --from: -101%; }
+.shutter i:last-child { bottom: 0; transform: translateY(101%); --from: 101%; }
+.shutter.fire i { animation: slutare .22s cubic-bezier(.6,0,.4,1); }
+@keyframes slutare { 0%, 100% { transform: translateY(var(--from)); } 40%, 60% { transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .sok .hint::before, .shutter.fire i { animation: none; } }
 
 /* bilderna: ett avsnitt per rum, med rader i olika höjd där varje bild behåller sitt format */
 .sec { padding: clamp(64px, 10vw, 130px) var(--gutter) 0; }
@@ -142,19 +190,36 @@ dialog.view::backdrop { background: rgba(4,5,5,.97); }
 </header>
 
 <main id="top">
-  <section class="hero">
-    <img src="img/perrongen.jpg" alt="En tom träbänk på en perrong medan ett tåg rusar förbi" fetchpriority="high">
-    <div class="in">
-      <h1>En bättre bild</h1>
-      <div class="side">
-        <p>Fotograf i Stockholm. Bilder från staden, naturen och människorna, och bilder som bär en berättelse.</p>
-        <div class="row">
-          <a class="btn" href="#bilder">Se bilderna</a>
-          <a class="btn lamp" href="showroom.html">Kliv in i showroomet</a>
+  <div class="sok" id="sok">
+    <div class="sok-stage" id="sokStage">
+      <div class="sok-fallback"><img src="img/perrongen.jpg" alt="En tom träbänk på en perrong medan ett tåg rusar förbi" fetchpriority="high"></div>
+      <canvas id="c" aria-hidden="true"></canvas>
+      <div class="corners gl-only" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+      <div class="reticle off gl-only" id="reticle" aria-hidden="true"></div>
+      <div class="shutter gl-only" id="shutter" aria-hidden="true"><i></i><i></i></div>
+      <div class="cap gl-only" id="cap" style="opacity:0;visibility:hidden">
+        <div class="t" id="capT"></div>
+        <div class="e" id="capE"></div>
+        <button type="button" class="btn ghost" id="capOpen" hidden>Se hela bilden</button>
+        <a class="btn ghost" id="capAll" href="#bilder" hidden></a>
+      </div>
+      <nav class="scale gl-only" id="scale" aria-label="Hoppa till rum"></nav>
+    </div>
+    <section class="intro">
+      <div class="in">
+        <h1>En bättre bild</h1>
+        <div class="side">
+          <p>Fotograf i Stockholm. Bilder från staden, naturen och människorna, och bilder som bär en berättelse.</p>
+          <p class="hint gl-only">Scrolla för att ställa skärpan</p>
+          <div class="row">
+            <a class="btn" href="#bilder">Se alla bilder</a>
+            <a class="btn lamp" href="showroom.html">Kliv in i showroomet</a>
+          </div>
         </div>
       </div>
-    </div>
-  </section>
+    </section>
+    <!-- ett avsnitt per rum och bild läggs in här av js/sokaren.js -->
+  </div>
 
   <section class="sec" id="bilder" aria-label="Bilder">
     <nav class="jump" id="jump" aria-label="Hoppa till"></nav>
@@ -215,7 +280,7 @@ dialog.view::backdrop { background: rgba(4,5,5,.97); }
 (function () {
   const $ = (id) => document.getElementById(id);
   $("year").textContent = new Date().getFullYear();
-  const head = $("head"), onScroll = () => head.classList.toggle("solid", scrollY > 40); addEventListener("scroll", onScroll, { passive: true }); onScroll();
+  const head = $("head"), sok = $("sok"), onScroll = () => head.classList.toggle("solid", scrollY > (sok ? sok.offsetTop + sok.offsetHeight - 80 : 40)); addEventListener("scroll", onScroll, { passive: true }); onScroll();
 
   // ett avsnitt per rum, i den här ordningen. Bilderna från foajén visas sist bland Berättelser.
   const ROOMS = [["Staden", "staden"], ["Naturen", "naturen"], ["Människorna", "manniskorna"], ["Berättelser", "berattelser"]];
@@ -270,6 +335,7 @@ dialog.view::backdrop { background: rgba(4,5,5,.97); }
   function paint() { const p = shown[at]; $("viewImg").src = p.src; $("viewImg").alt = p.title; $("viewTitle").textContent = p.title; $("viewMeta").textContent = group(p); }
   function open(i) { if (i < 0) return; at = i; paint(); if (view.showModal) view.showModal(); else view.setAttribute("open", ""); }
   function step(d) { at = (at + d + shown.length) % shown.length; paint(); }
+  window.visaBild = (list, i) => { shown = list; open(i); }; // används av Sökaren
   $("viewClose").addEventListener("click", () => view.close());
   $("viewPrev").addEventListener("click", () => step(-1));
   $("viewNext").addEventListener("click", () => step(1));
@@ -280,5 +346,6 @@ dialog.view::backdrop { background: rgba(4,5,5,.97); }
   view.addEventListener("touchend", (e) => { if (sx === null) return; const dx = e.changedTouches[0].clientX - sx; sx = null; if (Math.abs(dx) > 50) step(dx < 0 ? 1 : -1); });
 })();
 </script>
+<script src="js/sokaren.js"></script>
 </body>
 </html>

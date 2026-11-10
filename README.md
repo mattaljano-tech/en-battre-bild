@@ -2,8 +2,7 @@
 
 Hemsida och 3D-showroom för fotofirman En bättre bild. Utan byggsteg.
 
-- `public/index.html` – den vanliga sidan (startsidan): bilder, om, priser och kontakt, med knapp till showroomet
-- `public/sokaren.html` – Sökaren (test): bilderna på olika djup, scrollen ställer skärpan, regn på linsen. Koden ligger i `js/sokaren.js` (WebGL2, utan Three.js)
+- `public/index.html` – startsidan: Sökaren överst (`js/sokaren.js`, WebGL2: scrollen ställer skärpan genom ett urval bilder, regn på linsen), sedan alla bilder, om, priser och kontakt, med knapp till showroomet. Utan WebGL2 visas Perrongen överst i stället.
 - `public/showroom.html` – 3D-showroomet (Three.js): sidans HTML och CSS, och listan över skriptfilerna
 - `public/js/` – koden, uppdelad i filer som laddas i ordning (se längst ner i `showroom.html`)
   - `foton.js` – fotona på väggarna

@@ -1,12 +1,15 @@
-// Sökaren (sokaren.html): bilderna hänger på olika djup i ett mörkt rum och scrollen ställer skärpan.
-// Ren WebGL2, utan Three.js. Finns inte WebGL2 skickas besökaren till den enkla sidan.
+// Sökaren, överst på startsidan (index.html): bilderna hänger på olika djup i ett mörkt rum och scrollen ställer skärpan.
+// Ren WebGL2, utan Three.js. Finns inte WebGL2 visas bara Perrongen bakom rubriken, och resten av sidan är som vanligt.
 "use strict";
 (function () {
   const $ = (id) => document.getElementById(id);
-  const canvas = $("c");
+  const root = $("sok"), stage = $("sokStage"), canvas = $("c");
+  if (!root || !canvas) return;
   const gl = canvas.getContext("webgl2", { antialias: false, alpha: false, powerPreference: "high-performance" });
-  if (!gl) { location.replace("index.html"); return; }
-  canvas.addEventListener("webglcontextlost", () => location.replace("index.html"));
+  if (!gl) return;
+  root.classList.add("gl");
+  let dead = false;
+  canvas.addEventListener("webglcontextlost", () => { dead = true; root.classList.remove("gl"); document.documentElement.classList.remove("sok-snap"); });
   const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
   const touch = matchMedia("(pointer: coarse)").matches;
   const RAIN = !still && !/[?&]sol\b/.test(location.search); // ?sol: ingen regn på linsen
@@ -36,15 +39,13 @@
     stops.push({ kind: "room", name, id, count: list.length });
     pick.forEach((p, k) => stops.push({ kind: "photo", p, room: name, k, n: pick.length }));
   }
-  stops.push({ kind: "outro" });
   const N = stops.length, journey = stops.filter((s) => s.kind === "photo");
 
   // ett tomt avsnitt per stopp, så att sidan går att scrolla och skärmläsare får en lista
-  { const outro = $("outro"), main = $("stops");
-    stops.forEach((s, i) => { if (s.kind === "intro" || s.kind === "outro") return;
-      const sec = document.createElement("section"); sec.className = s.kind; sec.dataset.i = i;
-      const h = document.createElement(s.kind === "room" ? "h2" : "h3"); h.className = "sr"; h.textContent = s.kind === "room" ? s.name : s.p.title; sec.append(h);
-      s.el = sec; main.insertBefore(sec, outro); }); }
+  stops.forEach((s, i) => { if (s.kind === "intro") return;
+    const sec = document.createElement("section"); sec.className = "stop " + s.kind; sec.dataset.i = i;
+    const h = document.createElement(s.kind === "room" ? "h2" : "h3"); h.className = "sr"; h.textContent = s.kind === "room" ? s.name : s.p.title; sec.append(h);
+    s.el = sec; root.append(sec); });
 
   /* ================= WebGL: program och buffertar ================= */
   function program(vs, fs) {
@@ -87,7 +88,7 @@
       "  vec3 c = texture(uS, clamp(uUV - v * uRuv * (1.3 + 1.9 * (1. - h)), 0., 1.)).rgb * mix(.4, 1.1, h);\n" +
       "  c += smoothstep(.24, 0., length(v - vec2(-.34, .4))) * .4 + smoothstep(.7, .98, d) * max(0., -v.y) * .22;\n" +
       "  float al = smoothstep(1., .9, d) * uA; o = vec4(c * al, al); }");
-  } catch (e) { console.error(e); location.replace("index.html"); return; }
+  } catch (e) { console.error(e); root.classList.remove("gl"); root.querySelectorAll(".stop").forEach((x) => x.remove()); return; }
   const vao = gl.createVertexArray(); gl.bindVertexArray(vao);
   gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer()); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0, 0, 1, 0, 0, 1, 1, 1]), gl.STATIC_DRAW);
   gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
@@ -177,13 +178,14 @@
   // torka linsen: dropparna under fingret eller muspekaren försvinner
   function wipe(cx, cy) { const unit = Math.min(cssW, cssH); for (const d of drops) { const dx = d.x * cssW - cx, dy = d.y * cssH - cy, r = d.r * unit + (touch ? 34 : 26); if (dx * dx + dy * dy < r * r) d.dead = true; } }
   let mx = 0, my = 0;
-  addEventListener("pointermove", (e) => { if (e.pointerType === "mouse" && !touch) { mx = e.clientX / cssW * 2 - 1; my = e.clientY / cssH * 2 - 1; } wipe(e.clientX, e.clientY); }, { passive: true });
-  addEventListener("pointerdown", (e) => wipe(e.clientX, e.clientY), { passive: true });
-  addEventListener("touchmove", (e) => { for (const t of e.touches) wipe(t.clientX, t.clientY); }, { passive: true });
+  const top = () => canvas.getBoundingClientRect().top; // scenen rullar bort när man går vidare ner på sidan
+  addEventListener("pointermove", (e) => { if (!active) return; const y = e.clientY - top(); if (e.pointerType === "mouse" && !touch) { mx = e.clientX / cssW * 2 - 1; my = y / cssH * 2 - 1; } wipe(e.clientX, y); }, { passive: true });
+  addEventListener("pointerdown", (e) => { if (active) wipe(e.clientX, e.clientY - top()); }, { passive: true });
+  addEventListener("touchmove", (e) => { if (active) for (const t of e.touches) wipe(t.clientX, t.clientY - top()); }, { passive: true });
 
   /* ================= ljud: slutarens klick (bara om besökaren slår på det) ================= */
   let actx = null, soundOn = false;
-  $("sound").addEventListener("click", (e) => { soundOn = !soundOn; e.currentTarget.setAttribute("aria-pressed", String(soundOn)); e.currentTarget.textContent = soundOn ? "Ljud på" : "Ljud av";
+  if ($("sound")) $("sound").addEventListener("click", (e) => { soundOn = !soundOn; e.currentTarget.setAttribute("aria-pressed", String(soundOn)); e.currentTarget.textContent = soundOn ? "Ljud på" : "Ljud av";
     if (soundOn) { try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); actx.resume(); click(); } catch (err) { soundOn = false; } } });
   function click() {
     if (!soundOn || !actx) return; const t0 = actx.currentTime;
@@ -195,8 +197,9 @@
 
   /* ================= texten runt bilden ================= */
   const reticle = $("reticle"), cap = $("cap"), shutter = $("shutter"), scale = $("scale"), view = $("view");
-  const stopH = () => $("outro").offsetHeight || innerHeight;
-  const goTo = (i) => scrollTo({ top: i * stopH(), behavior: still ? "auto" : "smooth" });
+  const intro = root.querySelector(".intro"), stopH = () => intro.offsetHeight || innerHeight;
+  const rootTop = () => root.getBoundingClientRect().top + scrollY;
+  const goTo = (i) => scrollTo({ top: rootTop() + i * stopH(), behavior: still ? "auto" : "smooth" });
   // skärpeskalan
   const roomBtns = []; let mark;
   { stops.forEach((s, i) => { const y = i / (N - 1) * 100 + "%";
@@ -208,35 +211,35 @@
   function caption(i) {
     const s = stops[i]; $("capOpen").hidden = true; $("capAll").hidden = true;
     if (s.kind === "photo") { $("capT").textContent = s.p.title; $("capE").textContent = s.room + ", bild " + (s.k + 1) + " av " + s.n; $("capOpen").hidden = false; }
-    else if (s.kind === "room") { $("capT").textContent = ""; $("capE").textContent = s.count + " bilder, här visas " + Math.min(PER, s.count); const a = $("capAll"); a.hidden = false; a.textContent = "Se alla i " + s.name; a.href = "index.html#bilder-" + s.id; }
+    else if (s.kind === "room") { $("capT").textContent = ""; $("capE").textContent = s.count + " bilder, här visas " + Math.min(PER, s.count); const a = $("capAll"); a.hidden = false; a.textContent = "Se alla i " + s.name; a.href = "#bilder-" + s.id; }
     else { $("capT").textContent = ""; $("capE").textContent = ""; }
-    let room = -1; for (const r of roomBtns) if (r.i <= i) room = r.i; roomBtns.forEach((r) => r.b.classList.toggle("on", r.i === room && s.kind !== "outro"));
+    let room = -1; for (const r of roomBtns) if (r.i <= i) room = r.i; roomBtns.forEach((r) => r.b.classList.toggle("on", r.i === room));
   }
   function fire() { if (!still) { shutter.classList.remove("fire"); void shutter.offsetWidth; shutter.classList.add("fire"); } click(); }
 
-  // bilden i full storlek
-  let at = 0;
-  function paint() { const p = journey[at].p; $("viewImg").src = p.src; $("viewImg").alt = p.title; $("viewTitle").textContent = p.title; $("viewMeta").textContent = journey[at].room; }
-  function openView(s) { at = journey.indexOf(s); if (at < 0) return; paint(); if (view.showModal) view.showModal(); else view.setAttribute("open", ""); }
-  function step(d) { at = (at + d + journey.length) % journey.length; paint(); }
-  $("viewClose").addEventListener("click", () => view.close());
-  $("viewPrev").addEventListener("click", () => step(-1));
-  $("viewNext").addEventListener("click", () => step(1));
-  view.addEventListener("keydown", (e) => { if (e.key === "ArrowLeft") step(-1); else if (e.key === "ArrowRight") step(1); });
-  view.addEventListener("click", (e) => { if (e.target === view || e.target.classList.contains("pic")) view.close(); });
-  view.addEventListener("close", () => goTo(journey[at].q.i)); // tillbaka i rummet står man framför bilden man sist såg
+  // bilden i full storlek: samma visning som galleriet längre ner (window.visaBild i index.html), och man bläddrar bland bilderna i Sökaren
+  function openView(s) { const list = journey.map((x) => x.p), i = list.indexOf(s.p); if (i >= 0 && window.visaBild) window.visaBild(list, i); }
   $("capOpen").addEventListener("click", () => { if (cur >= 0 && stops[cur].kind === "photo") openView(stops[cur]); });
-  $("stops").addEventListener("click", (e) => { if (e.target.closest("a, button")) return; if (cur >= 0 && wasLock && stops[cur].kind === "photo") openView(stops[cur]); });
+  canvas.addEventListener("click", () => { if (cur >= 0 && wasLock && stops[cur].kind === "photo") openView(stops[cur]); });
+
+  // scrollen fäster vid varje bild, men bara här uppe. Länkar längre ner på sidan (Om, Kontakt …) ska inte fastna på vägen.
+  const html = document.documentElement; let free = 0;
+  document.addEventListener("click", (e) => { const a = e.target.closest('a[href^="#"]'); if (a && !root.contains(a)) { free = performance.now() + 1500; html.classList.remove("sok-snap"); } }, true);
 
   /* ================= bildrutan ================= */
-  let tS = scrollY / stopH(), last = performance.now(), pmx = 0, pmy = 0, ema = 16, slowFor = 0;
+  let tS = clamp((scrollY - rootTop()) / stopH(), 0, N - 1), active = true, last = performance.now(), pmx = 0, pmy = 0, ema = 16, slowFor = 0;
   const order = [];
   function frame(now) {
+    if (dead) return;
     requestAnimationFrame(frame);
     const dt = Math.min(.1, (now - last) / 1000); last = now;
+    const H0 = stopH(), rel = scrollY - rootTop(), end = (N - 1) * H0;
+    html.classList.toggle("sok-snap", !still && rel < end + H0 - 2 && now > free);
+    active = rel < end + H0 + 4; // scenen syns: annars ritas ingenting
+    if (!active) return;
     ema += (dt * 1000 - ema) * .05; if (ema > 36 && dpr > 1) { slowFor += dt; if (slowFor > 2) { maxDpr = 1; slowFor = 0; resize(); } } else slowFor = 0; // hackar det: rita i lägre upplösning
     // scrollen stannar upp vid varje bild: runt ett stopp står kameran still (HOLD), och rör sig bara i mellanrummet
-    const raw = clamp(scrollY / stopH(), 0, N - 1), stop = Math.round(raw), d = raw - stop, t = stop + Math.sign(d) * .5 * sstep(HOLD, .5, Math.abs(d));
+    const raw = clamp(rel / H0, 0, N - 1), stop = Math.round(raw), d = raw - stop, t = stop + Math.sign(d) * .5 * sstep(HOLD, .5, Math.abs(d));
     tS = still ? t : tS + (t - tS) * (1 - Math.exp(-dt * 7));
     pmx += (mx - pmx) * (1 - Math.exp(-dt * 3)); pmy += (my - pmy) * (1 - Math.exp(-dt * 3));
 
@@ -245,8 +248,8 @@
     if (near !== cur) { const before = cur; cur = near; caption(near); if (before >= 0 && s.kind === "room") fire(); }
     const isLock = lock > .6 && (s.kind === "photo" || s.kind === "room");
     if (isLock !== wasLock || reticle.dataset.k !== s.kind) { wasLock = isLock; reticle.dataset.k = s.kind; reticle.classList.toggle("lock", isLock && s.kind === "photo"); reticle.classList.toggle("off", s.kind !== "photo");
-      stops.forEach((x) => { if (x.el) x.el.classList.toggle("sharp", x === s && isLock); }); }
-    const op = s.kind === "intro" || s.kind === "outro" ? 0 : Math.round(lock * 20) / 20; if (op !== shownOpacity) { shownOpacity = op; cap.style.opacity = op; cap.style.visibility = op ? "visible" : "hidden"; }
+      stage.classList.toggle("sharp", isLock && s.kind === "photo"); }
+    const op = s.kind === "intro" ? 0 : Math.round(lock * 20) / 20; if (op !== shownOpacity) { shownOpacity = op; cap.style.opacity = op; cap.style.visibility = op ? "visible" : "hidden"; }
     mark.style.top = tS / (N - 1) * 100 + "%";
 
     // hämta bilderna runt omkring, och släpp dem som ligger långt bort

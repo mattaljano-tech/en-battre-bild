@@ -18,9 +18,10 @@ function buildNaturen() {
     planar({ O: [s.x1, H, s.z1], U: [-1, 0, 0], V: [0, 1, 0], lu: w, lv: dh, map: tx.ceil, tu: 3, tv: 3, res: 10 });
     planar({ O: [s.x0, H, s.z1], U: [0, 0, -1], V: [0, 1, 0], lu: d, lv: dh, map: tx.ceil, tu: 3, tv: 3, res: 10 });
     planar({ O: [s.x1, H, s.z0], U: [0, 0, 1], V: [0, 1, 0], lu: d, lv: dh, map: tx.ceil, tu: 3, tv: 3, res: 10 });
-    const glass = new THREE.Mesh(new THREE.PlaneGeometry(w, d), new THREE.MeshBasicMaterial({ color: new THREE.Color(2.3, 2.5, 2.8) })); glass.rotation.x = Math.PI / 2; glass.position.set((s.x0 + s.x1) / 2, NAT.TOP, (s.z0 + s.z1) / 2); scene.add(glass);
+    const glass = new THREE.Mesh(new THREE.PlaneGeometry(w, d), new THREE.MeshBasicMaterial({ color: REGN ? new THREE.Color(1.5, 1.6, 1.75) : new THREE.Color(2.3, 2.5, 2.8) })); glass.rotation.x = Math.PI / 2; glass.position.set((s.x0 + s.x1) / 2, NAT.TOP, (s.z0 + s.z1) / 2); scene.add(glass);
     for (let k = 1; k < w / NAT.PX - .01; k++) prop(new THREE.BoxGeometry(.07, .08, d, 1, 1, 4), { color: 0xe8e6e0 }, new V3(s.x0 + k * NAT.PX, NAT.TOP - .04, (s.z0 + s.z1) / 2), null, { shadow: false });
     for (let k = 1; k < d / NAT.PZ - .01; k++) prop(new THREE.BoxGeometry(w, .08, .07, 4, 1, 1), { color: 0xe8e6e0 }, new V3((s.x0 + s.x1) / 2, NAT.TOP - .04, s.z0 + k * NAT.PZ), null, { shadow: false });
+    if (REGN) return; // mulet: inga solstrålar
     // solstrålen genom luften: ett genomskinligt prisma från fönstret ner till golvet
     const k = H / SUN[1], off = [-SUN[0] * k, -H, -SUN[2] * k];
     const top = [[s.x0, H, s.z0], [s.x1, H, s.z0], [s.x1, H, s.z1], [s.x0, H, s.z1]], bot = top.map((p) => [p[0] + off[0], .02, p[2] + off[2]]);
@@ -47,5 +48,7 @@ function buildNaturen() {
   buildStands("naturen", 0xdedad2);
   opening({ C: [0, 0, CL], N: [0, 0, -1], U: [-1, 0, 0], w: 1.2, h: 2.2, to: "staden", sign: ["01  STADEN", "TILLBAKA"], glow: new THREE.Color(.35, .85, .8) });
   opening({ C: [X, 0, -17.5], N: [-1, 0, 0], U: [0, 0, 1], w: 1.6, h: 2.8, to: "berattelser", sign: ["03  BERÄTTELSER", "GÅ VIDARE"], glow: new THREE.Color(1.05, 1.0, .9) });
-  return { dust: shaftPts };
+  // regn på takfönstren: dropparna ligger kvar på glaset
+  const rain = REGN ? rainPanes(NAT.SK.map((s, i) => ({ w: s.x1 - s.x0, h: s.z1 - s.z0, pos: [(s.x0 + s.x1) / 2, NAT.TOP - .012, (s.z0 + s.z1) / 2], rot: [Math.PI / 2, 0, 0], seed: 61 + i * 10 }))) : null;
+  return { dust: shaftPts, update: rain };
 }

@@ -34,14 +34,15 @@
     const canvas = document.createElement("canvas"), gl = canvas.getContext("webgl2", { xrCompatible: true, alpha: true, antialias: true });
     if (!gl) throw new Error("webgl2");
     ui.hidden = false;
-    try { session = await navigator.xr.requestSession("immersive-ar", { requiredFeatures: ["hit-test", "local"], optionalFeatures: ["dom-overlay"], domOverlay: { root: ui } }); }
-    catch (e) { ui.hidden = true; throw e; }
+    // djupmätning (depth-sensing): telefonen mäter avståndet till det den ser, också på släta väggar där den inte hittar någon yta
+    const base = { requiredFeatures: ["hit-test", "local"], domOverlay: { root: ui } };
+    try { session = await navigator.xr.requestSession("immersive-ar", Object.assign({ optionalFeatures: ["dom-overlay", "depth-sensing"], depthSensing: { usagePreference: ["cpu-optimized"], dataFormatPreference: ["luminance-alpha", "float32"] } }, base)); }
+    catch (e) { try { session = await navigator.xr.requestSession("immersive-ar", Object.assign({ optionalFeatures: ["dom-overlay"] }, base)); } catch (e2) { ui.hidden = true; throw e2; } }
     if (gl.makeXRCompatible) await gl.makeXRCompatible();
     session.updateRenderState({ baseLayer: new XRWebGLLayer(session, gl) });
     const ref = await session.requestReferenceSpace("local"), viewer = await session.requestReferenceSpace("viewer");
     let hits = null;
-    try { hits = await session.requestHitTestSource({ space: viewer, entityTypes: ["plane", "point"] }); }
-    catch (e) { try { hits = await session.requestHitTestSource({ space: viewer }); } catch (e2) { hits = null; } }
+    try { hits = await session.requestHitTestSource({ space: viewer }); } catch (e) { hits = null; } // bara ytor telefonen själv har hittat
 
     // rita
     const sh = (type, src) => { const s = gl.createShader(type); gl.shaderSource(s, "#version 300 es\nprecision highp float;\n" + src); gl.compileShader(s); return s; };
@@ -62,6 +63,31 @@
 
     // väggen: mittpunkt O, och n som pekar från väggen ut i rummet (alltid vågrät). Upp är alltid rakt upp.
     let O = [0, 0, -1.8], n = [0, 0, 1], placed = false, found = false, dist = 1.8, mpp = .002, lastText = "";
+    let wn = null, wk = 0, wallAt = -1e9, t0 = -1; // väggen enligt djupmätningen: normal, läge och när den senast sågs
+
+    // Mät väggen: avståndet i en vågrät rad mitt i bilden blir punkter i rummet, sedda uppifrån. En rät linje genom dem är väggen.
+    // Ger { n, k } (väggens normal mot kameran och dess läge) när punkterna ligger i linje, annars bara { d } (avståndet rakt fram).
+    function measure(xf, view) {
+      let di = null; try { di = xf.getDepthInformation ? xf.getDepthInformation(view) : null; } catch (e) { di = null; }
+      if (!di) return null;
+      const P = view.projectionMatrix, c = view.transform.matrix; let pts = [], mid = 0;
+      for (let i = 0; i < 15; i++) { const x = .15 + i * .05; let d = 0; try { d = di.getDepthInMeters(x, .5); } catch (e) { d = 0; }
+        if (!(d > .3 && d < 8)) continue; if (i === 7) mid = d;
+        const xv = (2 * x - 1 + P[8]) / P[0] * d, yv = P[9] / P[5] * d;
+        pts.push([c[0] * xv + c[4] * yv - c[8] * d + c[12], c[2] * xv + c[6] * yv - c[10] * d + c[14]]); }
+      if (pts.length < 7) return mid ? { d: mid } : null;
+      let fit = null;
+      for (let pass = 0; pass < 2; pass++) { // andra varvet utan punkter som sticker ut (en lampa, en dörrkarm)
+        let mx = 0, mz = 0; for (const p of pts) { mx += p[0]; mz += p[1]; } mx /= pts.length; mz /= pts.length;
+        let sxx = 0, szz = 0, sxz = 0; for (const p of pts) { const a = p[0] - mx, b = p[1] - mz; sxx += a * a; szz += b * b; sxz += a * b; }
+        const ang = .5 * Math.atan2(2 * sxz, sxx - szz), nx = -Math.sin(ang), nz = Math.cos(ang); // normalen är vinkelrät mot linjen
+        const res = pts.map((p) => (p[0] - mx) * nx + (p[1] - mz) * nz), rms = Math.sqrt(res.reduce((q, r) => q + r * r, 0) / pts.length);
+        fit = { nx, nz, mx, mz, rms };
+        const keep = pts.filter((p, i) => Math.abs(res[i]) < Math.max(.04, 2 * rms)); if (keep.length < 7 || keep.length === pts.length) break; pts = keep; }
+      if (fit.rms > .06) return mid ? { d: mid } : null;
+      let nx = fit.nx, nz = fit.nz; if ((c[12] - fit.mx) * nx + (c[14] - fit.mz) * nz < 0) { nx = -nx; nz = -nz; } // mot kameran
+      return { n: [nx, 0, nz], k: nx * fit.mx + nz * fit.mz, d: mid };
+    }
     const say = (t) => { if (t !== lastText) { lastText = t; $("xrHint").textContent = t; } };
     const setPlaced = (v) => { placed = v; $("xrPlace").textContent = v ? "Flytta" : "Häng här"; ui.classList.toggle("placed", v); };
     setPlaced(false);
@@ -95,22 +121,31 @@
     }
     const cube = () => gl.drawElements(gl.TRIANGLES, 36, gl.UNSIGNED_SHORT, 0), quad = () => gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 72);
 
+    window.__vaggDebug = () => ({ found, dist: +dist.toFixed(2), yaw: +(Math.atan2(n[0], n[2]) * 180 / Math.PI).toFixed(1), O: O.map((v) => +v.toFixed(2)) }); // för felsökning
     session.requestAnimationFrame(function frame(time, xf) {
       if (!session) return; session.requestAnimationFrame(frame);
       const pose = xf.getViewerPose(ref), layer = session.renderState.baseLayer; if (!pose) return;
       const cm = pose.transform.matrix, cam = [cm[12], cm[13], cm[14]], fwd = [-cm[8], -cm[9], -cm[10]];
       if (!placed) {
-        // mot kameran, vågrätt: gäller när väggen inte hittas eller när träffen inte säger hur väggen är vriden
+        if (t0 < 0) t0 = time;
+        // mot kameran, vågrätt: gäller när väggen inte hittas
         let facing = norm([-fwd[0], 0, -fwd[2]]); if (Math.abs(fwd[1]) > .95) facing = n;
-        const res = hits ? xf.getHitTestResults(hits) : [], hp = res.length ? res[0].getPose(ref) : null;
         found = false;
-        if (hp) { const m = hp.transform.matrix, hn = [m[4], m[5], m[6]], p = [m[12], m[13], m[14]], d = Math.hypot(p[0] - cam[0], p[1] - cam[1], p[2] - cam[2]);
-          if (d > .3 && d < 8) { dist = d; O = p;
-            if (Math.abs(hn[1]) < .35) { n = norm([hn[0], 0, hn[2]]); if (n[0] * facing[0] + n[2] * facing[2] < 0) n = [-n[0], 0, -n[2]]; found = true; } else n = facing; } }
-        if (!hp || !(dist > .3)) { n = facing; }
-        if (!hp) O = [cam[0] + fwd[0] * dist, cam[1] + fwd[1] * dist, cam[2] + fwd[2] * dist];
-        say(found ? "Väggen är hittad. Tryck på Häng här." : "Stå rakt framför väggen och sikta mot den. Tryck på Häng här och justera sedan med knapparna.");
-      } else say("Dra för att flytta. Vrid och skjut tavlorna mot väggen med knapparna.");
+        // 1. djupmätningen: fungerar även på släta väggar
+        const m = measure(xf, pose.views[0]);
+        if (m && m.n) { if (wn && time - wallAt < 1500) { wn = norm([wn[0] + (m.n[0] - wn[0]) * .25, 0, wn[2] + (m.n[2] - wn[2]) * .25]); wk += (m.k - wk) * .25; } else { wn = m.n; wk = m.k; } wallAt = time; }
+        if (wn && time - wallAt < 1500) { const den = fwd[0] * wn[0] + fwd[2] * wn[2], t = (wk - cam[0] * wn[0] - cam[2] * wn[2]) / den;
+          if (den < -.2 && t > .3 && t < 8) { O = [cam[0] + fwd[0] * t, cam[1] + fwd[1] * t, cam[2] + fwd[2] * t]; n = wn; dist = t; found = true; } }
+        // 2. en yta som telefonen själv har hittat
+        if (!found) { const res = hits ? xf.getHitTestResults(hits) : [], hp = res.length ? res[0].getPose(ref) : null;
+          if (hp) { const h = hp.transform.matrix, hn = [h[4], h[5], h[6]], p = [h[12], h[13], h[14]], d = Math.hypot(p[0] - cam[0], p[1] - cam[1], p[2] - cam[2]);
+            if (d > .3 && d < 8 && Math.abs(hn[1]) < .35) { dist = d; O = p; n = norm([hn[0], 0, hn[2]]); if (n[0] * facing[0] + n[2] * facing[2] < 0) n = [-n[0], 0, -n[2]]; found = true; } } }
+        // 3. ingen vägg: rakt framför kameran, på det avstånd djupmätningen ger (om den ger något)
+        if (!found) { if (m && m.d) dist += (m.d - dist) * .3; n = facing; O = [cam[0] + fwd[0] * dist, cam[1] + fwd[1] * dist, cam[2] + fwd[2] * dist]; }
+        say(found ? "Väggen är hittad. Sikta dit tavlorna ska hänga och tryck på Häng här."
+          : time - t0 < 7000 ? "Letar efter väggen … Rör mobilen långsamt i sidled, en halv meter räcker."
+          : "Hittar inte väggen. Stå rakt framför den, tryck på Häng här och justera med knapparna.");
+      } else say("Dra för att flytta tavlorna. Knapparna finjusterar om något hamnat snett.");
 
       gl.bindFramebuffer(gl.FRAMEBUFFER, layer.framebuffer); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
       gl.enable(gl.DEPTH_TEST); gl.enable(gl.CULL_FACE); gl.useProgram(prog); gl.bindVertexArray(vao); gl.uniform1i(U.uT, 0); gl.activeTexture(gl.TEXTURE0);

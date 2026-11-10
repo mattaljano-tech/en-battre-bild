@@ -173,6 +173,23 @@ dialog.view::backdrop { background: rgba(4,5,5,.97); }
 .view .nav { display: flex; gap: 6px; flex: none; }
 .view button { font: inherit; font-size: 15px; font-weight: 500; padding: 9px 14px; border: 1px solid var(--line); background: rgba(7,9,9,.7); color: var(--paper); cursor: pointer; }
 .view button:hover { border-color: var(--paper); }
+.view figcaption { flex-wrap: wrap; }
+.view .nav .wall { border-color: var(--sodium); color: var(--sodium); }
+/* tavlan på väggen: fotot som inramad tavla i 3D, och i mobilen på den egna väggen genom kameran */
+dialog.ar { width: 100vw; height: 100vh; height: 100dvh; max-width: none; max-height: none; margin: 0; padding: 0; border: 0; background: #141817; color: var(--paper); }
+dialog.ar[open] { display: grid; grid-template-rows: minmax(0, 1fr) auto; }
+.ar .stage { min-height: 0; position: relative; background: radial-gradient(ellipse at 50% 40%, #2a302e 0%, #141817 70%); }
+.ar model-viewer { width: 100%; height: 100%; --poster-color: transparent; }
+.ar model-viewer::part(default-ar-button) { display: none; }
+.ar .wait { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; text-align: center; color: var(--dim); }
+.ar .bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px 28px; padding: 16px var(--gutter) calc(18px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--line); background: var(--ink); }
+.ar .t { font-family: var(--font-display); font-weight: 800; font-size: 30px; line-height: 1; text-transform: uppercase; }
+.ar .e { color: var(--dim); font-size: 14px; margin-top: 6px; max-width: 46ch; }
+.ar .pick { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.ar .pick button { font: inherit; font-size: 15px; font-weight: 500; padding: 9px 14px; border: 1px solid var(--line); background: transparent; color: var(--paper); cursor: pointer; }
+.ar .pick button[aria-pressed="true"] { background: var(--paper); color: var(--ink); border-color: var(--paper); }
+.ar .pick .btn { margin-left: 8px; padding: 10px 16px; font-size: 15px; }
+.ar .close { position: absolute; z-index: 2; top: calc(12px + env(safe-area-inset-top, 0px)); right: var(--gutter); font: inherit; font-size: 15px; font-weight: 500; padding: 9px 14px; border: 1px solid var(--line); background: rgba(7,9,9,.7); color: var(--paper); cursor: pointer; }
 .view .close { position: absolute; top: calc(12px + env(safe-area-inset-top, 0px)); right: var(--gutter); }
 </style>
 </head>
@@ -265,11 +282,24 @@ dialog.view::backdrop { background: rgba(4,5,5,.97); }
     <figcaption>
       <div><div class="t" id="viewTitle"></div><div class="e" id="viewMeta"></div></div>
       <div class="nav">
+        <button type="button" class="wall" id="viewWall">Se den på din vägg</button>
         <button type="button" id="viewPrev" aria-label="Föregående bild">←</button>
         <button type="button" id="viewNext" aria-label="Nästa bild">→</button>
       </div>
     </figcaption>
   </figure>
+</dialog>
+
+<dialog class="ar" id="ar" aria-labelledby="arT">
+  <button type="button" class="close" id="arClose">Stäng</button>
+  <div class="stage" id="arStage"><p class="wait" id="arWait">Hämtar tavlan …</p></div>
+  <div class="bar">
+    <div><div class="t" id="arT"></div><div class="e" id="arE"></div></div>
+    <div class="pick">
+      <span id="arSizes" role="group" aria-label="Storlek" style="display:contents"></span>
+      <button type="button" class="btn lamp" id="arGo" hidden>Visa på min vägg</button>
+    </div>
+  </div>
 </dialog>
 
 <script src="js/foton.js"></script>
@@ -345,6 +375,38 @@ dialog.view::backdrop { background: rgba(4,5,5,.97); }
   $("viewNext").addEventListener("click", () => step(1));
   view.addEventListener("keydown", (e) => { if (e.key === "ArrowLeft") step(-1); else if (e.key === "ArrowRight") step(1); });
   view.addEventListener("click", (e) => { if (e.target === view || e.target.classList.contains("pic")) view.close(); });
+  // Se den på din vägg: fotot som inramad tavla i 3D (modellerna i ar/ görs av tools/ar-modeller.py).
+  // I mobilen kan tavlan ställas på den egna väggen genom kameran, i rätt storlek. Visningen sköts av Googles model-viewer.
+  const PRINT_SIZES = [40, 60, 90]; // fotots långsida i cm. Ska stämma med STORLEKAR i tools/ar-modeller.py.
+  const MV = "https://cdn.jsdelivr.net/npm/@google/model-viewer@3.5.0/dist/model-viewer.min.js";
+  const arD = $("ar"); let mv = null, mvReady = null, arP = null, arCm = 60;
+  const loadMV = () => mvReady || (mvReady = new Promise((ok, fail) => { const sc = document.createElement("script"); sc.type = "module"; sc.src = MV; sc.onload = ok; sc.onerror = fail; document.head.append(sc); })
+    .then(() => customElements.whenDefined("model-viewer")).catch((e) => { mvReady = null; throw e; }));
+  function arSize(cm) {
+    arCm = cm; const a = ar(arP), other = Math.round(cm * Math.min(a, 1 / a)), w = a >= 1 ? cm : other, h = a >= 1 ? other : cm;
+    const pp = Math.min(8, Math.max(4, .12 * Math.min(w, h))), full = (x) => Math.round(x + 2 * pp + 4);
+    $("arE").textContent = "Foto " + w + " × " + h + " cm. Med passepartout och ram blir tavlan ungefär " + full(w) + " × " + full(h) + " cm.";
+    $("arSizes").querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(+b.dataset.cm === cm)));
+    if (mv) mv.src = p2ar(arP.src, cm);
+  }
+  const p2ar = (src, cm) => src.replace(/^img\/([^/]+)\.\w+$/, "ar/$1-" + cm + ".gltf");
+  function openWall(p) {
+    arP = p; $("arT").textContent = p.title; $("arWait").hidden = false; $("arWait").textContent = "Hämtar tavlan …"; $("arGo").hidden = true;
+    if (!$("arSizes").firstChild) PRINT_SIZES.forEach((cm) => { const b = document.createElement("button"); b.type = "button"; b.dataset.cm = cm; b.textContent = cm + " cm"; b.addEventListener("click", () => arSize(cm)); $("arSizes").append(b); });
+    arSize(arCm); if (arD.showModal) arD.showModal(); else arD.setAttribute("open", "");
+    loadMV().then(() => {
+      if (!mv) { mv = document.createElement("model-viewer");
+        for (const [k, v] of Object.entries({ ar: "", "ar-modes": "webxr scene-viewer quick-look", "ar-placement": "wall", "ar-scale": "fixed", "camera-controls": "", "interaction-prompt": "none", "shadow-intensity": ".6", "camera-orbit": "25deg 82deg auto", "touch-action": "none", alt: "Fotot som inramad tavla" })) mv.setAttribute(k, v);
+        mv.addEventListener("load", () => { $("arWait").hidden = true; $("arGo").hidden = !mv.canActivateAR;
+          if (!mv.canActivateAR) $("arE").textContent += " Öppna sidan i mobilen för att se tavlan på din egen vägg."; });
+        mv.addEventListener("error", () => { $("arWait").hidden = false; $("arWait").textContent = "Tavlan gick inte att visa."; });
+        $("arStage").append(mv); }
+      mv.src = p2ar(arP.src, arCm);
+    }, () => { $("arWait").textContent = "Det gick inte att hämta väggvisningen. Kontrollera uppkopplingen och försök igen."; });
+  }
+  $("viewWall").addEventListener("click", () => { if (shown[at]) openWall(shown[at]); });
+  $("arGo").addEventListener("click", () => { if (mv && mv.canActivateAR) mv.activateAR(); });
+  $("arClose").addEventListener("click", () => arD.close());
   let sx = null; // svep åt sidan på mobilen
   view.addEventListener("touchstart", (e) => { sx = e.touches[0].clientX; }, { passive: true });
   view.addEventListener("touchend", (e) => { if (sx === null) return; const dx = e.changedTouches[0].clientX - sx; sx = null; if (Math.abs(dx) > 50) step(dx < 0 ? 1 : -1); });

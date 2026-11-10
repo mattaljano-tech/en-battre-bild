@@ -26,3 +26,4 @@ Andra grenar får en egen förhandsadress (`<gren>.en-battre-bild.pages.dev`) at
 Lägg bilden i `public/img/` och fyll i `src` och `title` för platsen i `PHOTOS` i `public/js/foton.js`.
 Bilden syns då både i showroomet och i galleriet på startsidan.
 Kör sedan `python3 tools/sma-bilder.py` (kräver Pillow), som gör de mindre versionerna i `public/img/640/` och `public/img/1200/` som galleriet laddar. Utan dem används originalet.
+Kör också `python3 tools/ar-modeller.py`, som gör tavlorna i `public/ar/` till "Se den på din vägg" (en liten modell per foto och storlek; storlekarna ska stämma med `PRINT_SIZES` i `index.html`).

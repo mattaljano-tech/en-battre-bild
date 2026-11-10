@@ -28,7 +28,8 @@
 
   let session = null;
   // items: [{ src, x, y, d: { w, h, W, H, OW, OH } }] i meter, från layout() i vagg.js
-  async function start(items) {
+  // onEnd anropas när kameraläget stängs
+  async function start(items, onEnd) {
     if (session) return;
     const canvas = document.createElement("canvas"), gl = canvas.getContext("webgl2", { xrCompatible: true, alpha: true, antialias: true });
     if (!gl) throw new Error("webgl2");
@@ -84,7 +85,7 @@
       $("xrPlace").removeEventListener("click", onPlace); $("xrClose").removeEventListener("click", onClose); for (const k in steps) $(k).removeEventListener("click", steps[k]);
       ui.querySelectorAll("button").forEach((b) => b.removeEventListener("beforexrselect", noSelect));
       ui.removeEventListener("pointerdown", down); ui.removeEventListener("pointermove", move); ui.removeEventListener("pointerup", up); ui.removeEventListener("pointercancel", up);
-      ui.hidden = true; session = null;
+      ui.hidden = true; session = null; if (onEnd) onEnd();
     });
 
     function node(PV, R, tx, ty, tz, sx, sy, sz) { // lokalt: flytta och skala. Sedan ut på väggen: x längs väggen, y upp, z ut i rummet.

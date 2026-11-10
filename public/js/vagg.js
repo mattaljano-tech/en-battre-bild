@@ -113,7 +113,10 @@
   function show() { picker.hidden = true; if (!dlg.open) { if (dlg.showModal) dlg.showModal(); else dlg.setAttribute("open", ""); } render(); if (!wall.length) pick(); }
   $("arGo").addEventListener("click", () => {
     const other = () => { if (mv && mv.canActivateAR) mv.activateAR(); };
-    if (xrOK && wall.length) window.vaggAR.start(layout().items.map((it) => ({ src: it.p.src, x: it.x, y: it.y, d: it.d }))).catch(other); else other();
+    if (!(xrOK && wall.length)) return other();
+    // rutan måste stängas medan kameran är igång: en öppen ruta spärrar allt utanför sig, också knapparna ovanpå kamerabilden
+    dlg.close();
+    window.vaggAR.start(layout().items.map((it) => ({ src: it.p.src, x: it.x, y: it.y, d: it.d })), show).catch(() => { show(); other(); });
   });
   $("arClose").addEventListener("click", () => dlg.close());
   // knappen på sidan visar hur många bilder som ligger på väggen

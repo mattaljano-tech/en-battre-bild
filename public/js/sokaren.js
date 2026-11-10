@@ -16,6 +16,7 @@
   const D = 5;        // avståndet där bilden är skarp
   const S = 3.6;      // avståndet mellan två bilder i djupled
   const K = .085;     // bländaren: större tal ger mer oskärpa
+  const HOLD = .3;    // hur stor del av scrollen kring varje bild som bilden står kvar i skärpa (0 = inte alls, .5 = hela)
   const PER = 6;      // bilder per rum på den här sidan (resten finns på den enkla sidan)
   const HERO = "perrongen"; // bilden bakom rubriken på första skärmen
   const MAXT = touch ? 1024 : 1440; // största sidan på en bild i grafikminnet
@@ -133,7 +134,7 @@
   // ljusprickarna: utspridda längs hela vägen, i gatlyktans, neonens och papprets färg
   const specks = []; { let seed = 7; const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
     const cols = [[1, .66, .3], [.34, .8, .76], [.92, .9, .86], [1, .5, .2]];
-    for (let i = 0; i < (touch ? 2 : 3) * N; i++) specks.push({ x: (rnd() * 2 - 1), y: (rnd() * 2 - 1), z: D - rnd() * (N * S + D), col: cols[(rnd() * cols.length) | 0], k: .35 + rnd() * .65, ph: rnd() * 6.28 }); }
+    for (let i = 0; i < (touch ? 1 : 2) * N; i++) specks.push({ x: (rnd() * 2 - 1), y: (rnd() * 2 - 1), z: D - rnd() * (N * S + D), col: cols[(rnd() * cols.length) | 0], k: .35 + rnd() * .65, ph: rnd() * 6.28 }); }
 
   /* ================= storlek och placering ================= */
   let W = 1, H = 1, cssW = 1, cssH = 1, dpr = 1, maxDpr = touch ? 1.5 : 2, viewW = 1, viewH = 1, fbo = null, fboTex = null;
@@ -161,7 +162,7 @@
   addEventListener("resize", resize); resize();
 
   /* ================= regnet på linsen ================= */
-  const drops = [], MAXDROPS = touch ? 14 : 24;
+  const drops = [], MAXDROPS = touch ? 8 : 14;
   function rain(dt) {
     if (drops.length < MAXDROPS && Math.random() < dt * (drops.length < 6 ? 5 : 1.1)) drops.push({ x: Math.random(), y: Math.random() * .92, r: .012 + Math.pow(Math.random(), 2.2) * .038, a: 0, vy: 0, wait: 2 + Math.random() * 9, dead: false });
     const unit = Math.min(cssW, cssH);
@@ -234,7 +235,8 @@
     requestAnimationFrame(frame);
     const dt = Math.min(.1, (now - last) / 1000); last = now;
     ema += (dt * 1000 - ema) * .05; if (ema > 36 && dpr > 1) { slowFor += dt; if (slowFor > 2) { maxDpr = 1; slowFor = 0; resize(); } } else slowFor = 0; // hackar det: rita i lägre upplösning
-    const t = clamp(scrollY / stopH(), 0, N - 1);
+    // scrollen stannar upp vid varje bild: runt ett stopp står kameran still (HOLD), och rör sig bara i mellanrummet
+    const raw = clamp(scrollY / stopH(), 0, N - 1), stop = Math.round(raw), d = raw - stop, t = stop + Math.sign(d) * .5 * sstep(HOLD, .5, Math.abs(d));
     tS = still ? t : tS + (t - tS) * (1 - Math.exp(-dt * 7));
     pmx += (mx - pmx) * (1 - Math.exp(-dt * 3)); pmy += (my - pmy) * (1 - Math.exp(-dt * 3));
 

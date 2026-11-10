@@ -25,7 +25,7 @@
   --gutter: max(20px, 4vw);
   color-scheme: dark;
 }
-html { scroll-snap-type: y proximity; background: var(--ink); }
+html { scroll-snap-type: y mandatory; background: var(--ink); }
 body { margin: 0; background: var(--ink); color: var(--paper); font-family: var(--font-body); font-size: 17px; line-height: 1.5; -webkit-text-size-adjust: 100%; overflow-x: hidden; }
 a { color: inherit; }
 h1, h2 { font-family: var(--font-display); font-weight: 800; text-transform: uppercase; margin: 0; letter-spacing: .005em; }
@@ -92,7 +92,7 @@ canvas#c { position: fixed; inset: 0; width: 100%; height: 100%; display: block;
 
 /* stoppen: en skärmhöjd per bild. De är tomma, förutom första och sista */
 .stops { position: relative; z-index: 2; }
-.stops section { height: 100vh; height: 100svh; scroll-snap-align: start; }
+.stops section { height: 100vh; height: 100svh; scroll-snap-align: start; scroll-snap-stop: always; } /* always: det går inte att svepa förbi en bild */
 .stops section.photo.sharp { cursor: zoom-in; }
 .intro, .outro { display: flex; align-items: flex-end; padding: 120px var(--gutter) calc(48px + env(safe-area-inset-bottom, 0px)); }
 .intro .in { display: grid; gap: 18px; max-width: 100%; }

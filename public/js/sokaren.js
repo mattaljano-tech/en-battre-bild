@@ -20,7 +20,7 @@
   const S = 3.6;      // avståndet mellan två bilder i djupled
   const K = .085;     // bländaren: större tal ger mer oskärpa
   const HOLD = .3;    // hur stor del av scrollen kring varje bild som bilden står kvar i skärpa (0 = inte alls, .5 = hela)
-  const PER = 6;      // bilder per rum på den här sidan (resten finns på den enkla sidan)
+  const URVAL = ["gloden", "klippan", "azizam", "taggen"]; // bilderna i Sökaren, i den här ordningen (namnen i foton.js). Alla bilder finns i galleriet längre ner.
   const HERO = "perrongen"; // bilden bakom rubriken på första skärmen
   const MAXT = touch ? 1024 : 1440; // största sidan på en bild i grafikminnet
   const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
@@ -33,12 +33,8 @@
   const all = Object.keys(PHOTOS).map((key) => Object.assign({ key }, PHOTOS[key])).filter((p) => p.src);
   const AR = typeof FOTOMATT === "object" ? FOTOMATT : {};
   const stops = [{ kind: "intro" }];
-  for (const [name, id] of ROOMS) {
-    const list = all.filter((p) => group(p) === name), pick = list.filter((p) => p.key !== HERO).slice(0, PER);
-    if (!pick.length) continue;
-    stops.push({ kind: "room", name, id, count: list.length });
-    pick.forEach((p, k) => stops.push({ kind: "photo", p, room: name, k, n: pick.length }));
-  }
+  { const pick = URVAL.map((key) => all.find((p) => p.key === key)).filter(Boolean);
+    pick.forEach((p, k) => stops.push({ kind: "photo", p, room: group(p), k, n: pick.length })); }
   const N = stops.length, journey = stops.filter((s) => s.kind === "photo");
 
   // ett tomt avsnitt per stopp, så att sidan går att scrolla och skärmläsare får en lista
@@ -211,7 +207,7 @@
   function caption(i) {
     const s = stops[i]; $("capOpen").hidden = true; $("capAll").hidden = true;
     if (s.kind === "photo") { $("capT").textContent = s.p.title; $("capE").textContent = s.room + ", bild " + (s.k + 1) + " av " + s.n; $("capOpen").hidden = false; }
-    else if (s.kind === "room") { $("capT").textContent = ""; $("capE").textContent = s.count + " bilder, här visas " + Math.min(PER, s.count); const a = $("capAll"); a.hidden = false; a.textContent = "Se alla i " + s.name; a.href = "#bilder-" + s.id; }
+    else if (s.kind === "room") { $("capT").textContent = ""; $("capE").textContent = s.count + " bilder"; const a = $("capAll"); a.hidden = false; a.textContent = "Se alla i " + s.name; a.href = "#bilder-" + s.id; }
     else { $("capT").textContent = ""; $("capE").textContent = ""; }
     let room = -1; for (const r of roomBtns) if (r.i <= i) room = r.i; roomBtns.forEach((r) => r.b.classList.toggle("on", r.i === room));
   }

@@ -189,6 +189,14 @@ dialog.ar[open] { display: grid; grid-template-rows: minmax(0, 1fr) auto; }
 .ar .pick button { font: inherit; font-size: 15px; font-weight: 500; padding: 9px 14px; border: 1px solid var(--line); background: transparent; color: var(--paper); cursor: pointer; }
 .ar .pick button[aria-pressed="true"] { background: var(--paper); color: var(--ink); border-color: var(--paper); }
 .ar .pick .btn { margin-left: 8px; padding: 10px 16px; font-size: 15px; }
+.xr { position: fixed; inset: 0; z-index: 50; color: var(--paper); font-family: var(--font-body); touch-action: none; user-select: none; -webkit-user-select: none; }
+.xr .hint { position: absolute; left: 16px; right: 96px; top: calc(16px + env(safe-area-inset-top, 0px)); margin: 0; padding: 10px 12px; background: rgba(7,9,9,.72); font-size: 15px; line-height: 1.35; }
+.xr button { font: inherit; font-size: 15px; font-weight: 600; padding: 12px 14px; border: 1px solid rgba(233,230,223,.5); background: rgba(7,9,9,.72); color: var(--paper); }
+.xr .x { position: absolute; right: 16px; top: calc(16px + env(safe-area-inset-top, 0px)); }
+.xr .tools { position: absolute; left: 16px; right: 16px; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 10px; }
+.xr .adj { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; visibility: hidden; }
+.xr.placed .adj { visibility: visible; }
+.xr .btn.lamp { background: var(--sodium); border-color: var(--sodium); color: var(--ink); padding: 16px; font-size: 17px; }
 .jumprow { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px 28px; }
 .jumprow .btn { padding: 10px 16px; font-size: 15px; border-color: var(--sodium); color: var(--sodium); }
 .ar .info { flex: 1 1 280px; }
@@ -323,6 +331,21 @@ dialog.ar[open] { display: grid; grid-template-rows: minmax(0, 1fr) auto; }
   </div>
 </dialog>
 
+<!-- kameraläget på Android (js/vagg-ar.js): det här ligger ovanpå kamerabilden -->
+<div class="xr" id="xrUI" hidden>
+  <p class="hint" id="xrHint"></p>
+  <button type="button" class="x" id="xrClose">Stäng</button>
+  <div class="tools">
+    <div class="adj">
+      <button type="button" id="xrLeft" aria-label="Vrid åt vänster">⟲ Vrid</button>
+      <button type="button" id="xrRight" aria-label="Vrid åt höger">Vrid ⟳</button>
+      <button type="button" id="xrFar">Mot väggen</button>
+      <button type="button" id="xrNear">Från väggen</button>
+    </div>
+    <button type="button" class="btn lamp" id="xrPlace">Häng här</button>
+  </div>
+</div>
+
 <script src="js/foton.js"></script>
 <script src="js/fotomatt.js"></script>
 <script>
@@ -402,6 +425,7 @@ dialog.ar[open] { display: grid; grid-template-rows: minmax(0, 1fr) auto; }
   view.addEventListener("touchend", (e) => { if (sx === null) return; const dx = e.changedTouches[0].clientX - sx; sx = null; if (Math.abs(dx) > 50) step(dx < 0 ? 1 : -1); });
 })();
 </script>
+<script src="js/vagg-ar.js"></script>
 <script src="js/vagg.js"></script>
 <script src="js/sokaren.js"></script>
 </body>

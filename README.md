@@ -26,4 +26,4 @@ Andra grenar får en egen förhandsadress (`<gren>.en-battre-bild.pages.dev`) at
 Lägg bilden i `public/img/` och fyll i `src` och `title` för platsen i `PHOTOS` i `public/js/foton.js`.
 Bilden syns då både i showroomet och i galleriet på startsidan.
 Kör sedan `python3 tools/sma-bilder.py` (kräver Pillow), som gör de mindre versionerna i `public/img/640/` och `public/img/1200/` som galleriet laddar. Utan dem används originalet.
-Kör också `python3 tools/ar-modeller.py`, som gör tavlorna i `public/ar/` till "Se den på din vägg" (en liten modell per foto och storlek; storlekarna ska stämma med `SIZES` i `js/vagg.js`). Tavelväggen med flera bilder sätts ihop i webbläsaren av `js/vagg.js`.
+Kör också `python3 tools/ar-modeller.py`, som gör tavlorna i `public/ar/` till "Se den på din vägg" (en liten modell per foto och storlek; storlekarna ska stämma med `SIZES` i `js/vagg.js`). Tavelväggen med flera bilder sätts ihop i webbläsaren av `js/vagg.js`. På Android visas väggen i kameran av `js/vagg-ar.js` (WebXR, eget läge som inte kräver att telefonen hittar väggytan); iPhone använder model-viewer och AR Quick Look.

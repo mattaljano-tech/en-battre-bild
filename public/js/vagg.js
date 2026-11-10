@@ -15,7 +15,8 @@
   const stem = (src) => src.replace(/^img\/([^/]+)\.\w+$/, "$1");
   const small = (src) => src.replace(/^img\/([^/]+)\.\w+$/, "img/640/$1.webp");
 
-  let wall = [], cm = 60, mv = null, mvReady = null, turn = 0, blobUrl = null, base = null;
+  let wall = [], cm = 60, mv = null, mvReady = null, turn = 0, blobUrl = null, base = null, xrOK = false;
+  if (window.vaggAR) window.vaggAR.supported().then((ok) => { xrOK = !!ok; if (ok && dlg.open && wall.length) { $("arGo").hidden = false; $("arNote").hidden = true; } }); // Android: eget kameraläge (js/vagg-ar.js)
   try { wall = JSON.parse(localStorage.getItem("vagg") || "[]").filter(byKey).slice(0, MAX); } catch (e) { wall = []; }
   const save = () => { try { localStorage.setItem("vagg", JSON.stringify(wall)); } catch (e) { /* privat läge: väggen glöms när sidan stängs */ } };
 
@@ -82,12 +83,12 @@
     $("arT").textContent = n === 1 ? items[0].p.title : "Din vägg";
     $("arE").textContent = n === 1 ? "Foto " + cmText(d.w) + " × " + cmText(d.h) + " cm. Med passepartout och ram blir tavlan ungefär " + cmText(d.OW) + " × " + cmText(d.OH) + " cm."
       : n + " tavlor med " + cm + " cm på fotots långsida. Tillsammans tar de ungefär " + cmText(totW) + " × " + cmText(totH) + " cm av väggen.";
-    wait.hidden = false; wait.textContent = "Hämtar tavlorna …";
+    wait.hidden = false; wait.textContent = "Hämtar tavlorna …"; if (xrOK) $("arGo").hidden = false;
     loadMV().then(() => model()).then((url) => {
       if (my !== turn) return;
       if (!mv) { mv = document.createElement("model-viewer");
         for (const [k, v] of Object.entries({ ar: "", "ar-modes": "webxr scene-viewer quick-look", "ar-placement": "wall", "ar-scale": "fixed", "camera-controls": "", "interaction-prompt": "none", "shadow-intensity": ".6", "camera-orbit": "20deg 84deg auto", "touch-action": "none", alt: "Fotona som inramade tavlor" })) mv.setAttribute(k, v);
-        mv.addEventListener("load", () => { $("arWait").hidden = true; $("arGo").hidden = !mv.canActivateAR; $("arNote").hidden = mv.canActivateAR; });
+        mv.addEventListener("load", () => { $("arWait").hidden = true; $("arGo").hidden = !(xrOK || mv.canActivateAR); $("arNote").hidden = xrOK || mv.canActivateAR; });
         mv.addEventListener("error", () => { $("arWait").hidden = false; $("arWait").textContent = "Tavlorna gick inte att visa."; });
         $("arStage").append(mv); }
       mv.hidden = false; mv.src = url;
@@ -110,7 +111,10 @@
   $("arDone").addEventListener("click", () => { picker.hidden = true; render(); });
 
   function show() { picker.hidden = true; if (!dlg.open) { if (dlg.showModal) dlg.showModal(); else dlg.setAttribute("open", ""); } render(); if (!wall.length) pick(); }
-  $("arGo").addEventListener("click", () => { if (mv && mv.canActivateAR) mv.activateAR(); });
+  $("arGo").addEventListener("click", () => {
+    const other = () => { if (mv && mv.canActivateAR) mv.activateAR(); };
+    if (xrOK && wall.length) window.vaggAR.start(layout().items.map((it) => ({ src: it.p.src, x: it.x, y: it.y, d: it.d }))).catch(other); else other();
+  });
   $("arClose").addEventListener("click", () => dlg.close());
   // knappen på sidan visar hur många bilder som ligger på väggen
   function counter() { const b = $("wallOpen"); if (b) b.textContent = wall.length ? "Din tavelvägg (" + wall.length + ")" : "Bygg din tavelvägg"; }

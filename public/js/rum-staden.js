@@ -307,7 +307,7 @@ function buildStaden() {
   if (SODER) { innergardGlas(X, L, W, oldGrid); }
   else { const g = new THREE.Mesh(new THREE.PlaneGeometry(L, W.y1 - W.y0), new THREE.MeshBasicMaterial({ map: T(glassCanvas(L, W.y1 - W.y0, cols, 5), true, false), color: REGN ? 0x6a7076 : 0xffffff, transparent: true, depthWrite: false, side: THREE.DoubleSide }));
     g.position.set(X, (W.y0 + W.y1) / 2, -L / 2); g.rotation.y = -Math.PI / 2; scene.add(g); }
-  const cityTick0 = SODER ? innergard(X, L) : buildCity(), rain = REGN ? buildRain(X, L, W) : null;
+  const cityTick0 = SODER ? innergard() : buildCity(), rain = REGN ? buildRain(X, L, W) : null;
   const cityTick = (now, dt) => { cityTick0(now, dt); if (rain) rain(now, dt); };
   // ståltrappan: tre steg och ett vilplan (fyra steg upp) till en dörr på glänt
   { const S = CV.ST, sx = S.x, hw = .68, st = 0x1e2120, rust = (geo) => [worldUV(geo, 1.5), { color: 0x8a7a6c, map: MATTEX.rost.diff }];
@@ -362,11 +362,17 @@ function innergardGlas(X, L, W, oldGrid) {
   for (let i = 0; i < n; i++) for (const [ya, yb] of [[W.y0, yt], [yt, W.y1]]) {
     const m = new THREE.Mesh(new THREE.PlaneGeometry(L / n - .09, yb - ya - .1), gm); m.position.set(X - .01, (ya + yb) / 2, -(i + .5) * L / n); m.rotation.y = -Math.PI / 2; m.layers.set(2); scene.add(m); }
 }
-// innergården: renderad från rummets mitt (x 0, z −11, ögonhöjd) med 10 mm-objektiv och lagd på en skiva där bortre huset står (x 13,5)
-function innergard(X, L) {
-  const D = 13.5, Wd = 2 * D * 1.8, Hd = Wd / 2.25, cy = 1.6 + .172 * Wd;
-  const tex = new THREE.TextureLoader().load("film/innergard.jpg"); tex.encoding = THREE.sRGBEncoding; tex.anisotropy = 4;
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(Wd, Hd), new THREE.MeshBasicMaterial({ map: tex, fog: false, toneMapped: false }));
-  m.position.set(D, cy, -11); m.rotation.y = -Math.PI / 2; m.layers.set(1); scene.add(m);
+// innergården: renderad i Blender som en kub runt rummets mitt (x 0, z −11, ögonhöjd), fem sidor à 90°. Kuben är 24 m stor,
+// så bortre huset hamnar 6 m utanför glaset och gården räcker hela vägen ut i kanterna även när man tittar snett längs glaset.
+function innergard() {
+  const d = 12, C = new V3(0, 1.6, -11), B2T = ([x, y, z]) => new V3(x, z, -y); // Blenders axlar → three.js
+  const faces = { px: [[1, 0, 0], [0, 0, 1]], pz: [[0, -1, 0], [0, 0, 1]], nz: [[0, 1, 0], [0, 0, 1]], py: [[0, 0, 1], [-1, 0, 0]], ny: [[0, 0, -1], [1, 0, 0]] };
+  for (const [k, [fb, ub]] of Object.entries(faces)) {
+    const f = B2T(fb), u = B2T(ub), r = new V3().crossVectors(f, u);
+    const tex = new THREE.TextureLoader().load("film/innergard-" + k + ".jpg"); tex.encoding = THREE.sRGBEncoding; tex.anisotropy = 4;
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(2 * d, 2 * d), new THREE.MeshBasicMaterial({ map: tex, fog: false, toneMapped: false }));
+    m.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(r, u, f.clone().negate()));
+    m.position.copy(C).addScaledVector(f, d); m.layers.set(1); scene.add(m);
+  }
   return () => {};
 }

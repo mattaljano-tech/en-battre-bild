@@ -203,23 +203,30 @@ function mat(name, o) { o = o || {}; const t = MATTEX[name]; return { pbr: true,
 // ytan ljussätts av den bakade ljuskartan; normalkartan ger reliefen och AO-kartan mörkar fogar och sprickor
 function pbrPatch(m, s) {
   const wall = Math.abs(s.N[1]) < .5, L = wall ? new V3(.12, .62, .78) : new V3(.28, .22, .93); L.normalize();
-  const u = { norMap: { value: s.nor }, armMap: { value: s.arm }, relL: { value: L }, relK: { value: s.relK } };
+  const u = { norMap: { value: s.nor }, armMap: { value: s.arm }, relL: { value: L }, relK: { value: s.relK }, dirMap: { value: s.dirMap || null } };
   if (s.layer) Object.assign(u, { map2: { value: s.layer.m.map }, nor2: { value: s.layer.m.nor }, arm2: { value: s.layer.m.arm }, maskMap: { value: s.layer.mask },
     sc2: { value: s.layer.m.s ? s.tu / s.layer.m.s : 1 }, color2: { value: new THREE.Color(s.layer.m.color) } });
-  m.defines = s.layer ? { PBR_MASK: "" } : {};
+  m.defines = s.layer ? { PBR_MASK: "" } : {}; if (s.dirMap) m.defines.PBR_DIR = "";
   m.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, u);
-    sh.fragmentShader = sh.fragmentShader.replace("#include <map_pars_fragment>", ["#include <map_pars_fragment>", "uniform sampler2D norMap; uniform sampler2D armMap; uniform vec3 relL; uniform float relK;",
+    sh.fragmentShader = sh.fragmentShader.replace("#include <map_pars_fragment>", ["#include <map_pars_fragment>", "uniform sampler2D norMap; uniform sampler2D armMap; uniform vec3 relL; uniform float relK;", "#ifdef PBR_DIR", "uniform sampler2D dirMap;", "#endif",
       "#ifdef PBR_MASK", "uniform sampler2D map2; uniform sampler2D nor2; uniform sampler2D arm2; uniform sampler2D maskMap; uniform float sc2; uniform vec3 color2;", "#endif"].join("\n"))
       .replace("#include <map_fragment>", ["#include <map_fragment>",
         "vec3 nT = texture2D(norMap, vUv).xyz * 2. - 1.; vec3 armT = texture2D(armMap, vUv).rgb;",
         "#ifdef PBR_MASK", "vec4 mk = texture2D(maskMap, vUv2); vec2 uv2b = vUv * sc2;",
         "diffuseColor.rgb = mix(diffuseColor.rgb, mapTexelToLinear(texture2D(map2, uv2b)).rgb * color2, mk.r);",
         "nT = mix(nT, texture2D(nor2, uv2b).xyz * 2. - 1., mk.r); armT = mix(armT, texture2D(arm2, uv2b).rgb, mk.r); diffuseColor.rgb *= 1. - mk.g * .7;", "#endif",
+        "#ifdef PBR_DIR",
+        // ljusets riktning från Blender: hur ljuset ändras när ytan lutar åt u eller v, så reliefen får skuggor från de riktiga lamporna
+        "vec2 gd = (texture2D(dirMap, vUv2).rg - .5) * 4.; vec3 nn = normalize(nT);",
+        "float rel = clamp(1. + 1.6 * dot(nn.xy, gd) / max(nn.z, .35), .2, 2.);",
+        "rel = mix(rel, clamp(dot(nn, relL) / relL.z, .3, 1.7), .3);",
+        "#else",
         "float rel = clamp(dot(normalize(nT), relL) / relL.z, .3, 1.7);",
+        "#endif",
         "diffuseColor.rgb *= mix(1., rel, relK) * mix(1., armT.r, .85);"].join("\n"));
   };
-  m.customProgramCacheKey = () => "pbr" + (s.layer ? "m" : "");
+  m.customProgramCacheKey = () => "pbr" + (s.layer ? "m" : "") + (s.dirMap ? "d" : "");
 }
 // mask där putsen har släppt: röd = tegel syns, grön = skugga i kanten av putsen
 function peelMask(seed, wM, hM, n) {

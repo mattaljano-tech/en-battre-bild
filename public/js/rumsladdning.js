@@ -67,9 +67,11 @@ async function loadPrebaked(key) {
     for (let i = 0; i < props.length; i++) if (info.props[i].n !== props[i].mesh.geometry.attributes.position.count) return null;
     const buf = new Uint8Array(await (await fetch(base + "props.bin")).arrayBuffer());
     const tl = new THREE.TextureLoader();
-    const maps = await Promise.all(surfaces.map((s, i) => new Promise((res, rej) => tl.load(base + "s" + String(i).padStart(2, "0") + ".png", (t) => {
-      t.encoding = THREE.sRGBEncoding; t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; t.minFilter = THREE.LinearFilter; t.generateMipmaps = false; res(t); }, undefined, rej))));
-    return { info, buf, maps, lmax: info.lmax || LMAX };
+    const ld = (f, srgb) => new Promise((res, rej) => tl.load(base + f, (t) => {
+      if (srgb) t.encoding = THREE.sRGBEncoding; t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; t.minFilter = THREE.LinearFilter; t.generateMipmaps = false; res(t); }, undefined, rej));
+    const maps = await Promise.all(surfaces.map((s, i) => ld("s" + String(i).padStart(2, "0") + ".png", true)));
+    const dirs = info.dir ? await Promise.all(surfaces.map((s, i) => s.nor ? ld("d" + String(i).padStart(2, "0") + ".png", false).catch(() => null) : null)) : [];
+    return { info, buf, maps, dirs, lmax: info.lmax || LMAX };
   } catch (e) { console.warn("förbakat ljus saknas", e); return null; }
 }
 function applyPrebakedProp(p, i, P) {
@@ -124,6 +126,7 @@ async function buildRoom(key) {
   const PRE = await loadPrebaked(currentKey);
   for (const [si, s] of surfaces.entries()) {
     const area = (s.kind === "plane" ? s.lu * s.lv : s.arcLen * Math.abs(s.z1 - s.z0)) * s.res * s.res; let prev = 0;
+    if (PRE && PRE.dirs[si]) s.dirMap = PRE.dirs[si];
     const lm = PRE ? PRE.maps[si] : await bakeSurface(s, async (f) => { await tick((f - prev) * area); prev = f; });
     await tick((1 - prev) * area);
     const mesh = surfaceMesh(s, lm);

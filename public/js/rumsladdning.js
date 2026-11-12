@@ -196,7 +196,7 @@ async function goRoom(key, first) {
   $("roomNum").textContent = S.num; $("roomName").textContent = S.name;
   document.querySelectorAll("#rooms button").forEach((b) => b.setAttribute("aria-current", b.dataset.room === key ? "true" : "false"));
   if (location.hash.slice(1) !== key) { try { location.hash = key; } catch (e) {} }
-  Sound.setRoom(STREET && STREET.on ? "gata" : key);
+  Sound.setRoom((STREET && STREET.on) || (FILM && FILM.on) ? "gata" : key);
   // varje rum får börja om med full kvalitet: ett tungt rum ska inte göra de andra suddiga
   quality = 1; lowTier = false; frameEMA = 16; if (bloomPass && !isTouch) bloomPass.enabled = true; applyQuality();
   roomReady = true; loading = false;

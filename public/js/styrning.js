@@ -175,6 +175,10 @@ function updateHint() {
   $("cross").hidden = !locked;
 }
 function enter(withSound) {
+  if (FILM && FILM.on) { // kliv in från Södergatan: ner för trappan, dörren går upp, ljuset tar över
+    if (FILM.going || !roomReady) return; if (withSound) Sound.set(true); $("intro").classList.add("gone"); $("skipBtn").hidden = true; $("rainBtn").hidden = true;
+    FILM.enter(() => { FILM = null; Sound.setRoom("foajen"); enter(false); });
+    return; }
   if (STREET && STREET.on) { // kliv in från gatan: dörrarna går upp, man går in, vänder sig om när de går igen och sedan in i foajén
     if (STREET.going || !roomReady) return; STREET.going = true; if (withSound) Sound.set(true); $("intro").classList.add("gone"); $("skipBtn").hidden = true;
     STREET.enter(() => { const z = STREET.endZ; STREET.on = false; STREET = null; if (dofPass) dofPass.enabled = false;

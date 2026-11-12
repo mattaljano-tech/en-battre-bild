@@ -25,6 +25,8 @@ function streetDof() {
 }
 function frame(now) {
   const raw = now - last, dt = Math.min(.05, raw / 1000); last = now;
+  // medan entréfilmen spelas ritas inte foajén bakom den: grafikkortet ska bara spela upp filmen, annars hackar den på mobilen
+  if (FILM && FILM.on && !FILM.reveal) { requestAnimationFrame(frame); return; }
   if (STREET && STREET.on) { // entrén på gatan: kameran styrs av promenaden, foajén byggs under tiden
     if (STREET.ready) { const S0 = STREET; S0.tick(now, dt); if (S0.phase === "enter" && S0.enterT > 1.2) renderMirror(); streetDof(); if (composer) { finalPass.uniforms.time.value = now / 1000; composer.render(); } else renderer.render(scene, camera); }
     requestAnimationFrame(frame); return; }

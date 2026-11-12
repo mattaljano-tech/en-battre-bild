@@ -28,7 +28,7 @@ function filmIntro() {
   F.enter = (done) => {
     if (F.going) return; F.going = true; reachDoor();
     let finished = false;
-    const finish = () => { if (finished) return; finished = true; vit.classList.add("on");
+    const finish = () => { if (finished) return; finished = true; vit.classList.add("on"); F.reveal = true; // foajén börjar ritas under det svarta
       setTimeout(() => { F.on = false; done(); wrap.classList.add("gone"); setTimeout(() => wrap.remove(), 1600); }, 700); };
     D.addEventListener("timeupdate", () => { if (D.duration && D.currentTime > D.duration - .9) finish(); });
     D.addEventListener("ended", finish); D.addEventListener("error", finish);

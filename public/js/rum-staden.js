@@ -368,10 +368,11 @@ function innergardGlas(X, L, W, oldGrid) {
 function innergard() {
   const C = new V3(0, 1.6, -11), B2T = ([x, y, z]) => new V3(x, z, -y); // Blenders axlar → three.js (samma koordinater)
   const faces = { px: [[1, 0, 0], [0, 0, 1]], pz: [[0, -1, 0], [0, 0, 1]], nz: [[0, 1, 0], [0, 0, 1]], py: [[0, 0, 1], [-1, 0, 0]], ny: [[0, 0, -1], [1, 0, 0]] };
-  const uni = { C: { value: C } }, keys = Object.keys(faces);
+  const uni = { C: { value: C } }, keys = Object.keys(faces), DJUP = { px: 1, pz: 1, nz: 1 }; // sidor med förgrund: där visar bakgrunden gården tom
   keys.forEach((k, i) => {
     const f = B2T(faces[k][0]), u = B2T(faces[k][1]);
-    const tex = new THREE.TextureLoader().load("film/innergard-" + k + ".jpg"); tex.anisotropy = 4; tex.generateMipmaps = true;
+    // bakgrunden: gården utan folk, möbler och växter (py/ny har ingen förgrund, där används hela bilden)
+    const tex = new THREE.TextureLoader().load("film/innergard-" + (DJUP[k] ? "bg-" : "") + k + ".jpg"); tex.anisotropy = 4;
     uni["t" + i] = { value: tex }; uni["f" + i] = { value: f }; uni["u" + i] = { value: u }; uni["r" + i] = { value: new V3().crossVectors(f, u) };
   });
   let decl = "", body = "";
@@ -379,17 +380,33 @@ function innergard() {
     decl += `uniform sampler2D t${i}; uniform vec3 f${i}, u${i}, r${i};\n`;
     body += `{ float c = dot(d, f${i}); if (c > best) { best = c; vec2 uv = vec2(dot(d, r${i}), dot(d, u${i})) / c * .5 + .5; col = texture2D(t${i}, uv).rgb; } }\n`;
   });
-  const mat = new THREE.ShaderMaterial({ uniforms: uni, side: THREE.DoubleSide, fog: false,
+  const mat = new THREE.ShaderMaterial({ uniforms: uni, side: THREE.DoubleSide, fog: false, depthWrite: false,
     vertexShader: "varying vec3 vW; void main(){ vec4 w = modelMatrix * vec4(position, 1.); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }",
     fragmentShader: decl + "uniform vec3 C; varying vec3 vW; void main(){ vec3 d = normalize(vW - C); float best = -1.; vec3 col = vec3(0.);\n" + body + "gl_FragColor = vec4(pow(col, vec3(2.2)), 1.); }" });
   // gårdens ytor i Blender-koordinater: marken z 0.08, östra husväggen x 13.5, södra y −0.5, norra y 22.5, himlen z 19
   const X0 = 6.02, X1 = 13.5, Y0 = -0.5, Y1 = 22.5, Z0 = .08, Z1 = 19;
   const quad = (a, b, c, d) => { const g = new THREE.BufferGeometry(); const p = [a, b, c, a, c, d].flatMap((q) => B2T(q).toArray());
-    g.setAttribute("position", new THREE.Float32BufferAttribute(p, 3)); const m = new THREE.Mesh(g, mat); m.frustumCulled = false; m.layers.set(1); scene.add(m); };
+    g.setAttribute("position", new THREE.Float32BufferAttribute(p, 3)); const m = new THREE.Mesh(g, mat); m.frustumCulled = false; m.renderOrder = -1; m.layers.set(1); scene.add(m); };
   quad([X0, Y0, Z0], [X1, Y0, Z0], [X1, Y1, Z0], [X0, Y1, Z0]); // marken
   quad([X1, Y0, Z0], [X1, Y0, Z1], [X1, Y1, Z1], [X1, Y1, Z0]); // bortre huset
   quad([X0, Y0, Z0], [X0, Y0, Z1], [X1, Y0, Z1], [X1, Y0, Z0]); // södra huset
   quad([X0, Y1, Z0], [X1, Y1, Z0], [X1, Y1, Z1], [X0, Y1, Z1]); // norra huset
   quad([X0, Y0, Z1], [X1, Y0, Z1], [X1, Y1, Z1], [X0, Y1, Z1]); // himlen
-  return () => {};
+  // förgrunden: allt som står på gården (människor, bord, växter, parasoller, baren) är utklippt ur samma rendering och ligger som
+  // egna kort på sitt riktiga avstånd (djupet kommer från Blender). Små kort vrider sig mot betraktaren, stora (baren, parasollerna) står still.
+  // Då förskjuts de rätt mot varandra och mot husen när man går längs glaset, utan att dras ut.
+  const vrid = [];
+  fetch("film/innergard-kort.json").then((r) => r.json()).then((kort) => {
+    const tex = new THREE.TextureLoader().load("film/innergard-kort.webp"); tex.encoding = THREE.sRGBEncoding; tex.anisotropy = 4;
+    const km = new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: .04, depthWrite: false, fog: false, toneMapped: false, side: THREE.DoubleSide });
+    for (const k of kort) {
+      const f = B2T(faces[k.f][0]), u = B2T(faces[k.f][1]), r = new V3().crossVectors(f, u), sc = (k.s[0] + k.s[1]) / 2, tc = (k.t[0] + k.t[1]) / 2;
+      const g = new THREE.PlaneGeometry((k.s[1] - k.s[0]) * k.d, (k.t[1] - k.t[0]) * k.d), q = g.attributes.uv;
+      for (let i = 0; i < 4; i++) q.setXY(i, q.getX(i) ? k.uv[2] : k.uv[0], q.getY(i) ? k.uv[3] : k.uv[1]);
+      const m = new THREE.Mesh(g, km); m.position.copy(C).addScaledVector(f, k.d).addScaledVector(r, sc * k.d).addScaledVector(u, tc * k.d);
+      m.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(r, u, f.clone().negate())); m.layers.set(1); scene.add(m);
+      if (!k.fast) vrid.push(m);
+    }
+  }).catch(() => {});
+  return () => { for (const m of vrid) m.rotation.set(0, Math.atan2(camera.position.x - m.position.x, camera.position.z - m.position.z), 0); };
 }

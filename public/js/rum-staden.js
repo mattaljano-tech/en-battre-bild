@@ -362,9 +362,9 @@ function innergardGlas(X, L, W, oldGrid) {
   for (let i = 0; i < n; i++) for (const [ya, yb] of [[W.y0, yt], [yt, W.y1]]) {
     const m = new THREE.Mesh(new THREE.PlaneGeometry(L / n - .09, yb - ya - .1), gm); m.position.set(X - .01, (ya + yb) / 2, -(i + .5) * L / n); m.rotation.y = -Math.PI / 2; m.layers.set(2); scene.add(m); }
 }
-// innergården: renderad från rummets mitt (x 0, z −11, ögonhöjd) med 10 mm-objektiv och lagd på en skiva där bortre huset står (x 21)
+// innergården: renderad från rummets mitt (x 0, z −11, ögonhöjd) med 10 mm-objektiv och lagd på en skiva där bortre huset står (x 13,5)
 function innergard(X, L) {
-  const D = 21, Wd = 2 * D * 1.8, Hd = Wd / 2.25, cy = 1.6 + .172 * Wd;
+  const D = 13.5, Wd = 2 * D * 1.8, Hd = Wd / 2.25, cy = 1.6 + .172 * Wd;
   const tex = new THREE.TextureLoader().load("film/innergard.jpg"); tex.encoding = THREE.sRGBEncoding; tex.anisotropy = 4;
   const m = new THREE.Mesh(new THREE.PlaneGeometry(Wd, Hd), new THREE.MeshBasicMaterial({ map: tex, fog: false, toneMapped: false }));
   m.position.set(D, cy, -11); m.rotation.y = -Math.PI / 2; m.layers.set(1); scene.add(m);

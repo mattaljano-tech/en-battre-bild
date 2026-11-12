@@ -362,17 +362,34 @@ function innergardGlas(X, L, W, oldGrid) {
   for (let i = 0; i < n; i++) for (const [ya, yb] of [[W.y0, yt], [yt, W.y1]]) {
     const m = new THREE.Mesh(new THREE.PlaneGeometry(L / n - .09, yb - ya - .1), gm); m.position.set(X - .01, (ya + yb) / 2, -(i + .5) * L / n); m.rotation.y = -Math.PI / 2; m.layers.set(2); scene.add(m); }
 }
-// innergården: renderad i Blender som en kub runt rummets mitt (x 0, z −11, ögonhöjd), fem sidor à 90°. Kuben är 24 m stor,
-// så bortre huset hamnar 6 m utanför glaset och gården räcker hela vägen ut i kanterna även när man tittar snett längs glaset.
+// innergården: renderad i Blender som en kub från rummets mitt (x 0, z −11, ögonhöjd), fem sidor à 90°.
+// Bilderna läggs inte på en kub långt bort utan projiceras på gårdens verkliga ytor (marken, husväggarna runt om, himlen),
+// i samma koordinater som Blender-scenen. Då förskjuts gården rätt när man går längs glaset och den får djup i stället för att se platt ut.
 function innergard() {
-  const d = 12, C = new V3(0, 1.6, -11), B2T = ([x, y, z]) => new V3(x, z, -y); // Blenders axlar → three.js
+  const C = new V3(0, 1.6, -11), B2T = ([x, y, z]) => new V3(x, z, -y); // Blenders axlar → three.js (samma koordinater)
   const faces = { px: [[1, 0, 0], [0, 0, 1]], pz: [[0, -1, 0], [0, 0, 1]], nz: [[0, 1, 0], [0, 0, 1]], py: [[0, 0, 1], [-1, 0, 0]], ny: [[0, 0, -1], [1, 0, 0]] };
-  for (const [k, [fb, ub]] of Object.entries(faces)) {
-    const f = B2T(fb), u = B2T(ub), r = new V3().crossVectors(f, u);
-    const tex = new THREE.TextureLoader().load("film/innergard-" + k + ".jpg"); tex.encoding = THREE.sRGBEncoding; tex.anisotropy = 4;
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(2 * d, 2 * d), new THREE.MeshBasicMaterial({ map: tex, fog: false, toneMapped: false }));
-    m.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(r, u, f.clone().negate()));
-    m.position.copy(C).addScaledVector(f, d); m.layers.set(1); scene.add(m);
-  }
+  const uni = { C: { value: C } }, keys = Object.keys(faces);
+  keys.forEach((k, i) => {
+    const f = B2T(faces[k][0]), u = B2T(faces[k][1]);
+    const tex = new THREE.TextureLoader().load("film/innergard-" + k + ".jpg"); tex.anisotropy = 4; tex.generateMipmaps = true;
+    uni["t" + i] = { value: tex }; uni["f" + i] = { value: f }; uni["u" + i] = { value: u }; uni["r" + i] = { value: new V3().crossVectors(f, u) };
+  });
+  let decl = "", body = "";
+  keys.forEach((k, i) => {
+    decl += `uniform sampler2D t${i}; uniform vec3 f${i}, u${i}, r${i};\n`;
+    body += `{ float c = dot(d, f${i}); if (c > best) { best = c; vec2 uv = vec2(dot(d, r${i}), dot(d, u${i})) / c * .5 + .5; col = texture2D(t${i}, uv).rgb; } }\n`;
+  });
+  const mat = new THREE.ShaderMaterial({ uniforms: uni, side: THREE.DoubleSide, fog: false,
+    vertexShader: "varying vec3 vW; void main(){ vec4 w = modelMatrix * vec4(position, 1.); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }",
+    fragmentShader: decl + "uniform vec3 C; varying vec3 vW; void main(){ vec3 d = normalize(vW - C); float best = -1.; vec3 col = vec3(0.);\n" + body + "gl_FragColor = vec4(pow(col, vec3(2.2)), 1.); }" });
+  // gårdens ytor i Blender-koordinater: marken z 0.08, östra husväggen x 13.5, södra y −0.5, norra y 22.5, himlen z 19
+  const X0 = 6.02, X1 = 13.5, Y0 = -0.5, Y1 = 22.5, Z0 = .08, Z1 = 19;
+  const quad = (a, b, c, d) => { const g = new THREE.BufferGeometry(); const p = [a, b, c, a, c, d].flatMap((q) => B2T(q).toArray());
+    g.setAttribute("position", new THREE.Float32BufferAttribute(p, 3)); const m = new THREE.Mesh(g, mat); m.frustumCulled = false; m.layers.set(1); scene.add(m); };
+  quad([X0, Y0, Z0], [X1, Y0, Z0], [X1, Y1, Z0], [X0, Y1, Z0]); // marken
+  quad([X1, Y0, Z0], [X1, Y0, Z1], [X1, Y1, Z1], [X1, Y1, Z0]); // bortre huset
+  quad([X0, Y0, Z0], [X0, Y0, Z1], [X1, Y0, Z1], [X1, Y0, Z0]); // södra huset
+  quad([X0, Y1, Z0], [X1, Y1, Z0], [X1, Y1, Z1], [X0, Y1, Z1]); // norra huset
+  quad([X0, Y0, Z1], [X1, Y0, Z1], [X1, Y1, Z1], [X0, Y1, Z1]); // himlen
   return () => {};
 }

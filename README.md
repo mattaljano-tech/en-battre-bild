@@ -14,6 +14,7 @@ Hemsida och 3D-showroom för fotofirman En bättre bild. Utan byggsteg.
   - `rumsladdning.js`, `efterbehandling.js`, `ljud.js`, `styrning.js`, `tur.js`, `loop.js`
   - `main.js` – startar sidan, laddas sist
 - `public/img/` – fotona som hänger på väggarna
+- `public/bake/<rum>/` – ljus förbakat i Blender (Cycles): en ljuskarta per yta (`sNN.png`) och föremålens ljus (`props.bin`). Rum som finns här laddar ljuset i stället för att räkna det i webbläsaren. `?jsljus` räknar som förr. Ändras rummets innehåll används webbläsarens ljus tills rummet bakas om.
 
 Alla filer delar samma globala namn, så ordningen i `showroom.html` spelar roll: en fil får bara
 använda saker från tidigare filer när den laddas (inuti funktioner går det bra att använda allt).

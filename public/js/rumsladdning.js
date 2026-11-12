@@ -55,6 +55,28 @@ function mergeProps() {
   }
 }
 
+/* ---------- förbakat ljus från Blender (Cycles) ----------
+   Finns bake/<rum>/bake.json läses ljuskartorna och föremålens ljus därifrån i stället för att räknas här.
+   Gäller standardvädret (regn). ?jsljus räknar som förr. Stämmer inte rummets innehåll används webbläsarens ljus. */
+const PREBAKED = { manniskorna: true };
+async function loadPrebaked(key) {
+  if (!PREBAKED[key] || !REGN || /[?&]jsljus/.test(location.search)) return null;
+  try {
+    const base = "bake/" + key + "/", info = await (await fetch(base + "bake.json")).json();
+    if (info.surfaces !== surfaces.length || info.props.length !== props.length) return null;
+    for (let i = 0; i < props.length; i++) if (info.props[i].n !== props[i].mesh.geometry.attributes.position.count) return null;
+    const buf = new Uint8Array(await (await fetch(base + "props.bin")).arrayBuffer());
+    const tl = new THREE.TextureLoader();
+    const maps = await Promise.all(surfaces.map((s, i) => new Promise((res, rej) => tl.load(base + "s" + String(i).padStart(2, "0") + ".png", (t) => {
+      t.encoding = THREE.sRGBEncoding; t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; t.minFilter = THREE.LinearFilter; t.generateMipmaps = false; res(t); }, undefined, rej))));
+    return { info, buf, maps, lmax: info.lmax || LMAX };
+  } catch (e) { console.warn("förbakat ljus saknas", e); return null; }
+}
+function applyPrebakedProp(p, i, P) {
+  const g = p.mesh.geometry, n = g.attributes.position.count, o = P.info.props[i].o, col = new Float32Array(n * 3);
+  for (let k = 0; k < n * 3; k++) col[k] = P.lmax * Math.pow(P.buf[o + k] / 255, 2.2);
+  g.setAttribute("color", new THREE.BufferAttribute(col, 3));
+}
 /* ================= ladda ett rum: rensa, bygg, baka, visa ================= */
 let RT = null, currentKey = null, roomReady = false, loading = false, fontsReady = false;
 function clearScene() {
@@ -98,14 +120,16 @@ async function buildRoom(key) {
   const total = surfaces.reduce((s, x) => s + (x.kind === "plane" ? x.lu * x.lv : x.arcLen * Math.abs(x.z1 - x.z0)) * x.res * x.res, 0) + props.length * 40;
   let done = 0, lastYield = performance.now();
   const tick = async (amount) => { done += amount; if (performance.now() - lastYield > 40) { progress(.15 + .8 * Math.min(1, done / total), "Räknar ljus och skuggor…"); await nextFrame(); lastYield = performance.now(); } };
-  for (const s of surfaces) {
+  progress(.15, "Laddar ljuset…");
+  const PRE = await loadPrebaked(currentKey);
+  for (const [si, s] of surfaces.entries()) {
     const area = (s.kind === "plane" ? s.lu * s.lv : s.arcLen * Math.abs(s.z1 - s.z0)) * s.res * s.res; let prev = 0;
-    const lm = await bakeSurface(s, async (f) => { await tick((f - prev) * area); prev = f; });
+    const lm = PRE ? PRE.maps[si] : await bakeSurface(s, async (f) => { await tick((f - prev) * area); prev = f; });
     await tick((1 - prev) * area);
     const mesh = surfaceMesh(s, lm);
     if (s.isPhoto) { mesh.userData.art = arts.find((a) => a.s === s); photoMeshes.push(mesh); }
   }
-  for (const p of props) { bakeProp(p); await tick(40); }
+  for (const [pi, p] of props.entries()) { if (PRE) applyPrebakedProp(p, pi, PRE); else bakeProp(p); await tick(40); }
   if (RT.afterBake) RT.afterBake();
   mergeProps(); lightDecals(); addFloorMirror(S); // dammet är borttaget i alla rum
   progress(1, "Klart.");

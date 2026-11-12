@@ -301,11 +301,13 @@ function buildStaden() {
   prop(new THREE.BoxGeometry(.4, .06, L - .4, 2, 1, 30), { color: 0x262827 }, new V3(1.4, H - .5, -L / 2), null, { id: "tray", shadow: false });
   // glasväggen: stålspröjs i ett tätt rutnät och smutsigt glas
   const cols = Math.round(L / W.PZ), steel = 0x1b1d1d;
-  for (let i = 0; i <= cols; i++) prop(new THREE.BoxGeometry(.07, W.y1 - W.y0, i % 5 === 0 ? .14 : .05, 1, 8, 1), { color: steel }, new V3(X - .03, (W.y0 + W.y1) / 2, -i * W.PZ), null, { shadow: false });
-  for (let j = 0; j <= 5; j++) prop(new THREE.BoxGeometry(.07, j % 5 === 0 ? .12 : .045, L, 1, 1, 60), { color: steel }, new V3(X - .03, W.y0 + j * W.PY, -L / 2), null, { shadow: false });
-  { const g = new THREE.Mesh(new THREE.PlaneGeometry(L, W.y1 - W.y0), new THREE.MeshBasicMaterial({ map: T(glassCanvas(L, W.y1 - W.y0, cols, 5), true, false), color: REGN ? 0x6a7076 : 0xffffff, transparent: true, depthWrite: false, side: THREE.DoubleSide }));
+  const oldGrid = [];
+  for (let i = 0; i <= cols; i++) oldGrid.push(prop(new THREE.BoxGeometry(.07, W.y1 - W.y0, i % 5 === 0 ? .14 : .05, 1, 8, 1), { color: steel }, new V3(X - .03, (W.y0 + W.y1) / 2, -i * W.PZ), null, { shadow: false }));
+  for (let j = 0; j <= 5; j++) oldGrid.push(prop(new THREE.BoxGeometry(.07, j % 5 === 0 ? .12 : .045, L, 1, 1, 60), { color: steel }, new V3(X - .03, W.y0 + j * W.PY, -L / 2), null, { shadow: false }));
+  if (SODER) { innergardGlas(X, L, W, oldGrid); }
+  else { const g = new THREE.Mesh(new THREE.PlaneGeometry(L, W.y1 - W.y0), new THREE.MeshBasicMaterial({ map: T(glassCanvas(L, W.y1 - W.y0, cols, 5), true, false), color: REGN ? 0x6a7076 : 0xffffff, transparent: true, depthWrite: false, side: THREE.DoubleSide }));
     g.position.set(X, (W.y0 + W.y1) / 2, -L / 2); g.rotation.y = -Math.PI / 2; scene.add(g); }
-  const cityTick0 = buildCity(), rain = REGN ? buildRain(X, L, W) : null;
+  const cityTick0 = SODER ? innergard(X, L) : buildCity(), rain = REGN ? buildRain(X, L, W) : null;
   const cityTick = (now, dt) => { cityTick0(now, dt); if (rain) rain(now, dt); };
   // ståltrappan: tre steg och ett vilplan (fyra steg upp) till en dörr på glänt
   { const S = CV.ST, sx = S.x, hw = .68, st = 0x1e2120, rust = (geo) => [worldUV(geo, 1.5), { color: 0x8a7a6c, map: MATTEX.rost.diff }];
@@ -343,4 +345,28 @@ function buildStaden() {
   prop(worldUV(new THREE.BoxGeometry(.62, .44, 2.2, 2, 2, 8), 2), { color: 0xc0c0ba, map: MATTEX.betong.diff }, new V3(3.9, .22, -11), null, { id: "cbench", collide: true }); benchSeats(3.9, -11, 2.2, .62, .44, false); // vid glaset, man sitter och ser ut på regnet
   opening({ C: [0, 0, 0], N: [0, 0, -1], U: [-1, 0, 0], w: 1.4, h: 2.5, to: "foajen", sign: ["00  FOAJÉN", "TILLBAKA"], glow: new THREE.Color(1.1, .82, .55) });
   return { noDust: true, update: cityTick };
+}
+
+/* ---------- Söder: genom glaset ser man en innergård (renderad i Blender) ---------- */
+// stora klara rutor i stället för det täta rutnätet; det gamla rutnätet finns kvar men dolt så att det förbakade ljuset stämmer
+function innergardGlas(X, L, W, oldGrid) {
+  oldGrid.forEach((m) => { m.scale.setScalar(1e-4); }); // krymps till ingenting: rummets props slås ihop efter bakningen, så att bara dölja dem räcker inte
+  const lin = (h) => new THREE.Color(h).convertSRGBToLinear(), steel = new THREE.MeshBasicMaterial({ color: lin(0x161818) });
+  const add = (geo, x, y, z) => { const o = new THREE.Mesh(geo, steel); o.position.set(x, y, z); scene.add(o); };
+  const n = 8, yt = W.y0 + (W.y1 - W.y0) * .7;
+  for (let i = 0; i <= n; i++) add(new THREE.BoxGeometry(.09, W.y1 - W.y0, i % n === 0 ? .16 : .08), X - .04, (W.y0 + W.y1) / 2, -i * L / n);
+  for (const [y, h] of [[W.y0, .12], [yt, .07], [W.y1, .12]]) add(new THREE.BoxGeometry(.09, h, L), X - .04, y, -L / 2);
+  const gc = cnv(256, 512), gx = gc.getContext("2d"), gg = gx.createLinearGradient(0, 0, 256, 512);
+  [[0, 0], [.4, 0], [.46, .22], [.52, 0], [.63, .1], [.67, 0]].forEach(([o, a]) => gg.addColorStop(o, "rgba(255,255,255," + a + ")")); gx.fillStyle = gg; gx.fillRect(0, 0, 256, 512);
+  const gm = new THREE.MeshBasicMaterial({ map: T(gc, false, false), color: new THREE.Color(.5, .55, .6), transparent: true, opacity: .18, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
+  for (let i = 0; i < n; i++) for (const [ya, yb] of [[W.y0, yt], [yt, W.y1]]) {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(L / n - .09, yb - ya - .1), gm); m.position.set(X - .01, (ya + yb) / 2, -(i + .5) * L / n); m.rotation.y = -Math.PI / 2; m.layers.set(2); scene.add(m); }
+}
+// innergården: renderad från rummets mitt (x 0, z −11, ögonhöjd) med 10 mm-objektiv och lagd på en skiva där bortre huset står (x 21)
+function innergard(X, L) {
+  const D = 21, Wd = 2 * D * 1.8, Hd = Wd / 2.25, cy = 1.6 + .172 * Wd;
+  const tex = new THREE.TextureLoader().load("film/innergard.jpg"); tex.encoding = THREE.sRGBEncoding; tex.anisotropy = 4;
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(Wd, Hd), new THREE.MeshBasicMaterial({ map: tex, fog: false, toneMapped: false }));
+  m.position.set(D, cy, -11); m.rotation.y = -Math.PI / 2; m.layers.set(1); scene.add(m);
+  return () => {};
 }

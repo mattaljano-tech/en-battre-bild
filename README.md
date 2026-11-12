@@ -32,10 +32,13 @@ Kör sedan `python3 tools/sma-bilder.py` (kräver Pillow), som gör de mindre ve
 
 Första besöket i foajén börjar med en film från Blender (scenen `Sodergatan` i `showroom.blend`):
 
-- `film/gatan-in.mp4` – promenaden uppför gatan fram till valvgången vid tryckeriet (bild 1–240, 24 fps)
-- `film/gatan-vanta.mp4` – slinga vid skylten medan man väljer Kliv in (bild 241–288, regnet går runt varje sekund)
-- `film/gatan-dorr.mp4` – ner för trappan och genom dörren (bild 289–384), tonar över i varmt ljus och sedan foajén
+- `film/gatan-in.mp4` – promenaden på vänster trottoar, upptäckten av skylten (lampan tänds, snabb zoom), bilen som kör förbi, över gatan fram till valvet (bild 1–731, 24 fps)
+- `film/gatan-vanta.mp4` – slinga vid skylten medan man väljer Kliv in (bild 732–779, regnet och andningen går runt på två sekunder)
+- `film/gatan-dorr.mp4` – paraplyet fälls ihop, ner för trappan förbi två foton, dörren öppnas mot mörker och bilden tonar till svart (bild 780–947); foajén tonar fram ur svärtan
 - `film/gatan-start.jpg`, `film/gatan-dorren.jpg` – första bilden och bilden vid dörren, visas innan filmen hunnit ladda
 - varje film finns som `.mp4` (H.264) och `.webm` (VP9); webbläsaren tar den den kan spela
 
 `?direkt` hoppar över entrén, `?gammalgata` visar den gamla 3D-gatan.
+
+Foajén har samma ståldörr som filmen (indraget tegelparti där glasentrén satt). I Staden ser man genom stora klara rutor ut på en innergård
+renderad i Blender (`film/innergard.jpg`, scenen `Innergard`), lagd på en skiva 21 m bort så att perspektivet stämmer från rummets mitt.

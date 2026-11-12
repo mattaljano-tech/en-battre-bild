@@ -91,7 +91,7 @@ function prop(geo, matOpts, pos, rot, o) {
   mesh.position.copy(pos); if (rot) mesh.rotation.set(rot[0] || 0, rot[1] || 0, rot[2] || 0, rot[3] || "XYZ");
   if (o.parent) o.parent.add(mesh); else scene.add(mesh);
   const id = o.id || ("p" + (uid++));
-  props.push({ mesh, id, self: o.selfShade !== false, cache: !!o.cache });
+  props.push({ mesh, id, self: o.selfShade !== false, cache: !!o.cache, extra: !!o.extra });
   if (o.shadow !== false) { const bb = aabbOf(mesh); OBJ.push({ c: bb.c, h: bb.h, id }); }
   if (o.collide) { const bb = aabbOf(mesh); colliders.push({ x0: bb.c[0] - bb.h[0], x1: bb.c[0] + bb.h[0], z0: bb.c[2] - bb.h[2], z1: bb.c[2] + bb.h[2] }); }
   return mesh;
@@ -151,6 +151,17 @@ function frameFor(slot, aspect, S) {
   if (RS.fillet) { const f2 = new THREE.Shape([new THREE.Vector2(-iw - .012, -ih - .012), new THREE.Vector2(iw + .012, -ih - .012), new THREE.Vector2(iw + .012, ih + .012), new THREE.Vector2(-iw - .012, ih + .012)]);
     f2.holes.push(new THREE.Path([new THREE.Vector2(-iw, -ih), new THREE.Vector2(-iw, ih), new THREE.Vector2(iw, ih), new THREE.Vector2(iw, -ih)]));
     prop(new THREE.ExtrudeGeometry(f2, { depth: fd - .028, bevelEnabled: false }), { color: RS.fillet }, new V3(0, 0, .004), null, { parent: g, shadow: false, id }); }
+  if (typeof GLASS !== "undefined" && GLASS[currentKey]) {
+    // fasad kant i passepartoutens snitt: den ljusa kärnan i en riktig kartong
+    if (mat) { const b = .005, cs = new THREE.Shape([new THREE.Vector2(-w / 2 - b, -h / 2 - b), new THREE.Vector2(w / 2 + b, -h / 2 - b), new THREE.Vector2(w / 2 + b, h / 2 + b), new THREE.Vector2(-w / 2 - b, h / 2 + b)]);
+      cs.holes.push(new THREE.Path([new THREE.Vector2(-w / 2, -h / 2), new THREE.Vector2(-w / 2, h / 2), new THREE.Vector2(w / 2, h / 2), new THREE.Vector2(w / 2, -h / 2)]));
+      prop(new THREE.ExtrudeGeometry(cs, { depth: .003, bevelEnabled: false }), { color: 0xf3efe6 }, new V3(0, 0, fd - .0305), null, { parent: g, shadow: false, id, extra: true }); }
+    // tavlans skugga mot väggen: spotlighten sitter snett ovanför, så skuggan faller lite nedåt
+    const ow = w + 2 * (mat + fw), oh = h + 2 * (mat + fw), pad = .09, sc = cnv(128, 128), sx = sc.getContext("2d");
+    sx.filter = "blur(10px)"; sx.fillStyle = "#000"; sx.fillRect(128 * pad / (ow + 2 * pad) + 4, 128 * pad / (oh + 2 * pad) + 4, 128 * ow / (ow + 2 * pad) - 8, 128 * oh / (oh + 2 * pad) - 8);
+    const st = T(sc, false, false), sm = new THREE.Mesh(new THREE.PlaneGeometry(ow + 2 * pad, oh + 2 * pad), new THREE.MeshBasicMaterial({ color: 0x000000, alphaMap: st, transparent: true, opacity: .5, depthWrite: false }));
+    sm.position.set(0, -.04, .002); sm.renderOrder = 1; g.add(sm);
+  }
   const depth = fd - .03, O = [C[0] - U[0] * w / 2 + N[0] * depth, C[1] - h / 2, C[2] - U[2] * w / 2 + N[2] * depth];
   const s = planar({ name: "foto " + slot.key, O, U, V: Vv, lu: w, lv: h, tu: w, tv: h, res: isTouch ? 30 : 48, color: PHOTOS[slot.key].src ? 0xffffff : 0x1a1b1a });
   s.slot = slot; s.isPhoto = true;

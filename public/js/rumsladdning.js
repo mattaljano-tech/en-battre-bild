@@ -63,8 +63,9 @@ async function loadPrebaked(key) {
   if (!PREBAKED[key] || !REGN || /[?&]jsljus/.test(location.search)) return null;
   try {
     const base = "bake/" + key + "/", info = await (await fetch(base + "bake.json")).json();
-    if (info.surfaces !== surfaces.length || info.props.length !== props.length) return null;
-    for (let i = 0; i < props.length; i++) if (info.props[i].n !== props[i].mesh.geometry.attributes.position.count) return null;
+    const base_props = props.filter((p) => !p.extra);
+    if (info.surfaces !== surfaces.length || info.props.length !== base_props.length) return null;
+    for (let i = 0; i < base_props.length; i++) if (info.props[i].n !== base_props[i].mesh.geometry.attributes.position.count) return null;
     const buf = new Uint8Array(await (await fetch(base + "props.bin")).arrayBuffer());
     const tl = new THREE.TextureLoader();
     const ld = (f, srgb) => new Promise((res, rej) => tl.load(base + f, (t) => {
@@ -154,7 +155,7 @@ async function buildRoom(key) {
     const mesh = surfaceMesh(s, lm);
     if (s.isPhoto) { mesh.userData.art = arts.find((a) => a.s === s); photoMeshes.push(mesh); }
   }
-  for (const [pi, p] of props.entries()) { if (PRE) applyPrebakedProp(p, pi, PRE); else bakeProp(p); await tick(40); }
+  { let bi = 0; for (const p of props) { if (PRE && !p.extra) applyPrebakedProp(p, bi, PRE); else bakeProp(p); if (!p.extra) bi++; await tick(40); } }
   if (RT.afterBake) RT.afterBake();
   mergeProps(); lightDecals(); addGlass(currentKey); addFloorMirror(S); // dammet är borttaget i alla rum
   progress(1, "Klart.");

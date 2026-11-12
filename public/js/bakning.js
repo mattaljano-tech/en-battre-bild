@@ -411,7 +411,7 @@ const SPECS = {
     amb: (x, y, z) => z > 0 ? [.02, .017, .014] : [.08, .072, .062],
     ceil: (x, z) => z > 0 ? MAN.CH : MAN.H - .3,
     start: { x: 0, z: 4.0, yaw: 0 }, walk: [{ x0: -5.6, x1: 5.6, z0: -15.6, z1: -.4 }, { x0: -.75, x1: .75, z0: -.6, z1: 4.1 }],
-    look: { mirror: { mat: "tra", k: .16 }, fog: 0x1a1410, density: .007, bg: 0x0b0907, exposure: 1.25, bloom: .45, thr: 1.5 }, step: 540, wet: .2,
+    look: { mirror: { mat: "tra", k: .22 }, fog: 0x1a1410, density: .007, bg: 0x0b0907, exposure: 1.25, bloom: .45, thr: 1.5 }, step: 540, wet: .2,
     slots: manSlots() },
   foajen: { num: "00", name: "Foajén", eyebrow: "En bättre bild · Entré", sub: "Välj rum, se galleriet eller boka", next: "staden",
     intro: "Välkommen till En bättre bild. Gå in genom den stora öppningen längst in för att komma till vernissagen. På väggarna hittar du galleriet, priser och kontakt.",

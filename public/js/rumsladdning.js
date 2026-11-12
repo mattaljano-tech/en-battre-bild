@@ -79,6 +79,28 @@ function applyPrebakedProp(p, i, P) {
   for (let k = 0; k < n * 3; k++) col[k] = P.lmax * Math.pow(P.buf[o + k] / 255, 2.2);
   g.setAttribute("color", new THREE.BufferAttribute(col, 3));
 }
+/* ---------- glas i ramarna: en svag spegling av rummet, starkare i snett ljus (fresnel) ----------
+   Rummet fotograferas en gång åt alla håll från mitten när det har laddats; glaset speglar den bilden. */
+const GLASS = { manniskorna: { at: [0, 1.6, -7], k: 1.0 } };
+let glassEnv = null;
+function addGlass(key) {
+  const G = GLASS[key]; if (!G || /[?&]utanglas/.test(location.search)) return;
+  const rt = new THREE.WebGLCubeRenderTarget(isTouch ? 128 : 256, { generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter });
+  const cc = new THREE.CubeCamera(.1, 40, rt); cc.position.set(...G.at); scene.add(cc);
+  const fog = scene.fog; scene.fog = null; cc.update(renderer, scene); scene.fog = fog; scene.remove(cc); glassEnv = rt;
+  const mat = new THREE.ShaderMaterial({
+    uniforms: { env: { value: rt.texture }, k: { value: G.k } },
+    vertexShader: "varying vec3 vW; varying vec3 vN; void main(){ vec4 w = modelMatrix * vec4(position, 1.); vW = w.xyz; vN = normalize(mat3(modelMatrix) * normal); gl_Position = projectionMatrix * viewMatrix * w; }",
+    fragmentShader: "uniform samplerCube env; uniform float k; varying vec3 vW; varying vec3 vN; void main(){ vec3 V = normalize(vW - cameraPosition); vec3 N = normalize(vN); if (dot(N, V) > 0.) N = -N;" +
+      " vec3 R = reflect(V, N); float c = clamp(dot(-V, N), 0., 1.); float f = .035 + .965 * pow(1. - c, 5.); vec3 e = textureCube(env, R).rgb; gl_FragColor = vec4(e * f * k, 1.); }",
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+  for (const a of arts) {
+    const RS = RAM[RAMQ || RAM_ROOM[key] || "svart"] || RAM.svart, mt = RS.mat || 0, sl = a.slot;
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(a.w + mt * 2, a.h + mt * 2), mat);
+    const C = new V3(...sl.C).add(new V3(...sl.N).multiplyScalar(.075 - .006));
+    m.position.copy(C); m.lookAt(C.clone().add(new V3(...sl.N))); m.renderOrder = 2; m.layers.set(1); scene.add(m);
+  }
+}
 /* ================= ladda ett rum: rensa, bygg, baka, visa ================= */
 let RT = null, currentKey = null, roomReady = false, loading = false, fontsReady = false;
 function clearScene() {
@@ -88,7 +110,7 @@ function clearScene() {
   });
   while (scene.children.length) scene.remove(scene.children[0]);
   if (camera.far !== 70) { camera.far = 70; camera.updateProjectionMatrix(); }
-  floorMirror = null;
+  floorMirror = null; if (glassEnv) { glassEnv.dispose(); glassEnv = null; }
   [surfaces, props, occluders, photoMeshes, colliders, decals, exits, arts, tubeMats, seats].forEach((a) => { a.length = 0; });
   dust = null; dustBase = null; dustPh = null; dustMat = null; floorGlowTex = null; flickerDark = null; marker = null; glowTexC = null; leafTexC = null; plantShadowTex = null; RT = null;
 }
@@ -134,7 +156,7 @@ async function buildRoom(key) {
   }
   for (const [pi, p] of props.entries()) { if (PRE) applyPrebakedProp(p, pi, PRE); else bakeProp(p); await tick(40); }
   if (RT.afterBake) RT.afterBake();
-  mergeProps(); lightDecals(); addFloorMirror(S); // dammet är borttaget i alla rum
+  mergeProps(); lightDecals(); addGlass(currentKey); addFloorMirror(S); // dammet är borttaget i alla rum
   progress(1, "Klart.");
   return S;
 }

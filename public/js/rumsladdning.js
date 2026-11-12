@@ -58,7 +58,7 @@ function mergeProps() {
 /* ---------- förbakat ljus från Blender (Cycles) ----------
    Finns bake/<rum>/bake.json läses ljuskartorna och föremålens ljus därifrån i stället för att räknas här.
    Gäller standardvädret (regn). ?jsljus räknar som förr. Stämmer inte rummets innehåll används webbläsarens ljus. */
-const PREBAKED = { manniskorna: true };
+const PREBAKED = { manniskorna: true, berattelser: true, staden: true, naturen: true, foajen: true };
 async function loadPrebaked(key) {
   if (!PREBAKED[key] || !REGN || /[?&]jsljus/.test(location.search)) return null;
   try {
@@ -82,7 +82,8 @@ function applyPrebakedProp(p, i, P) {
 }
 /* ---------- glas i ramarna: en svag spegling av rummet, starkare i snett ljus (fresnel) ----------
    Rummet fotograferas en gång åt alla håll från mitten när det har laddats; glaset speglar den bilden. */
-const GLASS = { manniskorna: { at: [0, 1.6, -7], k: 1.0 } };
+const GLASS = { manniskorna: { at: [0, 1.6, -7], k: 1.0 }, berattelser: { at: [0.34, 1.6, -9.9], k: 1.0 }, staden: { at: [-3.17, 1.6, -10.4], k: .9 },
+  naturen: { at: [0, 1.6, -9.07], k: 1.0 }, foajen: { at: [3, 1.6, -9], k: .9 } };
 let glassEnv = null;
 function addGlass(key) {
   const G = GLASS[key]; if (!G || /[?&]utanglas/.test(location.search)) return;

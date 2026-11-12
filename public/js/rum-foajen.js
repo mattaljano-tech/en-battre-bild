@@ -56,7 +56,7 @@ function buildFoajen() {
   planar({ O: [-X, 0, -L], U: [1, 0, 0], V: [0, 1, 0], lu: 2 * X, lv: H, map: tx.wall, tu: 4, tv: 3.2 });
   planar({ O: [X, 0, 0], U: [-1, 0, 0], V: [0, 1, 0], lu: 2 * X, lv: H, map: tx.wall, tu: 4, tv: 3.2, shape: [[0, 0], [X - FOY.EX1, 0], [X - FOY.EX1, FOY.EH], [X - FOY.EX0, FOY.EH], [X - FOY.EX0, 0], [2 * X, 0], [2 * X, H], [0, H]] });
   let sunDust = [];
-  if (GATA) { const gate = glassEntranceGata(); streetExt = Object.assign(streetExterior(), { gate }); if (STREET && STREET.on) STREET.attach(streetExt); }
+  if (GATA) { const gate = SODER ? soderDorr() : glassEntranceGata(); streetExt = Object.assign(SODER ? { update: () => {} } : streetExterior(), { gate }); if (STREET && STREET.on) STREET.attach(streetExt); }
   else sunDust = glassEntrance();
   planar({ O: [-X, H, -L], U: [1, 0, 0], V: [0, 0, 1], lu: 2 * X, lv: L, map: tx.ceil, tu: 4, tv: 4 });
   haloSign("EN BÄTTRE BILD", "Stockholm", [0, 4.68, -L + .02], [0, 0, 1], 5.0);

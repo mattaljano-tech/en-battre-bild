@@ -137,7 +137,7 @@ function plankify() {
 }
 /* ---------- 3D-modeller (Poly Haven, CC0): laddas en gång, ljuset bakas in som för övriga föremål ---------- */
 const MODELS = {}, MODEL_FILES = { bord: "industrial_coffee_table", bur: "caged_hanging_light", vagg: "industrial_wall_sconce", pall: "metal_stool_03", vaxt1: "potted_plant_01", vaxt2: "potted_plant_02", fasad: "modular_urban_apartments_facade", ac: "exterior_aircon_unit", brandtrappa: "modular_fire_escape", ror: "modular_industrial_pipes_01", hylla: "worn_metal_rack", fatolj: "mid_century_lounge_chair", pendel: "modern_ceiling_lamp_01", bilar: "bilar", tegelhus: "tegelhus", betonghus: "betonghus", butikshus: "butikshus", lyktor: "lyktor", gatuprylar: "gatuprylar", skyline: "skyline", paraply: "paraply" };
-const ROOM_MODELS = { staden: ["bur", "fasad", "ac", "brandtrappa"], berattelser: ["hylla", "ror"], naturen: ["vaxt1", "vaxt2"], foajen: GATA ? ["vaxt1", "vaxt2", "fasad", "ac", "brandtrappa", "bilar", "tegelhus", "betonghus", "butikshus", "lyktor", "gatuprylar", "skyline", "paraply"] : ["vaxt1", "vaxt2"], manniskorna: ["bord", "vagg", "pall", "fatolj", "pendel"] };
+const ROOM_MODELS = { staden: ["bur", "fasad", "ac", "brandtrappa"], berattelser: ["hylla", "ror"], naturen: ["vaxt1", "vaxt2"], foajen: GATA && !SODER ? ["vaxt1", "vaxt2", "fasad", "ac", "brandtrappa", "bilar", "tegelhus", "betonghus", "butikshus", "lyktor", "gatuprylar", "skyline", "paraply"] : ["vaxt1", "vaxt2"], manniskorna: ["bord", "vagg", "pall", "fatolj", "pendel"] };
 function loadModels(keys) {
   if (!THREE.GLTFLoader) return Promise.resolve(); const L = new THREE.GLTFLoader();
   return Promise.all(keys.filter((k) => !MODELS[k]).map((k) => new Promise((res) => { const f = MODEL_FILES[k];

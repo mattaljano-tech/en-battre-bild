@@ -120,6 +120,7 @@ function standSlots(room, size, o) {
    En liten ståltrappa med fyra steg leder upp till en dörr vidare.
    x: tvärs (väggarna x=±6, glaset x=+6), z: längs (ingången z=0, bortre väggen z=-22), takhöjd 5,4 m. */
 const GATA = !/[?&]utangata/.test(location.search); // gatan utanför foajén och entrén från gatan (?utangata visar den gamla dagsljusfoajén)
+const SODER = GATA && !/[?&]gammalgata/.test(location.search); // Södergatan: entréfilmen och utsikten från foajén är renderade i Blender (?gammalgata visar den gamla 3D-gatan)
 const REGN = !/[?&]sol/.test(location.search); // det regnar utanför alla fönster (?sol visar soligt väder)
 // mulet regnväder: hur starkt himlaljuset in genom fönstren är i varje rum (ersätter solen)
 const MULEN = { naturen: 1.7, berattelser: 1.6, manniskorna: 1.35 };

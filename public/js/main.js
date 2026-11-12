@@ -7,9 +7,9 @@ setupPost(); addEventListener("resize", resize); resize();
 requestAnimationFrame(frame);
 const startKey = SPECS[location.hash.slice(1)] ? location.hash.slice(1) : "foajen";
 // första besöket i foajén börjar ute på gatan (?direkt hoppar över det)
-if (startKey === "foajen" && !reduceMotion && !/[?&]direkt/.test(location.search)) { // första besöket börjar ute på gatan (?direkt hoppar över promenaden)
-  if (GATA && /[?&]gammalgata/.test(location.search)) STREET = streetIntro(); // den gamla gatan i 3D
-  else { FILM = filmIntro(); loader.classList.add("street"); } // Södergatan, filmad i Blender
+if (startKey === "foajen" && !reduceMotion && GATA && !/[?&]direkt/.test(location.search)) { // första besöket börjar ute på gatan (?direkt hoppar över promenaden)
+  if (GATA && !SODER) STREET = streetIntro(); // den gamla gatan i 3D (?gammalgata)
+  else if (SODER) { FILM = filmIntro(); loader.classList.add("street"); } // Södergatan, filmad i Blender
   $("intro").classList.add("street"); $("skipBtn").hidden = false; }
 goRoom(startKey, true).then((S) => {
   if (FILM) { $("introName").textContent = "En bättre bild"; $("introEyebrow").textContent = "Fotograf · Stockholm"; $("introText").textContent = "Bakom den gamla tryckeriporten väntar foajén, och där börjar vernissagen.";
